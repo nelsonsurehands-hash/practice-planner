@@ -285,3 +285,15 @@ begin
 end $$;
 revoke all on function public.get_playbook(text) from public;
 grant execute on function public.get_playbook(text) to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Explicit access grants. Newer Supabase projects no longer give signed-in users
+-- access to new tables and functions automatically; row-level security above still
+-- decides which rows each coach can see or change.
+-- ---------------------------------------------------------------------------
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on public.teams, public.team_members, public.items, public.playbooks to authenticated;
+grant execute on function public.member_role(uuid), public.is_member(uuid), public.is_editor(uuid), public.is_owner(uuid),
+  public.create_team(text, jsonb, text), public.join_team(text, text), public.set_member(uuid, uuid, text, text),
+  public.remove_member(uuid, uuid), public.update_my_name(text), public.new_join_code(uuid, text) to authenticated;
+grant execute on function public.get_playbook(text) to anon, authenticated;
