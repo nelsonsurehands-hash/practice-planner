@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Coach Practice Planner</title>
+<meta name="description" content="Plan timed basketball practices, keep a drill library, and draw and animate plays with your coaching staff.">
+<meta name="theme-color" content="#5b2a86">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Practice Planner">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<!-- Loading -->
+<div id="screen-loading" class="screen"><p>Loading…</p></div>
+
+<!-- Sign in -->
+<div id="screen-auth" class="screen" hidden>
+  <div class="brand-mark"><img src="icons/icon-192.png" alt=""><div><div class="eyebrow">For coaching staffs</div><h1>Practice Planner</h1></div></div>
+  <form class="card" id="authForm">
+    <h2>Sign in</h2>
+    <p>Enter your email and we'll send you a sign-in link. No password needed.</p>
+    <label class="f">Email<input id="authEmail" type="email" autocomplete="email" required placeholder="coach@school.org"></label>
+    <button class="btn primary" type="submit" id="authBtn">Email me a sign-in link</button>
+    <div class="msg" id="authMsg" aria-live="polite"></div>
+  </form>
+</div>
+
+<!-- Team setup -->
+<div id="screen-setup" class="screen" hidden>
+  <div class="brand-mark"><img src="icons/icon-192.png" alt=""><div><div class="eyebrow">Practice Planner</div><h1>Set up your team</h1></div></div>
+  <form class="card" id="setupForm">
+    <h2>New team</h2>
+    <div class="grid2">
+      <label class="f">Sport<select id="suSport"><option value="basketball">Basketball</option><option value="volleyball">Volleyball</option><option value="soccer">Soccer</option><option value="football">Football</option><option value="baseball">Baseball / Softball</option><option value="other">Other sport</option></select></label>
+      <label class="f hosted-only">Your name<input id="suName" placeholder="e.g. Coach Brian"></label>
+    </div>
+    <div class="grid2">
+      <label class="f">School or club<input id="suSchool" required placeholder="e.g. Riverside"></label>
+      <label class="f">Team name<input id="suMascot" placeholder="e.g. Ravens"></label>
+    </div>
+    <label class="f">Team / level<input id="suLabel" placeholder="e.g. 8th Grade Girls Basketball"></label>
+    <div class="grid2">
+      <label class="f">Season starts<input id="suStart" type="date"></label>
+      <label class="f">Season ends<input id="suEnd" type="date"></label>
+    </div>
+    <div class="grid2">
+      <label class="f">Weekday practice starts<input id="suWdS" type="time" value="16:00"></label>
+      <label class="f">Weekday practice ends<input id="suWdE" type="time" value="18:00"></label>
+    </div>
+    <div class="grid2">
+      <label class="f">Team color<input id="suColor" type="color" value="#5b2a86"></label>
+      <label class="f" id="suStarterWrap" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:14px;font-weight:500;color:var(--ink)"><input type="checkbox" id="suStarter" checked style="width:auto"> <span id="suStarterText">Add starter drills</span></label>
+    </div>
+    <p class="help" style="font-size:13px">You can add games, days off, weekend times and more in Settings later.</p>
+    <div class="actions" style="margin-top:0"><button class="btn primary" type="submit">Create team</button><button class="btn demo-only" type="button" id="suSample">Explore with sample team</button><button class="btn" type="button" id="suBack" hidden>Back to planner</button></div>
+    <div class="msg" id="setupMsg"></div>
+  </form>
+  <div class="divider" id="joinDivider">or</div>
+  <form class="card" id="joinForm">
+    <h2>Join a team</h2>
+    <p>Got a code from a head coach? A staff code lets you edit plans; a view-only code lets you see and print them.</p>
+    <div class="grid2">
+      <label class="f">Join code<input id="joinCode" autocapitalize="characters" placeholder="e.g. K7Q2MX" required></label>
+      <label class="f">Your name<input id="joinName" placeholder="e.g. Coach Sam"></label>
+    </div>
+    <button class="btn" type="submit">Join team</button>
+    <div class="msg" id="joinMsg"></div>
+  </form>
+</div>
+
+<!-- App -->
+<div id="app" hidden>
+<div class="demo-bar" id="demoBar" hidden><strong>Demo mode.</strong> Your data is saved only in this browser. Add your Supabase keys to <code>js/config.js</code> to turn on sign-in and staff sharing.</div>
+<header class="top">
+  <div>
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1><b id="brandName" style="font-weight:inherit">Team</b> <span>Practice Planner</span></h1>
+  </div>
+  <div class="top-right">
+  <details class="teamsw" id="teamSw">
+    <summary><span class="sw-dot" aria-hidden="true"></span><span><b id="swName">Team</b><small id="swMeta"></small></span></summary>
+    <div class="sw-menu" id="swMenu"></div>
+  </details>
+  <div class="tabs" role="tablist">
+    <button id="tab-plan" role="tab" aria-selected="true" data-tab="plan">Practice Plan</button>
+    <button id="tab-lib" role="tab" aria-selected="false" data-tab="lib">Drill Library <span id="drillCount"></span></button>
+    <button id="tab-plays" role="tab" aria-selected="false" data-tab="plays">Plays <span id="playCount"></span></button>
+    <button id="tab-settings" role="tab" aria-selected="false" data-tab="settings">Settings</button>
+  </div>
+  </div>
+</header>
+<div id="presenceBar" class="presence" hidden></div>
+<div class="viewonly-bar" id="viewOnlyBar" hidden>You have view-only access to this team. You can browse, play through and print, but not change anything.</div>
+<div id="notice" class="notice" hidden></div>
+
+<section id="view-plan" class="view">
+  <div class="plan-grid">
+    <div class="sheet">
+      <div class="sheet-head">
+        <label class="f f-date">Practice date<select id="planDate"></select></label>
+        <label class="f">Start<input type="time" id="planStart" step="300"></label>
+        <label class="f">End<input type="time" id="planEnd" step="300"></label>
+      </div>
+      <label class="f focus-row">Focus for the day<input id="planFocus" placeholder="e.g. Press break, help-side defense"></label>
+      <div id="dayTag"></div>
+      <div class="meter" id="meter" aria-live="polite">
+        <div class="meter-top">
+          <div class="left"><b id="mLeft">120</b><span id="mLeftLabel">min left</span></div>
+          <div class="booked"><strong id="mUsed">0</strong> of <strong id="mAvail">120</strong> min booked</div>
+        </div>
+        <div class="track" id="mTrack" aria-hidden="true"></div>
+        <div class="ticks" id="mTicks" aria-hidden="true"></div>
+        <div class="mmsg" id="mMsg"></div>
+      </div>
+      <ol class="script" id="script"></ol>
+      <div class="actions">
+        <select id="copyFrom" class="edit-only" style="width:auto;flex:0 1 220px"><option value="">Copy a past plan&hellip;</option></select>
+        <button class="btn primary" id="printPdf">Printable PDF</button>
+        <button class="btn" id="copyText">Copy as text</button>
+        <button class="btn edit-only" data-copy="plans" id="copyPlanBtn">Copy to team</button>
+        <button class="btn danger edit-only" id="clearPlan">Clear plan</button>
+        <span class="saved" id="saved"></span>
+      </div>
+      <div class="edited" id="planEdited">
+      </div>
+    </div>
+
+    <aside class="bench edit-only">
+      <h2>Add to practice</h2>
+      <div class="quick">
+        <button class="btn" data-quick="Water break" data-min="3">+ Water break</button>
+        <button class="btn" data-quick="Free throws" data-min="5">+ Free throws</button>
+        <button class="btn" data-quick="Team talk" data-min="5">+ Team talk</button>
+      </div>
+      <input id="pickSearch" placeholder="Search drills">
+      <div class="cats" id="pickCats"></div>
+      <div class="picklist" id="picklist"></div>
+    </aside>
+  </div>
+</section>
+
+<section id="view-plays" class="view" hidden>
+  <div class="plays-wrap">
+    <div class="board-card">
+      <h2 id="pEditTitle">New play</h2>
+      <div class="pmeta">
+        <label class="f f-name">Play name<input id="pName" placeholder="e.g. Horns flare"></label>
+        <label class="f">Type<select id="pType"></select></label>
+        <label class="f">Set<select id="pForm"></select></label>
+      </div>
+      <div class="toolbar edit-only" id="ptools" role="toolbar" aria-label="Drawing tools">
+        <button class="tool" data-tool="move">Move</button>
+        <button class="tool" data-tool="o">+ Player</button>
+        <button class="tool" data-tool="d">+ Defender</button>
+        <button class="tool" data-tool="ball">Ball</button>
+        <button class="tool" data-tool="label">Label</button>
+        <span class="tsep"></span>
+        <button class="tool" data-tool="cut"><svg viewBox="0 0 24 14" aria-hidden="true"><path d="M1 7H18M14 3l5 4-5 4" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round"/></svg>Cut</button>
+        <button class="tool" data-tool="pass"><svg viewBox="0 0 24 14" aria-hidden="true"><path d="M1 7H18M14 3l5 4-5 4" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-dasharray:4 3"/></svg>Pass</button>
+        <button class="tool" data-tool="dribble"><svg viewBox="0 0 24 14" aria-hidden="true"><path d="M1 7l2-3 2 6 2-6 2 6 2-6 2 3H19M15 3l4 4-4 4" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round"/></svg>Dribble</button>
+        <button class="tool" data-tool="screen"><svg viewBox="0 0 24 14" aria-hidden="true"><path d="M1 7H19M19 2V12" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round"/></svg>Screen</button>
+        <button class="tool" data-tool="erase">Erase</button>
+      </div>
+      <div class="hint edit-only" id="pHint" aria-live="polite"></div>
+      <form class="labelbox" id="labelForm"><div id="labelBox" hidden style="display:flex;gap:8px;align-items:end;flex-wrap:wrap"><label class="f"><span id="labelWho">Label</span><input id="labelInput" maxlength="3" style="width:90px" placeholder="e.g. QB"></label><button class="btn primary" type="submit">Set label</button><button class="btn" type="button" id="labelCancel">Cancel</button></div></form>
+      <div class="board-frame" id="boardFrame"><svg id="board" viewBox="-30 -45 560 530" role="img" aria-label="Half-court drawing board"></svg></div>
+      <div class="player">
+        <button class="btn primary" id="pPlay">&#9654; Play through</button>
+        <button class="btn" id="pStop" hidden>Stop</button>
+        <label class="spd">Speed <select id="pSpeed"><option value="0.5">Slow</option><option value="1" selected>Normal</option><option value="1.75">Fast</option></select></label>
+        <div class="anim-cap" id="pAnimCap" aria-live="polite"></div>
+      </div>
+      <div class="toolbar edit-only">
+        <button class="btn" id="pUndo">Undo</button>
+        <button class="btn" id="pAutoD">Add defense</button>
+        <button class="btn danger" id="pClear">Clear lines</button>
+      </div>
+      <div class="steps"><div class="steps" id="pSteps"></div><button class="btn edit-only" id="pNext">+ Next step</button><button class="btn danger edit-only" id="pDelStep">Delete step</button></div>
+      <label class="f">What happens in this step<input id="pCaption" placeholder="e.g. 1 passes to 2, 5 sets a down screen for 3"></label>
+      <label class="f">Play notes<textarea id="pNotes" placeholder="When to call it, reads, counters"></textarea></label>
+      <div class="actions" style="margin-top:0">
+        <button class="btn primary edit-only" id="pSave">Save play</button>
+        <button class="btn" id="pPdf">Printable PDF</button>
+        <button class="btn edit-only" id="pNew">New play</button>
+        <span class="saved" id="pStatus"></span>
+      </div>
+    </div>
+    <aside class="playlib">
+      <h2>Play Library</h2>
+      <button class="btn primary edit-only" id="shareBook">Share with players</button>
+      <input id="plSearch" placeholder="Search plays">
+      <div id="plList" style="display:flex;flex-direction:column;gap:8px"></div>
+    </aside>
+  </div>
+</section>
+
+<section id="view-lib" class="view" hidden>
+  <div class="lib-grid">
+    <form class="form edit-only" id="drillForm">
+      <h2 id="formTitle">Add a drill</h2>
+      <label class="f">Drill name<input id="dName" required placeholder="e.g. 3-Man Weave"></label>
+      <fieldset class="catpick"><legend>Categories (pick one or more)</legend><div class="catboxes" id="dCats"></div><div class="cat-err" id="dCatErr" hidden>Pick at least one category.</div></fieldset>
+      <label class="f" style="max-width:140px">Minutes<input id="dMin" type="number" min="1" max="60" value="10"></label>
+      <label class="f">How it runs<textarea id="dDesc" placeholder="Setup, rotation, rules"></textarea></label>
+      <label class="f">Coaching points<textarea id="dPoints" placeholder="What to watch for and correct"></textarea></label>
+      <div class="actions" style="margin-top:4px">
+        <button class="btn primary" type="submit" id="dSave">Add drill</button>
+        <button class="btn" type="button" id="dCancel" hidden>Cancel edit</button>
+      </div>
+    </form>
+    <div style="min-width:0">
+      <div class="lib-tools">
+        <input id="libSearch" placeholder="Search the library">
+        <select id="libCat"><option value="">All categories</option></select>
+      </div>
+      <div id="library"></div>
+    </div>
+  </div>
+</section>
+
+<section id="view-settings" class="view" hidden>
+  <div class="actions edit-only" style="margin:0 0 14px"><button class="btn primary" id="sSave">Save settings</button><span class="saved" id="sStatus" style="margin-left:0"></span></div>
+  <div class="settings">
+    <div class="panel">
+      <h2>Team</h2>
+      <label class="f">Sport<select id="sSport"><option value="basketball">Basketball</option><option value="volleyball">Volleyball</option><option value="soccer">Soccer</option><option value="football">Football</option><option value="baseball">Baseball / Softball</option><option value="other">Other sport</option></select></label>
+      <p class="help" id="sSportHelp" hidden>Changing the sport switches drill categories and the play board. Plays drawn on the old board keep their positions but will sit on the new court.</p>
+      <div class="grid2">
+        <label class="f">School or club<input id="sSchool"></label>
+        <label class="f">Team name<input id="sMascot"></label>
+      </div>
+      <div class="grid2">
+        <label class="f">Team / level<input id="sLabel"></label>
+        <label class="f">Team color<input id="sColor" type="color"></label>
+      </div>
+      <h3>Practice times</h3>
+      <div class="grid2">
+        <label class="f">Weekday start<input id="sWdS" type="time"></label>
+        <label class="f">Weekday end<input id="sWdE" type="time"></label>
+        <label class="f">Weekend start<input id="sWeS" type="time"></label>
+        <label class="f">Weekend end<input id="sWeE" type="time"></label>
+      </div>
+      <h3>Season</h3>
+      <div class="grid2">
+        <label class="f">Season starts<input id="sStart" type="date"></label>
+        <label class="f">Season ends<input id="sEnd" type="date"></label>
+      </div>
+      <fieldset class="catpick"><legend>Regular practice days</legend><div class="catboxes" id="sDays"></div></fieldset>
+      <p class="preview-dates" id="sPreview"></p>
+    </div>
+    <div class="panel">
+      <h2>Games</h2>
+      <p class="help">No practice is scheduled on game days, and the practice before each game is marked in the planner.</p>
+      <div class="rows" id="sGames"></div>
+      <div class="edit-only"><button class="btn" id="sAddGame">+ Add game</button></div>
+      <h2 style="margin-top:8px">Special days</h2>
+      <p class="help">Days off (holidays, breaks), extra practices outside your regular days (like a Sunday session), or a note on a practice day (like Tryouts).</p>
+      <div class="rows" id="sSpecial"></div>
+      <div class="edit-only"><button class="btn" id="sAddSpecial">+ Add special day</button></div>
+    </div>
+    <div class="panel" id="staffPanel">
+      <h2>Coaching staff</h2>
+      <div id="staffBody"></div>
+    </div>
+    <div class="panel">
+      <h2>Your data</h2>
+      <p class="help">Download a backup of your drills, plays and practice plans, or load one in. A backup from the Claude practice planner works here too.</p>
+      <div class="actions" style="margin-top:0"><button class="btn" id="sExport">Download backup</button>
+        <label class="btn edit-only" style="cursor:pointer">Import backup<input type="file" id="sImport" accept=".json,application/json" hidden></label></div>
+      <div id="importBox"></div>
+    </div>
+    <div class="panel">
+      <h2>Account</h2>
+      <div id="accountBody"></div>
+    </div>
+  </div>
+</section>
+</div>
+
+<dialog id="shareDlg" aria-labelledby="shareTitle">
+  <form method="dialog" class="dlg" id="shareForm">
+    <h2 id="shareTitle">Share plays with players</h2>
+    <p class="help" id="shareHelp"></p>
+    <label class="f">Playbook name<input id="shareName" placeholder="e.g. Ravens Offense"></label>
+    <fieldset class="catpick"><legend>Plays to include</legend>
+      <div class="actions" style="margin:0 0 6px"><button class="btn" type="button" id="shareAll" style="padding:3px 9px;font-size:12.5px">All</button><button class="btn" type="button" id="shareNone" style="padding:3px 9px;font-size:12.5px">None</button></div>
+      <div class="share-plays" id="sharePlays"></div>
+    </fieldset>
+    <button class="btn primary" type="button" id="shareMake">Create player link</button>
+    <div id="shareResult" hidden>
+      <label class="f">Player link<input id="shareLink" readonly></label>
+      <div class="actions" style="margin:6px 0 0"><button class="btn primary" type="button" id="shareCopy">Copy link</button><button class="btn" type="button" id="shareSend" hidden>Send…</button><a class="btn" id="shareOpen" target="_blank" rel="noopener">Open</a></div>
+    </div>
+    <div class="msg" id="shareMsg"></div>
+    <div id="shareExisting"></div>
+    <div class="actions" style="margin-top:0"><button class="btn" value="close" id="shareClose">Close</button></div>
+  </form>
+</dialog>
+
+<dialog id="copyDlg" aria-labelledby="copyTitle">
+  <form method="dialog" id="copyForm" class="dlg">
+    <h2 id="copyTitle">Copy to another team</h2>
+    <p class="help" id="copyWhat"></p>
+    <label class="f">Team<select id="copyTeam"></select></label>
+    <label class="f" id="copyDateRow" hidden>Practice date on that team<input type="date" id="copyDate"></label>
+    <div class="msg" id="copyMsg"></div>
+    <div class="actions" style="margin-top:0"><button class="btn primary" id="copyGo" value="go">Copy</button><button class="btn" value="cancel" id="copyCancel">Close</button></div>
+  </form>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script src="js/sports.js"></script>
+<script src="js/board.js"></script>
+<script src="js/app.js"></script>
+<script src="js/boot.js"></script>
+</body>
+</html>

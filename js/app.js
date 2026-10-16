@@ -1,0 +1,742 @@
+let SPORT="basketball", CATS=SPORTS.basketball.cats;
+let ME={id:"me",name:"Coach"}, STAFF=[], READONLY=false;   // set by boot.js
+function ago(ts){if(!ts)return "";const m=Math.round((Date.now()-ts)/60000);if(m<1)return "just now";if(m<60)return m+" min ago";const h=Math.round(m/60);if(h<24)return h+" hr ago";const d=Math.round(h/24);return d<7?d+" day"+(d>1?"s":"")+" ago":new Date(ts).toLocaleDateString("en-US",{month:"short",day:"numeric"});}
+function setReadOnly(flag){
+  READONLY=!!flag;document.body.classList.toggle("readonly",READONLY);
+  ["#planStart","#planEnd","#planFocus","#pName","#pType","#pCaption","#pNotes"].forEach(q=>{const el=$(q);if(el)el.disabled=READONLY;});
+  if(cur)renderPlan();
+}
+const sp=()=>SPORTS[SPORT]||SPORTS.basketball;
+let PRACTICES=[], SETTINGS={};
+const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const DEFAULT_SETTINGS={sport:"basketball",school:"",mascot:"",teamLabel:"",color:"#5b2a86",weekdayStart:"16:00",weekdayEnd:"18:00",weekendStart:"10:00",weekendEnd:"12:00",
+  seasonStart:"",seasonEnd:"",practiceDays:[1,2,3,4,5],games:[],special:[]};
+const isoOf=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+function addDays(iso,n){const d=dObj(iso);d.setDate(d.getDate()+n);return isoOf(d);}
+function computePractices(st){
+  const games={};(st.games||[]).forEach(g=>{if(g.date)games[g.date]=g;});
+  const special={};(st.special||[]).forEach(x=>{if(x.date)special[x.date]=x;});
+  const days=new Set(st.practiceDays||[]), out=new Map();
+  const noteFor=(iso,base)=>{const g=games[addDays(iso,1)];const before=g?`Before ${g.opponent||"game"} (${DOW[dObj(g.date).getDay()]})`:"";return [base,before].filter(Boolean).join(" · ");};
+  if(st.seasonStart&&st.seasonEnd&&st.seasonStart<=st.seasonEnd){
+    for(let iso=st.seasonStart,guard=0;iso<=st.seasonEnd&&guard<400;iso=addDays(iso,1),guard++){
+      const sp=special[iso];
+      let on=days.has(dObj(iso).getDay())&&!games[iso];
+      if(sp&&sp.kind==="off")on=false;
+      if(sp&&sp.kind==="extra")on=true;
+      if(on)out.set(iso,noteFor(iso,sp&&sp.kind!=="off"?sp.note||"":""));
+    }
+  }
+  Object.values(special).forEach(x=>{if(x.kind==="extra"&&!out.has(x.date))out.set(x.date,noteFor(x.date,x.note||""));});
+  return [...out.entries()].sort((a,b)=>a[0]<b[0]?-1:1);
+}
+function teamTitle(){return [SETTINGS.school,SETTINGS.mascot].filter(Boolean).join(" ")||"Team";}
+function pdfHeader(kind){const k=(kind||SETTINGS.teamLabel||"").toUpperCase();return teamTitle().toUpperCase()+(k?"  |  "+k:"");}
+function contrastInk(hex){const m=/^#?([0-9a-f]{6})$/i.exec(hex||"");if(!m)return "#ffffff";const n=parseInt(m[1],16),r=(n>>16&255)/255,g=(n>>8&255)/255,b=(n&255)/255;
+  const L=[r,g,b].map(v=>v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4));return (0.2126*L[0]+0.7152*L[1]+0.0722*L[2])>0.4?"#17141c":"#ffffff";}
+function applySettings(st){
+  SETTINGS={...DEFAULT_SETTINGS,...(st||{})};
+  PRACTICES=computePractices(SETTINGS);
+  SPORT=SPORTS[SETTINGS.sport]?SETTINGS.sport:"basketball";refreshSportUI();
+  document.documentElement.style.setProperty("--team",SETTINGS.color||"#5b2a86");
+  document.documentElement.style.setProperty("--team-ink",contrastInk(SETTINGS.color));
+  $("#eyebrow").textContent=[SETTINGS.school,SETTINGS.teamLabel].filter(Boolean).join(" · ");
+  $("#brandName").textContent=SETTINGS.mascot||SETTINGS.school||"Team";
+  document.title=(SETTINGS.mascot||SETTINGS.school||"Coach")+" Practice Planner";
+  const tc=document.querySelector('meta[name="theme-color"]');if(tc)tc.content=SETTINGS.color||"#5b2a86";
+  if(cur){buildDateSelect();renderPlan();}
+}
+
+const toMin=t=>{const [h,m]=(t||"0:0").split(":").map(Number);return h*60+m};
+const fmt=m=>{let h=Math.floor(m/60)%24,mm=m%60;const h12=((h+11)%12)+1;return h12+":"+String(mm).padStart(2,"0")};
+const dObj=s=>new Date(s+"T12:00:00");
+const dLabel=s=>dObj(s).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
+const catsOf=d=>Array.isArray(d.categories)&&d.categories.length?d.categories:(d.category?[d.category]:[]);
+const catLabel=d=>catsOf(d).join(" / ");
+const uid=()=>Math.random().toString(36).slice(2,10);
+
+let db=null, canWrite=true;
+let drills=[];           // [{id,...}]
+let plans={};            // date -> plan
+let cur=null;            // current plan object (working copy)
+let pickCat="", saveTimer=null;
+
+function defaultPlan(date){
+  const wk=[0,6].includes(dObj(date).getDay());
+  return {date,start:(wk?SETTINGS.weekendStart:SETTINGS.weekdayStart)||"16:00",end:(wk?SETTINGS.weekendEnd:SETTINGS.weekdayEnd)||"18:00",focus:"",blocks:[]};
+}
+function todayISO(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+
+/* ---------- date select ---------- */
+function buildDateSelect(){
+  const sel=$("#planDate");
+  const known=new Set(PRACTICES.map(p=>p[0]));
+  const extra=Object.keys(plans).filter(d=>!known.has(d));
+  const all=[...PRACTICES.map(p=>p[0]),...extra].sort();
+  const note=Object.fromEntries(PRACTICES.map(p=>[p[0],p[1]||""]));
+  const prev=sel.value;
+  sel.innerHTML=all.map(d=>`<option value="${d}">${dLabel(d)}${note[d]?" — "+esc(note[d]):""}${plans[d]&&plans[d].blocks&&plans[d].blocks.length?"  ✓":""}</option>`).join("");
+  if(prev&&all.includes(prev)) sel.value=prev;
+  else if(all.length){const t=todayISO();sel.value=all.find(d=>d>=t)||all[all.length-1];}
+  else{sel.innerHTML=`<option value="${todayISO()}">${dLabel(todayISO())}</option>`;sel.value=todayISO();}
+}
+
+/* ---------- plan rendering ---------- */
+function loadPlan(date){
+  cur=JSON.parse(JSON.stringify(plans[date]||defaultPlan(date)));
+  renderPlan();
+}
+function coachField(b){
+  if(READONLY)return b.coach?`<div class="led">Led by ${esc(b.coach)}</div>`:"";
+  if(STAFF.length<2&&!b.coach)return "";
+  const names=[...new Set([...STAFF,b.coach].filter(Boolean))];
+  return `<select class="coachSel" data-act="coach" aria-label="Coach leading ${esc(b.name)}"><option value="">Led by: anyone</option>${names.map(n=>`<option value="${esc(n)}"${n===b.coach?" selected":""}>Led by ${esc(n)}</option>`).join("")}</select>`;
+}
+function renderPlan(){
+  $("#planStart").value=cur.start; $("#planEnd").value=cur.end; $("#planFocus").value=cur.focus||"";
+  const info=PRACTICES.find(p=>p[0]===cur.date);
+  $("#dayTag").innerHTML=info&&info[1]?`<span class="daytag${/Before/.test(info[1])?" game":""}">${esc(info[1])}</span>`:"";
+  const s=toMin(cur.start), e=toMin(cur.end), avail=Math.max(0,e-s);
+  let t=s, used=0;
+  const list=$("#script");
+  if(!cur.blocks.length){
+    list.innerHTML=`<li class="empty">No drills yet. Add drills from the list on the right, or copy a past plan below. Times fill in automatically from ${fmt(s)}.</li>`;
+  } else {
+    list.innerHTML=cur.blocks.map((b,i)=>{
+      const st=t; t+=b.minutes; used+=b.minutes;
+      const late=t>e;
+      return `<li class="block${late?" late":""}" data-i="${i}">
+        <div class="time">${fmt(st)}–${fmt(t)}<small>${b.minutes} min</small></div>
+        <div style="min-width:0"><div class="name">${esc(b.name)}${b.category?`<span class="chip">${esc(b.category)}</span>`:""}</div>
+          ${coachField(b)}
+          ${READONLY?(b.notes?`<div class="note-ro">${esc(b.notes)}</div>`:""):`<input class="note" data-act="note" value="${esc(b.notes||"")}" placeholder="Notes for today" aria-label="Notes for ${esc(b.name)}">`}</div>
+        <div class="ctrls edit-only">
+          <div class="mins"><button data-act="dec" aria-label="Less time">−</button><input data-act="min" type="number" min="1" max="90" value="${b.minutes}" aria-label="Minutes"><button data-act="inc" aria-label="More time">+</button></div>
+          <button class="icon" data-act="up" aria-label="Move up">↑</button>
+          <button class="icon" data-act="down" aria-label="Move down">↓</button>
+          <button class="icon" data-act="del" aria-label="Remove">✕</button>
+        </div></li>`;
+    }).join("");
+  }
+  renderMeter(s,avail,used);
+  renderCopyFrom();
+  renderPick();
+}
+function totals(){const avail=Math.max(0,toMin(cur.end)-toMin(cur.start));const used=cur.blocks.reduce((a,b)=>a+b.minutes,0);return {avail,used,left:avail-used};}
+function renderMeter(s,avail,used){
+  const left=avail-used, m=$("#meter");
+  m.classList.toggle("over",left<0); m.classList.toggle("full",left===0&&used>0);
+  $("#mLeft").textContent=Math.abs(left);
+  $("#mLeftLabel").textContent=left<0?"min over":left===0&&used>0?"min left · full":"min left";
+  $("#planEdited").textContent=cur.editedBy?`Last edited by ${cur.editedBy} · ${ago(cur.editedAt)}`:"";
+  $("#mUsed").textContent=used; $("#mAvail").textContent=avail;
+  const scale=Math.max(avail,used)||1;
+  let acc=0;
+  $("#mTrack").innerHTML=cur.blocks.map(b=>{
+    const inT=Math.max(0,Math.min(b.minutes,avail-acc)), outT=b.minutes-inT; acc+=b.minutes;
+    return (inT?`<i style="width:${inT/scale*100}%" title="${esc(b.name)}"></i>`:"")+(outT?`<i class="overflow" style="width:${outT/scale*100}%"></i>`:"");
+  }).join("");
+  const ticks=[];for(let k=0;k<=avail;k+=30)ticks.push(k);if(ticks[ticks.length-1]!==avail)ticks.push(avail);
+  $("#mTicks").innerHTML=avail?ticks.map(k=>`<span style="left:${k/scale*100}%">${fmt(s+k)}</span>`).join(""):"";
+  if(left<0&&!msgTimer)$("#mMsg").textContent=`Booked past ${fmt(s+avail)}. Shorten or remove ${-left} min of drills.`;
+  else if(!msgTimer)$("#mMsg").textContent="";
+}
+let msgTimer=null;
+function flash(t){$("#mMsg").textContent=t;clearTimeout(msgTimer);msgTimer=setTimeout(()=>{msgTimer=null;renderPlan();},3500);}
+function renderCopyFrom(){
+  const opts=Object.values(plans).filter(p=>p.date!==cur.date&&p.blocks&&p.blocks.length).sort((a,b)=>b.date.localeCompare(a.date));
+  $("#copyFrom").innerHTML=`<option value="">Copy a past plan…</option>`+opts.map(p=>`<option value="${p.date}">${dLabel(p.date)}${p.focus?" — "+esc(p.focus):""}</option>`).join("");
+}
+
+function changed(){renderPlan();scheduleSave();}
+function scheduleSave(){
+  if(!db||!canWrite){$("#saved").textContent=db?"View only":"Not saved in this view";return;}
+  $("#saved").textContent="Saving…";
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{
+    cur.editedBy=ME.name;cur.editedAt=Date.now();
+    const snap=JSON.parse(JSON.stringify(cur));
+    plans[snap.date]=snap;
+    try{await db.collection("plans").doc(snap.date).set(snap);$("#saved").textContent="Saved";if(cur&&cur.date===snap.date)$("#planEdited").textContent=`Last edited by ${snap.editedBy} · ${ago(snap.editedAt)}`;}
+    catch(e){handleWriteErr(e);}
+    saveTimer=null;
+  },700);
+}
+function handleWriteErr(e){
+  if(e&&e.code==="invalid_argument"){canWrite=false;$("#saved").textContent="View only";showNotice("You do not have permission to change this team data.");}
+  else if(e&&e.code==="quota_exceeded"){$("#saved").textContent="Not saved";showNotice("Storage is full. Delete some old plans or drills, then try again.");}
+  else{$("#saved").textContent="Not saved — check your connection";}
+}
+function showNotice(t){const n=$("#notice");n.textContent=t;n.hidden=false;}
+
+function addBlock(b){
+  const {left}=totals();
+  if(left<=0){flash("Practice is full. Shorten or remove a drill to make room.");return;}
+  if(b.minutes>left){flash(`${b.name} shortened to ${left} min to fit.`);b={...b,minutes:left};}
+  cur.blocks.push({id:uid(),notes:"",...b});changed();
+}
+
+$("#script").addEventListener("click",e=>{
+  const btn=e.target.closest("button[data-act]"); if(!btn)return;
+  const i=+btn.closest(".block").dataset.i, b=cur.blocks[i], a=btn.dataset.act;
+  if(a==="inc"){if(totals().left<=0){flash("No minutes left. Take time from another drill first.");return;}b.minutes=Math.min(90,b.minutes+1);}
+  if(a==="dec")b.minutes=Math.max(1,b.minutes-1);
+  if(a==="up"&&i>0)[cur.blocks[i-1],cur.blocks[i]]=[cur.blocks[i],cur.blocks[i-1]];
+  if(a==="down"&&i<cur.blocks.length-1)[cur.blocks[i+1],cur.blocks[i]]=[cur.blocks[i],cur.blocks[i+1]];
+  if(a==="del")cur.blocks.splice(i,1);
+  changed();
+});
+$("#script").addEventListener("change",e=>{
+  const el=e.target; const li=el.closest(".block"); if(!li)return;
+  const b=cur.blocks[+li.dataset.i];
+  if(el.dataset.act==="min"){const max=Math.max(1,b.minutes+Math.max(0,totals().left));let v=Math.max(1,Math.min(90,parseInt(el.value)||1));if(v>max){flash(`Only ${max} min fit for ${b.name}.`);v=max;}b.minutes=v;changed();}
+  if(el.dataset.act==="note"){b.notes=el.value;scheduleSave();}
+  if(el.dataset.act==="coach"){if(el.value)b.coach=el.value;else delete b.coach;scheduleSave();}
+});
+$("#planDate").addEventListener("change",e=>{loadPlan(e.target.value);if(window.onViewChange)window.onViewChange();});
+$("#planStart").addEventListener("change",e=>{cur.start=e.target.value||cur.start;changed();});
+$("#planEnd").addEventListener("change",e=>{cur.end=e.target.value||cur.end;changed();});
+$("#planFocus").addEventListener("change",e=>{cur.focus=e.target.value;scheduleSave();renderCopyFrom();});
+$("#copyFrom").addEventListener("change",e=>{
+  const src=plans[e.target.value]; if(!src)return;
+  cur.blocks=src.blocks.map(b=>({...b,id:uid()}));
+  if(!cur.focus)cur.focus=src.focus||"";
+  changed();
+});
+let clearArmed=false;
+$("#clearPlan").addEventListener("click",e=>{
+  if(!cur.blocks.length)return;
+  if(!clearArmed){clearArmed=true;e.target.textContent="Tap again to clear";setTimeout(()=>{clearArmed=false;e.target.textContent="Clear plan";},3000);return;}
+  clearArmed=false;e.target.textContent="Clear plan";cur.blocks=[];changed();
+});
+$("#copyText").addEventListener("click",async e=>{
+  let t=toMin(cur.start);
+  const lines=[`${teamTitle()} Practice — ${dLabel(cur.date)} (${fmt(toMin(cur.start))}–${fmt(toMin(cur.end))})`];
+  if(cur.focus)lines.push("Focus: "+cur.focus);
+  lines.push("");
+  cur.blocks.forEach(b=>{const s=t;t+=b.minutes;lines.push(`${fmt(s)}–${fmt(t)}  ${b.name} (${b.minutes} min)${b.coach?" ["+b.coach+"]":""}${b.notes?" — "+b.notes:""}`);});
+  const text=lines.join("\n");
+  try{await navigator.clipboard.writeText(text);e.target.textContent="Copied";}
+  catch{const ta=document.createElement("textarea");ta.value=text;document.body.append(ta);ta.select();try{document.execCommand("copy");e.target.textContent="Copied";}catch{e.target.textContent="Copy failed";}ta.remove();}
+  setTimeout(()=>e.target.textContent="Copy as text",1800);
+});
+document.querySelectorAll("[data-quick]").forEach(b=>b.addEventListener("click",()=>addBlock({drillId:null,name:b.dataset.quick,category:"",minutes:+b.dataset.min})));
+
+/* ---------- printable black & white PDF ---------- */
+async function buildPdf(){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:"pt",format:"letter"});
+  const W=612,H=792,M=40,R=W-M;
+  const cols=[M,M+82,M+112,M+280]; // time, min, drill, notes
+  let y=M;
+  doc.setTextColor(0);doc.setDrawColor(0);
+  doc.setFont("helvetica","bold");doc.setFontSize(9);
+  doc.text(pdfHeader(),M,y);y+=24;
+  doc.setFontSize(22);doc.text("PRACTICE PLAN",M,y);
+  doc.setFontSize(12);doc.setFont("helvetica","normal");
+  const dl=dObj(cur.date).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"});
+  doc.text(dl,R,y-14,{align:"right"});
+  doc.text(`${fmt(toMin(cur.start))} – ${fmt(toMin(cur.end))} PM`,R,y,{align:"right"});
+  y+=10;doc.setLineWidth(2);doc.line(M,y,R,y);y+=18;
+  const info=PRACTICES.find(p=>p[0]===cur.date);
+  doc.setFontSize(10.5);
+  if(cur.focus){doc.setFont("helvetica","bold");doc.text("FOCUS:",M,y);doc.setFont("helvetica","normal");const f=doc.splitTextToSize(cur.focus,R-M-50);doc.text(f,M+50,y);y+=f.length*13;}
+  if(info&&info[1]){doc.setFont("helvetica","bold");doc.text("NOTE:",M,y);doc.setFont("helvetica","normal");doc.text(info[1],M+50,y);y+=13;}
+  y+=8;
+  const head=()=>{doc.setFont("helvetica","bold");doc.setFontSize(9);
+    doc.setFillColor(0);doc.rect(M,y,R-M,18,"F");doc.setTextColor(255);
+    ["TIME","MIN","DRILL","COACHING POINTS / NOTES"].forEach((h,i)=>doc.text(h,cols[i]+5,y+12));
+    doc.setTextColor(0);y+=18;};
+  head();
+  let t=toMin(cur.start),used=0;
+  cur.blocks.forEach(b=>{
+    const s=t;t+=b.minutes;used+=b.minutes;
+    const d=b.drillId?drills.find(x=>x.id===b.drillId):null;
+    doc.setFontSize(10);
+    const nameL=doc.splitTextToSize(b.name+(b.category?` (${b.category})`:""),cols[3]-cols[2]-10);
+    const pts=[b.coach?("Led by: "+b.coach):"",b.notes?("Today: "+b.notes):"",d&&d.points?d.points:""].filter(Boolean).join("\n");
+    doc.setFontSize(9);
+    const ptsL=pts?doc.splitTextToSize(pts,R-cols[3]-10):[];
+    const h=Math.max(nameL.length*12,ptsL.length*11,12)+12;
+    if(y+h>H-M-40){doc.addPage();y=M;head();}
+    doc.setFontSize(10);doc.setFont("courier","bold");
+    doc.text(`${fmt(s)}-${fmt(t)}`,cols[0]+5,y+14);
+    doc.setFont("helvetica","normal");doc.text(String(b.minutes),cols[1]+5,y+14);
+    doc.setFont("helvetica","bold");doc.text(nameL,cols[2]+5,y+14);
+    doc.setFont("helvetica","normal");doc.setFontSize(9);if(ptsL.length)doc.text(ptsL,cols[3]+5,y+13);
+    doc.rect(M+0,y,0,0);
+    y+=h;doc.setLineWidth(.5);doc.line(M,y,R,y);
+    // checkbox-free; vertical rules
+    [cols[1],cols[2],cols[3]].forEach(x=>doc.line(x,y-h,x,y));
+    doc.line(M,y-h,M,y);doc.line(R,y-h,R,y);
+  });
+  if(!cur.blocks.length){doc.setFont("helvetica","italic");doc.setFontSize(10);doc.text("No drills planned yet.",M+5,y+16);y+=26;}
+  y+=16;doc.setFont("helvetica","bold");doc.setFontSize(10);
+  doc.text(`Total planned: ${used} of ${Math.max(0,toMin(cur.end)-toMin(cur.start))} min`,M,y);
+  y+=22;
+  if(y<H-M-60){doc.text("NOTES",M,y);doc.setLineWidth(.5);y+=20;while(y<H-M-10){doc.line(M,y,R,y);y+=22;}}
+  const pids=[...new Set(cur.blocks.map(b=>b.playId).filter(Boolean))];
+  for(const id of pids){const p=plays.find(x=>x.id===id);if(p)await addPlayPages(doc,p,false);}
+  return doc;
+}
+$("#printPdf").addEventListener("click",async e=>{
+  const btn=e.currentTarget;
+  if(!window.jspdf){btn.textContent="PDF tool didn't load";setTimeout(()=>btn.textContent="Printable PDF",2500);return;}
+  let doc;try{doc=await buildPdf();}catch{btn.textContent="Couldn't build PDF";setTimeout(()=>btn.textContent="Printable PDF",2500);return;}
+  saveFile(`Practice Plan ${cur.date}.pdf`,doc.output("blob"));btn.textContent="PDF downloaded";
+  setTimeout(()=>btn.textContent="Printable PDF",2500);
+});
+
+/* ---------- bench (drill picker) ---------- */
+function renderPickCats(){
+  const used=CATS.filter(c=>drills.some(d=>catsOf(d).includes(c)));
+  $("#pickCats").innerHTML=[`<button aria-pressed="${!pickCat}" data-c="">All</button>`,...used.map(c=>`<button aria-pressed="${pickCat===c}" data-c="${esc(c)}">${esc(c)}</button>`),...(plays.length?[`<button aria-pressed="${pickCat==="Plays"}" data-c="Plays">Plays</button>`]:[])].join("");
+}
+function renderPick(){
+  const q=$("#pickSearch").value.trim().toLowerCase();
+  const list=pickCat==="Plays"?[]:drills.filter(d=>(!pickCat||catsOf(d).includes(pickCat))&&(!q||(d.name+" "+catLabel(d)).toLowerCase().includes(q)));
+  const plist=(!pickCat||pickCat==="Plays")?[...plays].sort((a,b)=>a.name.localeCompare(b.name)).filter(p=>!q||(p.name+" "+p.type).toLowerCase().includes(q)):[];
+  const left=cur?totals().left:999;
+  const pbtn=(attr,name,m)=>left<=0?`<button disabled>Full</button>`:m>left?`<button class="trim" ${attr} aria-label="Add ${esc(name)} for ${left} minutes">Add ${left} min</button>`:`<button ${attr} aria-label="Add ${esc(name)}">Add</button>`;
+  document.querySelectorAll("[data-quick]").forEach(q=>q.disabled=left<=0);
+  $("#picklist").innerHTML=list.length?list.map(d=>{const m=d.minutes||10;
+    const btn=left<=0?`<button disabled>Full</button>`:m>left?`<button class="trim" data-id="${d.id}" aria-label="Add ${esc(d.name)} for ${left} minutes">Add ${left} min</button>`:`<button data-id="${d.id}" aria-label="Add ${esc(d.name)}">Add</button>`;
+    return `<div class="pick"><div><b>${esc(d.name)}</b><span>${esc(catsOf(d).join(" · "))} · ${m} min</span></div>${btn}</div>`;}).join("")
+    :(plist.length?"":`<div class="empty">${drills.length?"No drills match.":"Your drill library is empty. Add drills in the Drill Library tab."}</div>`);
+  $("#picklist").innerHTML+=plist.map(p=>`<div class="pick play"><div><b>${esc(p.name)}</b><span>Play · ${esc(p.type)} · 10 min</span></div>${pbtn(`data-play="${p.id}"`,p.name,10)}</div>`).join("");
+}
+$("#pickCats").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;pickCat=b.dataset.c;renderPickCats();renderPick();});
+$("#pickSearch").addEventListener("input",renderPick);
+$("#picklist").addEventListener("click",e=>{
+  const pb=e.target.closest("button[data-play]");
+  if(pb){const p=plays.find(x=>x.id===pb.dataset.play);if(p)addBlock({drillId:null,playId:p.id,name:p.name,category:"Play · "+p.type,minutes:10});return;}
+  const b=e.target.closest("button[data-id]");if(!b)return;
+  const d=drills.find(x=>x.id===b.dataset.id);
+  addBlock({drillId:d.id,name:d.name,category:catLabel(d),minutes:d.minutes||10});
+});
+
+/* ---------- library ---------- */
+const getCats=()=>[...document.querySelectorAll("#dCats input:checked")].map(x=>x.value);
+const setCats=a=>document.querySelectorAll("#dCats input").forEach(x=>x.checked=a.includes(x.value));
+$("#dCats").addEventListener("change",()=>$("#dCatErr").hidden=true);
+let editing=null;
+function usage(){const u={};Object.values(plans).forEach(p=>(p.blocks||[]).forEach(b=>{if(b.drillId)u[b.drillId]=(u[b.drillId]||0)+1;}));return u;}
+function renderLib(){
+  $("#drillCount").textContent=drills.length?`(${drills.length})`:"";
+  const q=$("#libSearch").value.trim().toLowerCase(), cat=$("#libCat").value, u=usage();
+  const list=drills.filter(d=>(!cat||catsOf(d).includes(cat))&&(!q||(d.name+" "+catLabel(d)+" "+d.description+" "+d.points).toLowerCase().includes(q)));
+  if(!list.length){$("#library").innerHTML=`<div class="empty">${drills.length?"No drills match your search.":"No drills yet. Add your first drill with the form, and it will show up here and in the practice planner."}</div>`;return;}
+  $("#library").innerHTML=CATS.filter(c=>(!cat||c===cat)&&list.some(d=>catsOf(d).includes(c))).map(c=>{
+    const ds=list.filter(d=>catsOf(d).includes(c));
+    return `<div class="catgroup"><h3>${esc(c)}<small>${ds.length} drill${ds.length>1?"s":""}</small></h3>${ds.map(d=>`
+      <article class="drill"><div class="drill-top"><b>${esc(d.name)}</b><span class="drill-meta">${d.minutes} min · used ${u[d.id]||0}×</span></div>
+      ${catsOf(d).length>1?`<div class="tags">${catsOf(d).map(x=>`<span class="chip${x===c?" here":""}">${esc(x)}</span>`).join("")}</div>`:""}
+      ${d.description?`<p>${esc(d.description)}</p>`:""}
+      ${d.points?`<p><strong>Coaching points:</strong> ${esc(d.points)}</p>`:""}
+      ${d.editedBy?`<p class="by">Added or edited by ${esc(d.editedBy)}</p>`:""}<div class="actions edit-only"><button class="btn" data-edit="${d.id}">Edit</button><button class="btn" data-copy="drills" data-id="${d.id}">Copy to team</button><button class="btn danger" data-del="${d.id}">Delete</button></div></article>`).join("")}</div>`;
+  }).join("");
+}
+$("#libSearch").addEventListener("input",renderLib);
+$("#libCat").addEventListener("change",renderLib);
+$("#library").addEventListener("click",async e=>{
+  const ed=e.target.closest("[data-edit]"), del=e.target.closest("[data-del]");
+  if(ed){const d=drills.find(x=>x.id===ed.dataset.edit);editing=d.id;
+    $("#dName").value=d.name;setCats(catsOf(d));$("#dMin").value=d.minutes;$("#dDesc").value=d.description||"";$("#dPoints").value=d.points||"";
+    $("#formTitle").textContent="Edit drill";$("#dSave").textContent="Save changes";$("#dCancel").hidden=false;$("#dName").focus();window.scrollTo({top:0,behavior:"smooth"});}
+  if(del){
+    if(del.dataset.armed!=="1"){del.dataset.armed="1";del.textContent="Tap to confirm";setTimeout(()=>{del.dataset.armed="";del.textContent="Delete";},3000);return;}
+    const id=del.dataset.del; drills=drills.filter(x=>x.id!==id); renderAllDrills();
+    if(db&&canWrite){try{await db.collection("drills").doc(id).delete();}catch(err){handleWriteErr(err);}}
+  }
+});
+function resetForm(){editing=null;$("#drillForm").reset();setCats([]);$("#dCatErr").hidden=true;$("#dMin").value=10;$("#formTitle").textContent="Add a drill";$("#dSave").textContent="Add drill";$("#dCancel").hidden=true;}
+$("#dCancel").addEventListener("click",resetForm);
+$("#drillForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const cs=getCats();
+  if(!cs.length){$("#dCatErr").hidden=false;return;}
+  const body={editedBy:ME.name,name:$("#dName").value.trim(),categories:cs,category:cs[0],minutes:Math.max(1,parseInt($("#dMin").value)||10),description:$("#dDesc").value.trim(),points:$("#dPoints").value.trim()};
+  if(!body.name)return;
+  const id=editing||uid()+uid();
+  const prev=drills.find(d=>d.id===id);
+  body.createdAt=prev?prev.createdAt:Date.now();
+  if(prev)Object.assign(prev,body);else drills.push({id,...body});
+  sortDrills();renderAllDrills();resetForm();
+  if(db&&canWrite){try{await db.collection("drills").doc(id).set(body);}catch(err){handleWriteErr(err);}}
+});
+function sortDrills(){drills.sort((a,b)=>a.name.localeCompare(b.name));}
+function renderAllDrills(){renderLib();renderPickCats();renderPick();}
+
+
+/* ---------- plays: drawing board + library ---------- */
+function hints(t){
+  const n=sp().players, L=sp().tools;
+  return ({move:"Drag players and the ball. Lines attached to a player move with them.",
+    o:`Tap to place the next player (1–${n}).`,d:`Tap to place the next defender (X1–X${n}).`,
+    ball:"Tap a player to give them the ball.",
+    cut:`Drag from a player to draw a ${(L.cut||"move").toLowerCase()}.`,pass:`Drag from one player to another to draw a ${(L.pass||"pass").toLowerCase()}.`,
+    dribble:`Drag from the player with the ball to draw a ${(L.dribble||"dribble").toLowerCase()}.`,screen:`Drag from a player to where she sets the ${(L.screen||"screen").toLowerCase()}.`,
+    label:"Tap a player to give them a label, like PG, QB or 1B.",
+    erase:"Tap a player, the ball or a line to remove it."})[t]||"";
+}
+let plays=[], play=null, fi=0, tool="move", hist=[], pdirty=false, drag=null, temp=null, hintTimer=null;
+const frame=()=>play.frames[fi];
+
+function formTokens(name){
+  const f=sp().forms[name]||[];
+  const toks=f.map(([n,x,y],i)=>typeof n==="number"?{id:"o"+n,kind:"o",n,x,y}:{id:"o"+(i+1),kind:"o",n:i+1,label:n,x,y});
+  if(toks.length){const h=toks[0];toks.push({id:"ball",kind:"ball",x:h.x+13,y:h.y-13});}
+  return toks;
+}
+function blankPlay(){const f=Object.keys(sp().forms)[0];return {id:null,name:"",type:sp().playTypes[0],notes:"",frames:[{caption:"",tokens:f?formTokens(f):[],actions:[]}]};}
+
+/* geometry */
+/* editor rendering */
+function renderBoard(){$("#board").innerHTML=boardInner(frame(),"screen",temp);}
+function renderSteps(){
+  $("#pSteps").innerHTML=play.frames.map((f,i)=>`<button class="step" aria-pressed="${i===fi}" data-step="${i}">Step ${i+1}</button>`).join("");
+  $("#pDelStep").disabled=play.frames.length<2;
+  $("#pCaption").value=frame().caption||"";
+}
+function renderEditor(){
+  if(anim)stopAnim();
+  $("#pName").value=play.name;$("#pType").value=play.type;$("#pNotes").value=play.notes||"";
+  renderSteps();renderBoard();
+  $("#pStatus").textContent=pdirty?"Unsaved changes":(play.id?"Saved":"");
+  $("#pEditTitle").textContent=play.id?"Edit play":"New play";
+}
+function setTool(t){tool=t;document.querySelectorAll("#ptools [data-tool]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.tool===t));$("#pHint").textContent=hints(t);$("#labelBox").hidden=true;}
+function pflash(t){$("#pHint").textContent=t;clearTimeout(hintTimer);hintTimer=setTimeout(()=>$("#pHint").textContent=hints(tool),3000);}
+function markDirty(){pdirty=true;$("#pStatus").textContent="Unsaved changes";}
+function pushHist(){hist.push(JSON.stringify({frames:play.frames,fi}));if(hist.length>60)hist.shift();}
+
+/* pointer handling */
+function svgPt(e){const svg=$("#board"),p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(svg.getScreenCTM().inverse());return {x:Math.max(VB.x+8,Math.min(VB.x+VB.w-8,q.x)),y:Math.max(VB.y+8,Math.min(VB.y+VB.h-8,q.y))};}
+function hitTok(p,kinds){let best=null,bd=22;frame().tokens.forEach(t=>{if(kinds&&!kinds.includes(t.kind))return;const d=dist(p,t)-(t.kind==="ball"?6:0);if(d<bd){bd=d;best=t;}});return best;}
+function hitAct(p){let best=null,bd=12;frame().actions.forEach(a=>{samples(a).forEach(q=>{const d=dist(p,q);if(d<bd){bd=d;best=a;}});});return best;}
+
+const board=$("#board");
+board.addEventListener("pointerdown",e=>{
+  if(!play||anim||READONLY)return;
+  const p=svgPt(e), fr=frame();
+  if(tool==="move"){
+    const t=hitTok(p);if(!t)return;
+    pushHist();const h=holderOf(fr);
+    drag={t,dx:p.x-t.x,dy:p.y-t.y,ball:t.kind!=="ball"&&h&&h.id===t.id?fr.tokens.find(x=>x.kind==="ball"):null,moved:false};
+    board.setPointerCapture(e.pointerId);return;
+  }
+  if(tool==="o"||tool==="d"){
+    const used=fr.tokens.filter(t=>t.kind===tool).map(t=>t.n);
+    const n=Array.from({length:sp().players},(_,k)=>k+1).find(k=>!used.includes(k));
+    if(!n){pflash(`All ${sp().players} ${tool==="o"?"players":"defenders"} are placed. Use Move to reposition.`);return;}
+    pushHist();fr.tokens.push({id:tool+n,kind:tool,n,x:p.x,y:p.y});markDirty();renderBoard();return;
+  }
+  if(tool==="ball"){
+    const t=hitTok(p,["o"]);pushHist();
+    let b=fr.tokens.find(x=>x.kind==="ball");if(!b){b={id:"ball",kind:"ball"};fr.tokens.push(b);}
+    if(t){b.x=t.x+13;b.y=t.y-13;}else{b.x=p.x;b.y=p.y;}
+    markDirty();renderBoard();return;
+  }
+  if(tool==="label"){
+    const t=hitTok(p,["o"]);if(!t){pflash("Tap a player to label them.");return;}
+    labelTarget=t.id;$("#labelBox").hidden=false;$("#labelWho").textContent=`Label for player ${t.n}`;$("#labelInput").value=t.label||"";$("#labelInput").focus();return;
+  }
+  if(tool==="erase"){
+    const t=hitTok(p);
+    if(t){pushHist();fr.tokens=fr.tokens.filter(x=>x!==t);fr.actions=fr.actions.filter(a=>a.from!==t.id&&a.to!==t.id);markDirty();renderBoard();return;}
+    const a=hitAct(p);if(a){pushHist();fr.actions=fr.actions.filter(x=>x!==a);markDirty();renderBoard();}
+    return;
+  }
+  // line tools
+  const s=hitTok(p,["o","d"]);
+  const st=s?{x:s.x,y:s.y}:p;
+  temp={type:tool,pts:[st],from:s?s.id:null,x1:st.x,y1:st.y,cx:st.x,cy:st.y,x2:st.x,y2:st.y};
+  board.setPointerCapture(e.pointerId);
+});
+board.addEventListener("pointermove",e=>{
+  if(drag){const p=svgPt(e),t=drag.t,ox=t.x,oy=t.y;t.x=p.x-drag.dx;t.y=p.y-drag.dy;const dx=t.x-ox,dy=t.y-oy;
+    if(drag.ball){drag.ball.x+=dx;drag.ball.y+=dy;}
+    frame().actions.forEach(a=>{if(a.from===t.id){a.x1+=dx;a.y1+=dy;a.cx+=dx/2;a.cy+=dy/2;}if(a.to===t.id){a.x2+=dx;a.y2+=dy;a.cx+=dx/2;a.cy+=dy/2;}});
+    drag.moved=true;renderBoard();return;}
+  if(temp){const p=svgPt(e),last=temp.pts[temp.pts.length-1];if(dist(p,last)<3)return;temp.pts.push(p);
+    const s=temp.pts[0],m=temp.pts[Math.floor(temp.pts.length/2)];
+    Object.assign(temp,{x2:p.x,y2:p.y,cx:2*m.x-(s.x+p.x)/2,cy:2*m.y-(s.y+p.y)/2});renderBoard();}
+});
+function endPointer(){
+  if(drag){if(drag.moved)markDirty();else hist.pop();drag=null;return;}
+  if(!temp)return;
+  const t=temp;temp=null;
+  const s=t.pts[0],e=t.pts[t.pts.length-1];
+  if(t.pts.length<3||dist(s,e)<20){renderBoard();pflash(hints(tool));return;}
+  let to=null,end={x:e.x,y:e.y};
+  if(t.type==="pass"){const r=hitTok(end,["o"]);if(r&&r.id!==t.from){to=r.id;end={x:r.x,y:r.y};}}
+  const m=t.pts[Math.floor(t.pts.length/2)],mid={x:(s.x+end.x)/2,y:(s.y+end.y)/2};
+  const chord=Math.hypot(end.x-s.x,end.y-s.y)||1;
+  const dev=Math.abs((end.x-s.x)*(s.y-m.y)-(s.x-m.x)*(end.y-s.y))/chord;
+  const c=dev<10?mid:{x:2*m.x-mid.x,y:2*m.y-mid.y};
+  pushHist();
+  frame().actions.push({id:uid(),type:t.type,from:t.from,to,x1:s.x,y1:s.y,cx:c.x,cy:c.y,x2:end.x,y2:end.y});
+  markDirty();renderBoard();
+}
+board.addEventListener("pointerup",endPointer);
+board.addEventListener("pointercancel",()=>{drag=null;temp=null;renderBoard();});
+
+/* toolbar + steps */
+$("#ptools").addEventListener("click",e=>{if(anim)stopAnim();const b=e.target.closest("[data-tool]");if(b)setTool(b.dataset.tool);});
+let labelTarget=null;
+$("#labelForm").addEventListener("submit",e=>{
+  e.preventDefault();if(!labelTarget)return;
+  const v=$("#labelInput").value.trim().slice(0,3);pushHist();
+  play.frames.forEach(f=>f.tokens.forEach(t=>{if(t.id===labelTarget){if(v)t.label=v;else delete t.label;}}));
+  $("#labelBox").hidden=true;labelTarget=null;markDirty();renderBoard();
+});
+$("#labelCancel").addEventListener("click",()=>{$("#labelBox").hidden=true;labelTarget=null;});
+/* Rebuild everything that depends on the team's sport. */
+function refreshSportUI(){
+  const S=sp();CATS=S.cats;
+  $("#pType").innerHTML=S.playTypes.map(t=>`<option>${t}</option>`).join("");
+  const forms=Object.keys(S.forms);
+  $("#pForm").innerHTML=`<option value="">Start from a set…</option>`+forms.map(f=>`<option>${f}</option>`).join("")+`<option>Empty</option>`;
+  ["cut","pass","dribble","screen"].forEach(k=>{const b=document.querySelector(`#ptools [data-tool="${k}"]`);if(!b)return;
+    b.hidden=!S.tools[k];if(S.tools[k])b.lastChild.textContent=S.tools[k];});
+  $("#pAutoD").hidden=!S.defend;
+  $("#board").setAttribute("aria-label",S.board);
+  $("#dCats").innerHTML=CATS.map((c,i)=>`<label><input type="checkbox" id="dc${i}" value="${c}"><span>${c}</span></label>`).join("");
+  $("#libCat").innerHTML=`<option value="">All categories</option>`+CATS.map(c=>`<option>${c}</option>`).join("");
+  const tb=document.querySelector(`#ptools [data-tool="${tool}"]`);if(tb&&tb.hidden)tool="move";
+  setTool(tool);
+}
+$("#pForm").addEventListener("change",e=>{
+  const f=e.target.value;if(!f)return;pushHist();
+  if(f==="Empty"){frame().tokens=[];frame().actions=[];e.target.value="";markDirty();renderBoard();return;}
+  const fr=frame();fr.tokens=fr.tokens.filter(t=>t.kind==="d").concat(formTokens(f));fr.actions=[];
+  e.target.value="";markDirty();renderBoard();
+});
+$("#pAutoD").addEventListener("click",()=>{
+  const fr=frame(),os=fr.tokens.filter(t=>t.kind==="o"&&t.y>0);
+  if(!os.length){pflash("Place offensive players first.");return;}
+  pushHist();fr.tokens=fr.tokens.filter(t=>t.kind!=="d");
+  if(!sp().defend)return;
+  os.forEach(o=>{const q=sp().defend(o);fr.tokens.push({id:"d"+o.n,kind:"d",n:o.n,x:q.x,y:q.y});});
+  markDirty();renderBoard();
+});
+$("#pUndo").addEventListener("click",()=>{if(!hist.length){pflash("Nothing to undo.");return;}const h=JSON.parse(hist.pop());play.frames=h.frames;fi=Math.min(h.fi,play.frames.length-1);markDirty();renderSteps();renderBoard();});
+let clearStepArmed=false;
+$("#pClear").addEventListener("click",e=>{
+  if(!frame().actions.length){pflash("No lines to clear on this step.");return;}
+  if(!clearStepArmed){clearStepArmed=true;e.currentTarget.textContent="Tap again to clear lines";setTimeout(()=>{clearStepArmed=false;$("#pClear").textContent="Clear lines";},3000);return;}
+  clearStepArmed=false;$("#pClear").textContent="Clear lines";pushHist();frame().actions=[];markDirty();renderBoard();
+});
+$("#pSteps").addEventListener("click",e=>{const b=e.target.closest("[data-step]");if(!b)return;if(anim)stopAnim();fi=+b.dataset.step;renderSteps();renderBoard();});
+$("#pNext").addEventListener("click",()=>{
+  pushHist();
+  const nf={caption:"",tokens:nextTokens(frame()),actions:[]};
+  play.frames.splice(fi+1,0,nf);fi++;markDirty();renderSteps();renderBoard();
+  pflash("New step: players moved to where their lines ended.");
+});
+
+
+/* ---------- play-through animation ---------- */
+let anim=null;
+function animCaption(i){
+  const f=play.frames[i];
+  $("#pAnimCap").innerHTML=`<b>Step ${i+1} of ${play.frames.length}</b>${f.caption?esc(f.caption):""}`;
+  document.querySelectorAll("#pSteps [data-step]").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.step===i));
+}
+function startAnim(){
+  if(!play.frames.length)return;
+  if(anim&&anim.paused){anim.paused=false;anim.last=performance.now();$("#pPlay").innerHTML="&#10074;&#10074; Pause";requestAnimationFrame(tick);return;}
+  if(anim&&!anim.paused){anim.paused=true;$("#pPlay").innerHTML="&#9654; Resume";return;}
+  const start=play.frames.length>1&&fi<play.frames.length-1?fi:0;
+  anim={i:start,phase:"hold",t:0,tr:buildTransition(play.frames,start),last:performance.now(),paused:false};
+  $("#pPlay").innerHTML="&#10074;&#10074; Pause";$("#pStop").hidden=false;$("#boardFrame").classList.add("playing");
+  board.style.cursor="default";animCaption(start);requestAnimationFrame(tick);
+}
+function stopAnim(){
+  if(!anim)return;anim=null;
+  $("#pPlay").innerHTML="&#9654; Play through";$("#pStop").hidden=true;$("#boardFrame").classList.remove("playing");
+  board.style.cursor="";$("#pAnimCap").textContent="";renderSteps();renderBoard();
+}
+function tick(now){
+  if(!anim||anim.paused)return;
+  const spd=+$("#pSpeed").value||1;
+  anim.t+=(now-anim.last)*spd;anim.last=now;
+  const tr=anim.tr;
+  const dur=anim.phase==="move"?(tr.moves?DUR.move:0):anim.phase==="pass"?(tr.passCurve?DUR.pass:0):anim.phase==="end"?DUR.end:DUR.hold;
+  if(anim.t>=dur){
+    anim.t=0;
+    if(anim.phase==="hold")anim.phase="move";
+    else if(anim.phase==="move")anim.phase="pass";
+    else if(anim.phase==="pass"){
+      if(tr.last){anim.phase="end";}
+      else{anim.i++;anim.tr=buildTransition(play.frames,anim.i);anim.phase="hold";animCaption(anim.i);}
+    }
+    else if(anim.phase==="end"){
+      $("#board").innerHTML=boardInner({tokens:animTokens(tr,"pass",1),actions:[]},"screen");
+      anim.paused=true;$("#pPlay").innerHTML="&#8635; Replay";$("#pAnimCap").innerHTML+=` <span style="color:var(--muted)">· End of play</span>`;
+      anim.done=true;return;
+    }
+    requestAnimationFrame(tick);return;
+  }
+  const u=dur?anim.t/dur:1;
+  const ph=anim.phase==="end"?"pass":anim.phase;
+  $("#board").innerHTML=boardInner({tokens:animTokens(tr,ph,anim.phase==="end"?1:u),actions:anim.phase==="end"?[]:tr.f.actions},"screen",null,anim.phase!=="hold");
+  requestAnimationFrame(tick);
+}
+$("#pPlay").addEventListener("click",()=>{
+  if(anim&&anim.done){anim=null;fi=0;}
+  startAnim();
+});
+$("#pStop").addEventListener("click",stopAnim);
+document.querySelector(".board-card").addEventListener("click",e=>{const b=e.target.closest("button");if(anim&&b&&!["pPlay","pStop"].includes(b.id))stopAnim();},true);
+document.querySelector(".board-card").addEventListener("change",e=>{if(anim&&e.target.id==="pForm")stopAnim();},true);
+
+let delStepArmed=false;
+$("#pDelStep").addEventListener("click",e=>{
+  if(play.frames.length<2)return;
+  if(!delStepArmed){delStepArmed=true;e.currentTarget.textContent="Tap again to delete";setTimeout(()=>{delStepArmed=false;$("#pDelStep").textContent="Delete step";},3000);return;}
+  delStepArmed=false;$("#pDelStep").textContent="Delete step";
+  pushHist();play.frames.splice(fi,1);fi=Math.max(0,fi-1);markDirty();renderSteps();renderBoard();
+});
+$("#pCaption").addEventListener("input",e=>{frame().caption=e.target.value;markDirty();});
+$("#pName").addEventListener("input",e=>{play.name=e.target.value;markDirty();});
+$("#pType").addEventListener("change",e=>{play.type=e.target.value;markDirty();});
+$("#pNotes").addEventListener("input",e=>{play.notes=e.target.value;markDirty();});
+
+/* save / new / library */
+$("#pSave").addEventListener("click",async()=>{
+  if(!play.name.trim()){pflash("Give the play a name before saving.");$("#pName").focus();return;}
+  const id=play.id||uid()+uid();
+  const body={name:play.name.trim(),type:play.type,notes:play.notes||"",frames:play.frames,updatedAt:Date.now(),editedBy:ME.name};
+  play.id=id;pdirty=false;
+  const ex=plays.find(p=>p.id===id);if(ex)Object.assign(ex,body);else plays.push({id,...body});
+  renderPlayLib();renderPickCats();renderPick();renderEditor();
+  if(!db||!canWrite){$("#pStatus").textContent=db?"View only":"Not saved in this view";return;}
+  $("#pStatus").textContent="Saving…";
+  try{await db.collection("plays").doc(id).set(body);$("#pStatus").textContent="Saved to play library";}
+  catch(err){handleWriteErr(err);$("#pStatus").textContent="Not saved";pdirty=true;}
+});
+let newArmed=false;
+$("#pNew").addEventListener("click",e=>{
+  if(pdirty&&!newArmed){newArmed=true;e.currentTarget.textContent="Discard changes?";setTimeout(()=>{newArmed=false;$("#pNew").textContent="New play";},3000);return;}
+  newArmed=false;$("#pNew").textContent="New play";
+  play=blankPlay();fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();$("#pName").focus();
+});
+function renderPlayLib(){
+  $("#playCount").textContent=plays.length?`(${plays.length})`:"";
+  const q=$("#plSearch").value.trim().toLowerCase();
+  const list=[...plays].sort((a,b)=>a.name.localeCompare(b.name)).filter(p=>!q||(p.name+" "+p.type+" "+(p.notes||"")).toLowerCase().includes(q));
+  $("#plList").innerHTML=list.length?list.map(p=>`<article class="pcard${play&&play.id===p.id?" open":""}">
+      <div class="pthumb">${boardSVG(p.frames[0],"screen")}</div>
+      <div style="min-width:0"><b>${esc(p.name)}</b><span>${esc(p.type)} · ${p.frames.length} step${p.frames.length>1?"s":""}</span>
+      <div class="actions"><button class="btn" data-open="${p.id}">Open</button><button class="btn edit-only" data-copy="plays" data-id="${p.id}">Copy</button><button class="btn danger edit-only" data-pdel="${p.id}">Delete</button></div></div></article>`).join("")
+    :`<div class="empty">${plays.length?"No plays match.":"No plays saved yet. Draw a play on the board, name it, and tap Save play."}</div>`;
+}
+$("#plSearch").addEventListener("input",renderPlayLib);
+$("#plList").addEventListener("click",async e=>{
+  const o=e.target.closest("[data-open]"),d=e.target.closest("[data-pdel]");
+  if(o){
+    if(pdirty&&o.dataset.armed!=="1"){o.dataset.armed="1";o.textContent="Discard changes?";setTimeout(()=>{o.dataset.armed="";o.textContent="Open";},3000);return;}
+    const p=plays.find(x=>x.id===o.dataset.open);play=clone(p);fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();
+    $("#view-plays").scrollIntoView({behavior:"smooth",block:"start"});
+  }
+  if(d){
+    if(d.dataset.armed!=="1"){d.dataset.armed="1";d.textContent="Tap to confirm";setTimeout(()=>{d.dataset.armed="";d.textContent="Delete";},3000);return;}
+    const id=d.dataset.pdel;plays=plays.filter(x=>x.id!==id);
+    if(play&&play.id===id){play.id=null;pdirty=true;renderEditor();}
+    renderPlayLib();renderPickCats();renderPick();
+    if(db&&canWrite){try{await db.collection("plays").doc(id).delete();}catch(err){handleWriteErr(err);}}
+  }
+});
+
+/* printing */
+function svgToPng(svg,w){return new Promise((res,rej)=>{const img=new Image();img.onload=()=>{const c=document.createElement("canvas");c.width=w;c.height=Math.round(w*VB.h/VB.w);const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);res(c.toDataURL("image/png"));};img.onerror=()=>rej(new Error("diagram"));img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);});}
+async function addPlayPages(doc,p,fresh){
+  const W=612,H=792,M=40,R=W-M,IW=300,IH=IW*VB.h/VB.w;
+  if(!fresh)doc.addPage();
+  let y=M;
+  doc.setTextColor(0);doc.setFont("helvetica","bold");doc.setFontSize(9);
+  doc.text(pdfHeader("Play"),M,y);y+=24;
+  doc.setFontSize(20);doc.text(p.name.toUpperCase(),M,y);
+  doc.setFont("helvetica","normal");doc.setFontSize(11);doc.text(p.type,R,y,{align:"right"});
+  y+=10;doc.setLineWidth(2);doc.line(M,y,R,y);y+=16;
+  if(p.notes){doc.setFontSize(10);const n=doc.splitTextToSize(p.notes,R-M);doc.text(n,M,y);y+=n.length*12+4;}
+  doc.setFontSize(8.5);doc.setFont("helvetica","italic");
+  const L=sp().tools;doc.text([`Solid arrow = ${L.cut.toLowerCase()}`,`Dashed arrow = ${L.pass.toLowerCase()}`,L.dribble&&`Zigzag = ${L.dribble.toLowerCase()}`,L.screen&&`Line with bar = ${L.screen.toLowerCase()}`].filter(Boolean).join("     "),M,y);y+=14;
+  for(let i=0;i<p.frames.length;i++){
+    const f=p.frames[i];
+    if(y+IH>H-M){doc.addPage();y=M;}
+    const img=await svgToPng(boardSVG(f,"print",900),900);
+    doc.addImage(img,"PNG",M,y,IW,IH);doc.setLineWidth(.75);doc.rect(M,y,IW,IH);
+    doc.setFont("helvetica","bold");doc.setFontSize(13);doc.text(`STEP ${i+1}`,M+IW+16,y+16);
+    doc.setFont("helvetica","normal");doc.setFontSize(10);
+    if(f.caption){const c=doc.splitTextToSize(f.caption,R-(M+IW+16));doc.text(c,M+IW+16,y+34);}
+    y+=IH+18;
+  }
+}
+async function savePdf(btn,label,make,name){
+  if(!window.jspdf){btn.textContent="PDF tool didn't load";setTimeout(()=>btn.textContent=label,2500);return;}
+  btn.textContent="Building PDF…";
+  try{const doc=await make();saveFile(name,doc.output("blob"));btn.textContent="PDF downloaded";}
+  catch(err){btn.textContent="Couldn't build PDF";}
+  setTimeout(()=>btn.textContent=label,2500);
+}
+$("#pPdf").addEventListener("click",e=>{
+  if(!play.name.trim()){pflash("Name the play before printing.");$("#pName").focus();return;}
+  savePdf(e.currentTarget,"Printable PDF",async()=>{const doc=new window.jspdf.jsPDF({unit:"pt",format:"letter"});await addPlayPages(doc,play,true);return doc;},`Play - ${play.name.trim()}.pdf`);
+});
+
+play=blankPlay();setTool("move");renderEditor();renderPlayLib();
+
+async function saveFile(name,data){
+  const blob=data instanceof Blob?data:new Blob([data],{type:"application/json"});
+  // Inside a Claude preview, downloads go through Claude's save prompt.
+  const dl=window.claude&&window.claude.use?await window.claude.use("downloads").catch(()=>null):null;
+  if(dl){try{await dl.save({filename:name,data:blob});return;}catch(e){if(e&&e.code==="declined")return;}}
+  const url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
+function setTab(t){
+  document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));
+  document.querySelectorAll("section.view").forEach(v=>v.hidden=v.id!=="view-"+t);
+  if(window.onViewChange)window.onViewChange();
+  if(t==="settings"&&window.onSettingsTab)window.onSettingsTab();
+  try{localStorage.setItem("tab",t)}catch{}
+}
+try{const t=localStorage.getItem("tab");if(t)setTab(t)}catch{}
+
+/* ---------- start / stop (called by boot.js once a team is chosen) ---------- */
+let unsubs=[];
+function stopPlanner(){unsubs.forEach(u=>{try{u()}catch{}});unsubs=[];db=null;drills=[];plans={};plays=[];cur=null;}
+function startPlanner(store,settings){
+  stopPlanner();
+  db=store;canWrite=true;
+  applySettings(settings);
+  buildDateSelect(); loadPlan($("#planDate").value); renderAllDrills();
+  play=blankPlay();fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();
+  let firstPlans=true;
+  const err=()=>showNotice("Couldn't load your team's data. Check your connection and reload.");
+  unsubs.push(db.collection("drills").onSnapshot(s=>{
+    drills=s.docs.map(d=>({id:d.id,...d.data()}));sortDrills();renderAllDrills();
+  },err));
+  unsubs.push(db.collection("plays").onSnapshot(s=>{
+    plays=s.docs.map(d=>({id:d.id,...d.data()}));renderPlayLib();renderPickCats();renderPick();
+  },err));
+  unsubs.push(db.collection("plans").onSnapshot(s=>{
+    plans={};s.docs.forEach(d=>{plans[d.id]=d.data();});
+    buildDateSelect();
+    const inc=plans[cur.date];
+    if(firstPlans||(!saveTimer&&inc&&!s.metadata.hasPendingWrites&&JSON.stringify(inc)!==JSON.stringify(cur))){firstPlans=false;loadPlan($("#planDate").value);}
+    else renderCopyFrom();
+    renderLib();
+  },err));
+}
+
+/* Copy to another team (handled by boot.js) */
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-copy]");if(!b||!window.openCopy)return;
+  e.preventDefault();e.stopPropagation();window.openCopy(b.dataset.copy,b.dataset.id);
+},true);
