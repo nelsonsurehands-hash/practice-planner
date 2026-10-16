@@ -5,6 +5,7 @@ function setReadOnly(flag){
   READONLY=!!flag;document.body.classList.toggle("readonly",READONLY);
   ["#planStart","#planEnd","#planFocus","#pName","#pType","#pCaption","#pNotes"].forEach(q=>{const el=$(q);if(el)el.disabled=READONLY;});
   if(cur)renderPlan();
+  if(typeof renderPlayLib==="function")renderPlayLib();
 }
 const sp=()=>SPORTS[SPORT]||SPORTS.basketball;
 let PRACTICES=[], SETTINGS={};
@@ -434,7 +435,7 @@ function renderEditor(){
   $("#pName").value=play.name;$("#pType").value=play.type;$("#pNotes").value=play.notes||"";
   renderSteps();renderBoard();
   $("#pStatus").textContent=pdirty?"Unsaved changes":(play.id?"Saved":"");
-  $("#pEditTitle").textContent=play.id?"Edit play":"New play";
+  $("#pEditTitle").textContent=play.id?(READONLY?play.name||"Play":"Edit play"):"New play";
 }
 function setTool(t){tool=t;document.querySelectorAll("#ptools [data-tool]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.tool===t));$("#pHint").textContent=hints(t);$("#labelBox").hidden=true;}
 function pflash(t){$("#pHint").textContent=t;clearTimeout(hintTimer);hintTimer=setTimeout(()=>$("#pHint").textContent=hints(tool),3000);}
@@ -657,19 +658,23 @@ function renderPlayLib(){
   $("#playCount").textContent=plays.length?`(${plays.length})`:"";
   const q=$("#plSearch").value.trim().toLowerCase();
   const list=[...plays].sort((a,b)=>a.name.localeCompare(b.name)).filter(p=>!q||(p.name+" "+p.type+" "+(p.notes||"")).toLowerCase().includes(q));
-  $("#plList").innerHTML=list.length?list.map(p=>`<article class="pcard${play&&play.id===p.id?" open":""}">
+  $("#plList").innerHTML=list.length?list.map(p=>`<article class="pcard${play&&play.id===p.id?" open":""}" data-card="${p.id}">
       <div class="pthumb">${boardSVG(p.frames[0],"screen")}</div>
       <div style="min-width:0"><b>${esc(p.name)}</b><span>${esc(p.type)} · ${p.frames.length} step${p.frames.length>1?"s":""}</span>
-      <div class="actions"><button class="btn" data-open="${p.id}">Open</button><button class="btn edit-only" data-copy="plays" data-id="${p.id}">Copy</button><button class="btn danger edit-only" data-pdel="${p.id}">Delete</button></div></div></article>`).join("")
+      <div class="actions"><button class="btn" data-open="${p.id}">${READONLY?"View":"View / edit"}</button><button class="btn edit-only" data-copy="plays" data-id="${p.id}">Copy</button><button class="btn danger edit-only" data-pdel="${p.id}">Delete</button></div></div></article>`).join("")
     :`<div class="empty">${plays.length?"No plays match.":"No plays saved yet. Draw a play on the board, name it, and tap Save play."}</div>`;
 }
 $("#plSearch").addEventListener("input",renderPlayLib);
+$("#pNewTop").addEventListener("click",()=>{$("#pNew").click();document.querySelector("#view-plays .board-card").scrollIntoView({behavior:"smooth",block:"start"});});
+$("#pToLib").addEventListener("click",()=>document.querySelector("#view-plays .playlib").scrollIntoView({behavior:"smooth",block:"start"}));
 $("#plList").addEventListener("click",async e=>{
-  const o=e.target.closest("[data-open]"),d=e.target.closest("[data-pdel]");
+  let o=e.target.closest("[data-open]");const d=e.target.closest("[data-pdel]");
+  /* Tapping anywhere on a play card (picture or name) opens it, same as the button. */
+  if(!o&&!d&&!e.target.closest("button")){const card=e.target.closest("[data-card]");if(card)o=card.querySelector("[data-open]");}
   if(o){
-    if(pdirty&&o.dataset.armed!=="1"){o.dataset.armed="1";o.textContent="Discard changes?";setTimeout(()=>{o.dataset.armed="";o.textContent="Open";},3000);return;}
+    if(pdirty&&o.dataset.armed!=="1"){o.dataset.armed="1";o.textContent="Discard changes?";setTimeout(()=>{o.dataset.armed="";o.textContent=READONLY?"View":"View / edit";},3000);return;}
     const p=plays.find(x=>x.id===o.dataset.open);play=clone(p);fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();
-    $("#view-plays").scrollIntoView({behavior:"smooth",block:"start"});
+    document.querySelector("#view-plays .board-card").scrollIntoView({behavior:"smooth",block:"start"});
   }
   if(d){
     if(d.dataset.armed!=="1"){d.dataset.armed="1";d.textContent="Tap to confirm";setTimeout(()=>{d.dataset.armed="";d.textContent="Delete";},3000);return;}

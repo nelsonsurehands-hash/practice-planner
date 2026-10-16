@@ -296,3 +296,13 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;color:inherit}
 .pb-brand{display:flex;align-items:center;gap:12px}
 .pb-brand img{height:64px;width:auto;max-width:110px;object-fit:contain}
 .logo-edit .btn{text-transform:none;letter-spacing:0;font-size:14px;font-weight:600;color:var(--ink)}
+/* Plays on phones: library first, tap a card to open it in the board below */
+.pcard[data-card]{cursor:pointer}
+.pcard[data-card]:hover{border-color:var(--accent)}
+.board-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.narrow-only{display:none}
+@media (max-width:900px){
+  .playlib{order:-1}
+  .narrow-only{display:inline-flex}
+  .board-card{scroll-margin-top:12px}
+}

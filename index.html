@@ -152,7 +152,7 @@
 <section id="view-plays" class="view" hidden>
   <div class="plays-wrap">
     <div class="board-card">
-      <h2 id="pEditTitle">New play</h2>
+      <div class="board-head"><h2 id="pEditTitle">New play</h2><button class="btn narrow-only" type="button" id="pToLib">All plays ›</button></div>
       <div class="pmeta">
         <label class="f f-name">Play name<input id="pName" placeholder="e.g. Horns flare"></label>
         <label class="f">Type<select id="pType"></select></label>
@@ -196,7 +196,7 @@
       </div>
     </div>
     <aside class="playlib">
-      <h2>Play Library</h2>
+      <div class="board-head"><h2>Play Library</h2><button class="btn narrow-only edit-only" type="button" id="pNewTop">+ New play</button></div>
       <button class="btn primary edit-only" id="shareBook">Share with players</button>
       <input id="plSearch" placeholder="Search plays">
       <div id="plList" style="display:flex;flex-direction:column;gap:8px"></div>
