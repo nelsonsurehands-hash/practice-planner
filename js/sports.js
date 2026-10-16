@@ -7,7 +7,7 @@ const SPORTS={
     name:"Basketball", players:5, board:"Half-court drawing board",
     cats:["Warm-up","Ball handling","Passing","Shooting","Finishing","Defense","Rebounding","Offense","Transition","Conditioning","Scrimmage","Other"],
     playTypes:["Half-court offense","Zone offense","Baseline inbound","Sideline inbound","Press break","Quick hitter","Defense","Special situation"],
-    tools:{cut:"Cut",pass:"Pass",dribble:"Dribble",screen:"Screen"},
+    tools:{cut:"Cut",pass:"Pass",dribble:"Dribble",screen:"Screen",shot:"Shot"},target:{x:250,y:52.5},
     forms:{
       "5-Out":[[1,250,330],[2,425,245],[3,75,245],[4,455,55],[5,45,55]],
       "4-Out 1-In":[[1,250,330],[2,425,245],[3,75,245],[4,455,55],[5,340,95]],
@@ -31,7 +31,7 @@ const SPORTS={
     name:"Soccer", players:11, board:"Half-field drawing board",
     cats:["Warm-up","Passing","Dribbling","Shooting","Finishing","Defending","Goalkeeping","Possession","Set pieces","Small-sided games","Conditioning","Scrimmage","Other"],
     playTypes:["Attack","Build-up","Corner kick","Free kick","Throw-in","Defensive shape","Pressing","Special situation"],
-    tools:{cut:"Run",pass:"Pass",dribble:"Dribble",screen:null},
+    tools:{cut:"Run",pass:"Pass",dribble:"Dribble",screen:null,shot:"Shot"},target:{x:250,y:-4},
     forms:{
       "4-3-3":[[1,250,462],[2,430,360],[3,320,372],[4,180,372],[5,70,360],[6,150,262],[7,250,280],[8,350,262],[9,80,130],[10,250,115],[11,420,130]],
       "4-4-2":[[1,250,462],[2,430,360],[3,320,372],[4,180,372],[5,70,360],[6,430,250],[7,320,262],[8,180,262],[9,70,250],[10,190,135],[11,310,135]]

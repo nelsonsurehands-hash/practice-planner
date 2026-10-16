@@ -446,12 +446,19 @@ function pushHist(){hist.push(JSON.stringify({frames:play.frames,fi}));if(hist.l
 function svgPt(e){const svg=$("#board"),p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(svg.getScreenCTM().inverse());return {x:Math.max(VB.x+8,Math.min(VB.x+VB.w-8,q.x)),y:Math.max(VB.y+8,Math.min(VB.y+VB.h-8,q.y))};}
 function hitTok(p,kinds){let best=null,bd=22;frame().tokens.forEach(t=>{if(kinds&&!kinds.includes(t.kind))return;const d=dist(p,t)-(t.kind==="ball"?6:0);if(d<bd){bd=d;best=t;}});return best;}
 /* Where a player ends up at the end of this step (the end of their cut, or where they stand). */
-function destOf(fr,id){const a=fr.actions.find(a=>a.from===id&&a.type!=="pass");if(a)return {x:a.x2,y:a.y2};const t=fr.tokens.find(t=>t.id===id);return t?{x:t.x,y:t.y}:null;}
+function destOf(fr,id){const a=fr.actions.find(a=>a.from===id&&isMove(a));if(a)return {x:a.x2,y:a.y2};const t=fr.tokens.find(t=>t.id===id);return t?{x:t.x,y:t.y}:null;}
 /* A pass to a player always ends where that player will catch it (after their cut). */
 function syncPasses(fr){
   fr.actions.forEach(a=>{if(a.type!=="pass"||!a.to)return;const d=destOf(fr,a.to);if(!d){a.to=null;return;}
     const dx=d.x-a.x2,dy=d.y-a.y2;if(Math.abs(dx)+Math.abs(dy)<.5)return;a.x2=d.x;a.y2=d.y;a.cx+=dx/2;a.cy+=dy/2;});
+  fr.actions.forEach(a=>{if(a.type!=="shot")return;const s=shotStart(fr,a.from);if(!s){fr.actions=fr.actions.filter(x=>x!==a);return;}Object.assign(a,shotArc(s));});
 }
+/* A shot leaves from where the shooter is at the end of the step and arcs to the basket or goal. */
+function shotStart(fr,id){const d=destOf(fr,id),t=fr.tokens.find(x=>x.id===id),b=fr.tokens.find(x=>x.kind==="ball");
+  if(!d||!t)return null;return b?{x:d.x+(b.x-t.x),y:d.y+(b.y-t.y)}:{x:d.x+13,y:d.y-13};}
+function shotArc(s){const T=sp().target,len=Math.hypot(T.x-s.x,T.y-s.y),lift=Math.max(22,len*.32);
+  const mx=(s.x+T.x)/2,my=(s.y+T.y)/2,nx=(T.y-s.y)/(len||1),ny=-(T.x-s.x)/(len||1),side=ny<0?1:-1;
+  return {x1:s.x,y1:s.y,cx:mx+nx*lift*side,cy:my+ny*lift*side,x2:T.x,y2:T.y};}
 /* After a change in step i, carry the new end positions into the following steps,
    but only for players and the ball that were just sitting where the old step left them. */
 function carryForward(i,before){
@@ -467,11 +474,11 @@ function carryForward(i,before){
         t.x=n.x;t.y=n.y;
         if(h&&h.id===t.id&&b&&!after.some(x=>x.kind==="ball"&&before.some(y=>y.kind==="ball"&&dist(x,y)>=1))){b.x+=dx;b.y+=dy;}
         syncPasses(fj);
-        if(fj.actions.some(a=>a.from===t.id&&a.type!=="pass"))break;
+        if(fj.actions.some(a=>a.from===t.id&&isMove(a)))break;
       }else{
         t.x=n.x;t.y=n.y;
         const h=holderOf(fj);
-        if(fj.actions.some(a=>a.type==="pass")||(h&&fj.actions.some(a=>a.from===h.id&&a.type!=="pass")))break;
+        if(fj.actions.some(a=>!isMove(a))||(h&&fj.actions.some(a=>a.from===h.id&&isMove(a))))break;
       }
     }
   });
@@ -534,6 +541,7 @@ function endPointer(){
   const s=t.pts[0],e=t.pts[t.pts.length-1];
   if(t.pts.length<3||dist(s,e)<20){renderBoard();pflash(hints(tool));return;}
   let to=null,end={x:e.x,y:e.y};
+  if(t.type==="pass"&&frame().actions.some(a=>a.type==="shot")){renderBoard();pflash("This step ends with a shot. Draw the pass on the step before, or erase the shot.");return;}
   if(t.type==="pass"){
     /* Who catches it: a teammate whose cut ends where you let go, or a teammate standing there.
        The ball goes where they'll be; with nobody there, it goes exactly where you let go. */
@@ -569,6 +577,7 @@ function refreshSportUI(){
   $("#pType").innerHTML=S.playTypes.map(t=>`<option>${t}</option>`).join("");
   const forms=Object.keys(S.forms);
   $("#pForm").innerHTML=`<option value="">Start from a set…</option>`+forms.map(f=>`<option>${f}</option>`).join("")+`<option>Empty</option>`;
+  $("#pShot").hidden=!S.tools.shot;
   ["cut","pass","dribble","screen"].forEach(k=>{const b=document.querySelector(`#ptools [data-tool="${k}"]`);if(!b)return;
     b.hidden=!S.tools[k];if(S.tools[k])b.lastChild.textContent=S.tools[k];});
   $("#pAutoD").hidden=!S.defend;
@@ -600,6 +609,15 @@ $("#pClear").addEventListener("click",e=>{
   clearStepArmed=false;$("#pClear").textContent="Clear lines";pushHist();editStep(()=>{frame().actions=[];});markDirty();renderBoard();
 });
 $("#pSteps").addEventListener("click",e=>{const b=e.target.closest("[data-step]");if(!b)return;if(anim)stopAnim();fi=+b.dataset.step;renderSteps();renderBoard();});
+$("#pShot").addEventListener("click",()=>{
+  if(anim)stopAnim();
+  const fr=frame(),had=fr.actions.find(a=>a.type==="shot");
+  if(had){pushHist();editStep(()=>{fr.actions=fr.actions.filter(a=>a!==had);});markDirty();renderBoard();pflash("Shot removed.");return;}
+  if(fr.actions.some(a=>a.type==="pass")){pflash("This step already has a pass. Tap + Next step, then Shot, so the catch comes first.");return;}
+  const h=holderOf(fr);if(!h){pflash("Give a player the ball first (Ball tool), then tap Shot.");return;}
+  pushHist();editStep(()=>{fr.actions.push({id:uid(),type:"shot",from:h.id,to:null,...shotArc(shotStart(fr,h.id))});});
+  markDirty();renderBoard();pflash(`${h.label||h.n} shoots${fr.actions.some(a=>a.from===h.id&&isMove(a))?" after their move":""}. Tap Shot again to remove it.`);
+});
 $("#pDup").addEventListener("click",()=>{
   pushHist();
   const f=frame(),copy=JSON.parse(JSON.stringify(f));copy.actions.forEach(a=>a.id=uid());

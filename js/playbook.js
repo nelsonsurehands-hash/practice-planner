@@ -38,7 +38,7 @@ function start(){
   BOOK.plays=(BOOK.plays||[]).filter(p=>p.frames&&p.frames.length);
   $("#pbCount").textContent=`${BOOK.plays.length} play${BOOK.plays.length===1?"":"s"}`;
   const L=SPORTS[SPORT].tools;
-  $("#pbLegend").textContent="Key: "+[`solid arrow = ${L.cut.toLowerCase()}`,`dashed arrow = ${L.pass.toLowerCase()}`,L.dribble&&`zigzag = ${L.dribble.toLowerCase()}`,L.screen&&`line with a bar = ${L.screen.toLowerCase()}`].filter(Boolean).join(" · ");
+  $("#pbLegend").textContent="Key: "+[`solid arrow = ${L.cut.toLowerCase()}`,`dashed arrow = ${L.pass.toLowerCase()}`,L.dribble&&`zigzag = ${L.dribble.toLowerCase()}`,L.screen&&`line with a bar = ${L.screen.toLowerCase()}`,L.shot&&`dotted arc = ${L.shot.toLowerCase()}`].filter(Boolean).join(" · ");
   show("#pbLoading",false);show("#pbApp",true);
   renderList();
   const want=new URLSearchParams(location.search).get("play");

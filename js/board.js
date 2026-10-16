@@ -37,6 +37,8 @@ function actSVG(a,col){
   const pts=samples(a), base=`style="fill:none;stroke:${col};stroke-width:3;stroke-linecap:round;stroke-linejoin:round`;
   if(a.type==="cut")return `<path d="${poly(pts)}" ${base}"/>`+arrowHead(pts,col);
   if(a.type==="pass")return `<path d="${poly(pts)}" ${base};stroke-dasharray:9 7"/>`+arrowHead(pts,col);
+  if(a.type==="shot")return `<path d="${poly(pts)}" ${base};stroke-width:3.5;stroke-dasharray:0.1 8"/>`+arrowHead(pts,col)+
+    `<circle cx="${a.x2}" cy="${a.y2}" r="12" style="fill:none;stroke:${col};stroke-width:2;stroke-dasharray:3 3"/>`;
   if(a.type==="dribble"){
     const r=resample(pts,7), zz=[r[0]];
     for(let i=1;i<r.length-3;i++){const p=r[i-1],q=r[i+1]||r[i];const ang=Math.atan2(q.y-p.y,q.x-p.x)+Math.PI/2,o=(i%2?5.5:-5.5);zz.push({x:r[i].x+o*Math.cos(ang),y:r[i].y+o*Math.sin(ang)});}
@@ -68,12 +70,14 @@ function lblSize(t){const n=String(t.label||t.n).length;return n>=3?10.5:n===2?1
 function boardSVG(fr,mode,w){return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VB.x} ${VB.y} ${VB.w} ${VB.h}"${w?` width="${w}" height="${Math.round(w*VB.h/VB.w)}"`:""}>${boardInner(fr,mode)}</svg>`;}
 
 
+/* Cuts, dribbles and screens move a player; passes and shots only move the ball. */
+const isMove=a=>a.type!=="pass"&&a.type!=="shot";
 function holderOf(fr){const b=fr.tokens.find(t=>t.kind==="ball");if(!b)return null;let h=null,bd=26;fr.tokens.forEach(t=>{if(t.kind==="o"){const d=dist(b,t);if(d<bd){bd=d;h=t;}}});return h;}
 
 function nextTokens(f){
   const toks=clone(f.tokens),ball=toks.find(t=>t.kind==="ball"),h=holderOf(f);
   f.actions.forEach(a=>{
-    if(a.from&&a.type!=="pass"){const t=toks.find(x=>x.id===a.from);if(t){
+    if(a.from&&isMove(a)){const t=toks.find(x=>x.id===a.from);if(t){
       if(ball&&h&&h.id===t.id){ball.x=a.x2+13;ball.y=a.y2-13;}
       t.x=a.x2;t.y=a.y2;}}
   });
@@ -81,6 +85,7 @@ function nextTokens(f){
     if(!ball)return;const r=a.to&&toks.find(x=>x.id===a.to);
     if(r){ball.x=r.x+13;ball.y=r.y-13;}else{ball.x=a.x2;ball.y=a.y2;}
   });
+  f.actions.filter(a=>a.type==="shot").forEach(a=>{if(ball){ball.x=a.x2;ball.y=a.y2;}});
   return toks;
 }
 
@@ -94,12 +99,12 @@ function buildTransition(frames,i){
     if(t.kind==="ball")return;
     const e=g.find(x=>x.id===t.id);
     if(!e){paths[t.id]=null;return;}
-    const a=f.actions.find(a=>a.from===t.id&&a.type!=="pass"&&Math.hypot(a.x2-e.x,a.y2-e.y)<3);
+    const a=f.actions.find(a=>a.from===t.id&&isMove(a)&&Math.hypot(a.x2-e.x,a.y2-e.y)<3);
     if(a||dist(t,e)>1)moves=true;
     paths[t.id]=a?(u=>qpt(a,u)):(u=>({x:t.x+(e.x-t.x)*u,y:t.y+(e.y-t.y)*u}));
   });
   const b0=f.tokens.find(t=>t.kind==="ball"),b1=g.find(t=>t.kind==="ball");
-  const h=holderOf(f), pass=f.actions.find(a=>a.type==="pass");
+  const h=holderOf(f), pass=f.actions.find(a=>a.type==="pass"||a.type==="shot");
   const ballMove=u=>{
     if(!b0)return null;
     if(h&&paths[h.id]){const p=paths[h.id](u);return {x:p.x+(b0.x-h.x),y:p.y+(b0.y-h.y)};}
