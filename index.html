@@ -79,9 +79,12 @@
 <div id="app" hidden>
 <div class="demo-bar" id="demoBar" hidden><strong>Demo mode.</strong> Your data is saved only in this browser. Add your Supabase keys to <code>js/config.js</code> to turn on sign-in and staff sharing.</div>
 <header class="top">
-  <div>
+  <div class="brand">
+    <img id="brandLogo" class="brand-logo" alt="" hidden>
+    <div>
     <div class="eyebrow" id="eyebrow"></div>
     <h1><b id="brandName" style="font-weight:inherit">Team</b> <span>Practice Planner</span></h1>
+    </div>
   </div>
   <div class="top-right">
   <details class="teamsw" id="teamSw">
@@ -240,6 +243,13 @@
         <label class="f">Team / level<input id="sLabel"></label>
         <label class="f">Team color<input id="sColor" type="color"></label>
       </div>
+      <div class="grid2">
+        <div class="f">Second color<div class="c2row"><input id="sColor2" type="color" aria-label="Second color"><label><input type="checkbox" id="sUseC2" style="width:auto"> Use it</label></div></div>
+        <div class="f">Team logo<div class="logo-edit"><div class="preview" id="sLogoPrev">No logo</div>
+          <label class="btn" style="cursor:pointer">Upload<input type="file" id="sLogo" accept="image/*" hidden></label>
+          <button class="btn" type="button" id="sLogoRm" hidden>Remove</button></div></div>
+      </div>
+      <p class="help">The second color shows in stripes and the minutes meter. The logo shows in the header, on printed plans and on your players' playbook. A square PNG with a clear background looks best.</p>
       <h3>Practice times</h3>
       <div class="grid2">
         <label class="f">Weekday start<input id="sWdS" type="time"></label>

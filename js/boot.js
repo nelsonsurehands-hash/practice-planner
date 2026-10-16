@@ -133,7 +133,7 @@ function renderSwitcher(){
   $("#swMeta").textContent=`${sportName(team)} · ${roleName(team.role)}`;
   $("#swMenu").innerHTML=`<div class="sw-head">Your teams</div>`+
     teams.map(t=>`<button class="sw-item${t.id===team.id?" on":""}" data-team="${t.id}" role="menuitem">
-      <span class="sw-dot" style="background:${esc((t.settings||{}).color||"#5b2a86")}"></span>
+      ${(t.settings||{}).logo?`<img class="sw-logo" src="${esc(t.settings.logo)}" alt="">`:`<span class="sw-dot" style="background:${esc((t.settings||{}).color||"#5b2a86")}${(t.settings||{}).color2?`;box-shadow:inset -6px 0 0 ${esc(t.settings.color2)}`:""}"></span>`}
       <span><b>${esc(t.name)}</b><small>${esc(sportName(t))} · ${esc(roleName(t.role))}</small></span></button>`).join("")+
     `<div class="sw-actions"><button class="btn" id="swNew">+ New team</button>${HOSTED?`<button class="btn" id="swJoin">Join a staff</button>`:""}</div>`;
 }
@@ -261,6 +261,7 @@ function renderRows(){
 function readForm(){
   draft.sport=$("#sSport").value;
   draft.school=$("#sSchool").value.trim();draft.mascot=$("#sMascot").value.trim();draft.teamLabel=$("#sLabel").value.trim();draft.color=$("#sColor").value;
+  draft.color2=$("#sUseC2").checked?$("#sColor2").value:"";
   draft.weekdayStart=$("#sWdS").value;draft.weekdayEnd=$("#sWdE").value;draft.weekendStart=$("#sWeS").value;draft.weekendEnd=$("#sWeE").value;
   draft.seasonStart=$("#sStart").value;draft.seasonEnd=$("#sEnd").value;
   draft.practiceDays=[...document.querySelectorAll("#sDays input:checked")].map(x=>+x.value);
@@ -276,6 +277,7 @@ window.onSettingsTab=function(){
   draft.games=draft.games||[];draft.special=draft.special||[];
   $("#sSport").value=draft.sport||"basketball";$("#sSportHelp").hidden=true;
   $("#sSchool").value=draft.school||"";$("#sMascot").value=draft.mascot||"";$("#sLabel").value=draft.teamLabel||"";$("#sColor").value=draft.color||"#5b2a86";
+  $("#sColor2").value=draft.color2||"#f2b705";$("#sUseC2").checked=!!draft.color2;renderLogoEdit();
   $("#sWdS").value=draft.weekdayStart||"";$("#sWdE").value=draft.weekdayEnd||"";$("#sWeS").value=draft.weekendStart||"";$("#sWeE").value=draft.weekendEnd||"";
   $("#sStart").value=draft.seasonStart||"";$("#sEnd").value=draft.seasonEnd||"";
   document.querySelectorAll("#sDays input").forEach(x=>x.checked=(draft.practiceDays||[]).includes(+x.value));
@@ -283,6 +285,26 @@ window.onSettingsTab=function(){
   renderStaff();renderAccount();$("#importBox").innerHTML="";
   document.querySelectorAll("#view-settings .settings > .panel:nth-child(-n+2) :is(input,select,button)").forEach(el=>el.disabled=!canEdit(team));
 };
+function renderLogoEdit(){
+  $("#sLogoPrev").innerHTML=draft.logo?`<img src="${draft.logo}" alt="Team logo">`:"No logo";
+  $("#sLogoRm").hidden=!draft.logo;
+}
+/* Shrink an uploaded logo so it fits comfortably in the team's settings. */
+function shrinkImage(file,max){
+  return new Promise((res,rej)=>{const url=URL.createObjectURL(file),im=new Image();
+    im.onload=()=>{URL.revokeObjectURL(url);const s=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight));
+      const c=document.createElement("canvas");c.width=Math.max(1,Math.round(im.naturalWidth*s));c.height=Math.max(1,Math.round(im.naturalHeight*s));
+      c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+      let out=c.toDataURL("image/webp",.9);if(!out.startsWith("data:image/webp"))out=c.toDataURL("image/png");res(out);};
+    im.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("bad image"));};im.src=url;});
+}
+$("#sLogo").addEventListener("change",async e=>{
+  const f=e.target.files[0];e.target.value="";if(!f)return;
+  try{let out=await shrinkImage(f,256);if(out.length>150000)out=await shrinkImage(f,160);
+    draft.logo=out;renderLogoEdit();$("#sStatus").textContent="Unsaved changes";}
+  catch{$("#sStatus").textContent="That file couldn't be read as an image. Try a PNG or JPG.";}
+});
+$("#sLogoRm").addEventListener("click",()=>{draft.logo="";renderLogoEdit();$("#sStatus").textContent="Unsaved changes";});
 const settingsView=$("#view-settings");
 $("#sSport").addEventListener("change",()=>{$("#sSportHelp").hidden=$("#sSport").value===((team.settings||{}).sport||"basketball");});
 settingsView.addEventListener("input",e=>{
@@ -485,7 +507,7 @@ $("#shareMake").addEventListener("click",async()=>{
     }else{
       const chosen=plays.filter(p=>ids.includes(p.id)),payload=playbookPayload(title,team,chosen);
       if(IN_PREVIEW){
-        try{localStorage.setItem("cpp:previewBook",JSON.stringify(payload));}catch{}
+        try{localStorage.setItem("cpp:previewBook",JSON.stringify({...payload,team:{...payload.team,logo:(team.settings||{}).logo||""}}));}catch{}
         $("#shareDlg").close();location.href="playbook.html?preview=1";return;
       }
       link=playbookURL("#"+await packPlaybook(payload));

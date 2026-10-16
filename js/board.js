@@ -157,7 +157,7 @@ async function unpackPlaybook(str){
 /* Only what players need: no plans, drills, staff or schedule. */
 function playbookPayload(title,team,playList){
   const st=team.settings||{};
-  return {v:1,title,team:{name:team.name,sport:st.sport||"basketball",color:st.color||"#5b2a86",school:st.school||"",mascot:st.mascot||"",teamLabel:st.teamLabel||""},
+  return {v:1,title,team:{name:team.name,sport:st.sport||"basketball",color:st.color||"#5b2a86",color2:st.color2||"",school:st.school||"",mascot:st.mascot||"",teamLabel:st.teamLabel||""},
     plays:playList.map(p=>({id:p.id,name:p.name,type:p.type,notes:p.notes||"",frames:p.frames.map(compactFrame)}))};
 }
 /* Whole numbers are plenty for a diagram and keep packed links shorter. */

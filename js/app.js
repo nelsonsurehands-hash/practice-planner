@@ -34,12 +34,42 @@ function teamTitle(){return [SETTINGS.school,SETTINGS.mascot].filter(Boolean).jo
 function pdfHeader(kind){const k=(kind||SETTINGS.teamLabel||"").toUpperCase();return teamTitle().toUpperCase()+(k?"  |  "+k:"");}
 function contrastInk(hex){const m=/^#?([0-9a-f]{6})$/i.exec(hex||"");if(!m)return "#ffffff";const n=parseInt(m[1],16),r=(n>>16&255)/255,g=(n>>8&255)/255,b=(n&255)/255;
   const L=[r,g,b].map(v=>v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4));return (0.2126*L[0]+0.7152*L[1]+0.0722*L[2])>0.4?"#17141c":"#ffffff";}
+/* Second color and logo. color2 is only used for stripes and fills, so any color stays readable. */
+function applyBrand(st){
+  const root=document.documentElement,c2=st.color2||"";
+  if(c2){root.style.setProperty("--team2",c2);root.classList.add("has-c2");}
+  else{root.style.removeProperty("--team2");root.classList.remove("has-c2");}
+  const img=document.getElementById("brandLogo");
+  if(img){if(st.logo){img.src=st.logo;img.hidden=false;}else{img.removeAttribute("src");img.hidden=true;}}
+  const fav=document.querySelector('link[rel="icon"]');if(fav)fav.href=st.logo||"icons/icon-192.png";
+}
+/* A grayscale PNG of the logo for the black-and-white printouts (cached per logo). */
+let _grayLogo={src:null,url:null,w:0,h:0};
+function grayLogo(src){
+  if(!src)return Promise.resolve(null);
+  if(_grayLogo.src===src)return Promise.resolve(_grayLogo);
+  return new Promise(res=>{const im=new Image();im.onload=()=>{
+    const c=document.createElement("canvas");c.width=im.naturalWidth;c.height=im.naturalHeight;const x=c.getContext("2d");
+    x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0);
+    const d=x.getImageData(0,0,c.width,c.height),a=d.data;
+    for(let i=0;i<a.length;i+=4){const g=Math.round(.299*a[i]+.587*a[i+1]+.114*a[i+2]);a[i]=a[i+1]=a[i+2]=g;}
+    x.putImageData(d,0,0);_grayLogo={src,url:c.toDataURL("image/png"),w:c.width,h:c.height};res(_grayLogo);
+  };im.onerror=()=>res(null);im.src=src;});
+}
+/* Draw the logo in a box (points) at the left edge; returns how far to indent the title beside it. */
+async function pdfLogo(doc,left,top,box){
+  const g=await grayLogo(SETTINGS.logo);if(!g||!g.w)return 0;
+  const s=Math.min(box/g.w,box/g.h),w=g.w*s,h=g.h*s;
+  try{doc.addImage(g.url,"PNG",left,top+(box-h)/2,w,h);}catch{return 0;}
+  return w+12;
+}
 function applySettings(st){
   SETTINGS={...DEFAULT_SETTINGS,...(st||{})};
   PRACTICES=computePractices(SETTINGS);
   SPORT=SPORTS[SETTINGS.sport]?SETTINGS.sport:"basketball";refreshSportUI();
   document.documentElement.style.setProperty("--team",SETTINGS.color||"#5b2a86");
   document.documentElement.style.setProperty("--team-ink",contrastInk(SETTINGS.color));
+  applyBrand(SETTINGS);
   $("#eyebrow").textContent=[SETTINGS.school,SETTINGS.teamLabel].filter(Boolean).join(" · ");
   $("#brandName").textContent=SETTINGS.mascot||SETTINGS.school||"Team";
   document.title=(SETTINGS.mascot||SETTINGS.school||"Coach")+" Practice Planner";
@@ -230,9 +260,10 @@ async function buildPdf(){
   const cols=[M,M+82,M+112,M+280]; // time, min, drill, notes
   let y=M;
   doc.setTextColor(0);doc.setDrawColor(0);
+  const lx=M+await pdfLogo(doc,M,M-12,50);
   doc.setFont("helvetica","bold");doc.setFontSize(9);
-  doc.text(pdfHeader(),M,y);y+=24;
-  doc.setFontSize(22);doc.text("PRACTICE PLAN",M,y);
+  doc.text(pdfHeader(),lx,y);y+=24;
+  doc.setFontSize(22);doc.text("PRACTICE PLAN",lx,y);
   doc.setFontSize(12);doc.setFont("helvetica","normal");
   const dl=dObj(cur.date).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"});
   doc.text(dl,R,y-14,{align:"right"});
@@ -655,9 +686,10 @@ async function addPlayPages(doc,p,fresh){
   const W=612,H=792,M=40,R=W-M,IW=300,IH=IW*VB.h/VB.w;
   if(!fresh)doc.addPage();
   let y=M;
+  const lx=M+await pdfLogo(doc,M,M-12,44);
   doc.setTextColor(0);doc.setFont("helvetica","bold");doc.setFontSize(9);
-  doc.text(pdfHeader("Play"),M,y);y+=24;
-  doc.setFontSize(20);doc.text(p.name.toUpperCase(),M,y);
+  doc.text(pdfHeader("Play"),lx,y);y+=24;
+  doc.setFontSize(20);doc.text(p.name.toUpperCase(),lx,y);
   doc.setFont("helvetica","normal");doc.setFontSize(11);doc.text(p.type,R,y,{align:"right"});
   y+=10;doc.setLineWidth(2);doc.line(M,y,R,y);y+=16;
   if(p.notes){doc.setFontSize(10);const n=doc.splitTextToSize(p.notes,R-M);doc.text(n,M,y);y+=n.length*12+4;}

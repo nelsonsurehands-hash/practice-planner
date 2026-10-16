@@ -29,6 +29,8 @@ function start(){
   const t=BOOK.team||{};
   SPORT=SPORTS[t.sport]?t.sport:"basketball";
   document.documentElement.style.setProperty("--team",t.color||"#5b2a86");
+  if(t.color2){document.documentElement.style.setProperty("--team2",t.color2);document.documentElement.classList.add("has-c2");}
+  if(t.logo){const im=$("#pbLogo");im.src=t.logo;im.hidden=false;const fav=document.querySelector('link[rel="icon"]');if(fav)fav.href=t.logo;}
   document.querySelector('meta[name="theme-color"]').content=t.color||"#5b2a86";
   $("#pbEyebrow").textContent=[t.school&&t.mascot?t.school+" "+t.mascot:t.name,t.teamLabel].filter(Boolean).join(" · ");
   $("#pbTitle").textContent=BOOK.title||"Playbook";

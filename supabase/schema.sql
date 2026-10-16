@@ -270,6 +270,8 @@ begin
     'team', jsonb_build_object('name', t.name,
                                'sport', coalesce(t.settings->>'sport','basketball'),
                                'color', t.settings->>'color',
+                               'color2', t.settings->>'color2',
+                               'logo', t.settings->>'logo',
                                'school', t.settings->>'school',
                                'mascot', t.settings->>'mascot',
                                'teamLabel', t.settings->>'teamLabel'),

@@ -46,7 +46,7 @@ h1 span{color:var(--accent)}
 .sheet{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
 .sheet-head{display:grid;grid-template-columns:minmax(0,1.4fr) repeat(2,minmax(0,.7fr));gap:10px}
 @media (max-width:520px){.sheet-head{grid-template-columns:1fr 1fr}.sheet-head .f-date{grid-column:1/-1}}
-label.f{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);min-width:0}
+label.f,div.f{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);min-width:0}
 input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-width:0;font-size:15px;text-transform:none;letter-spacing:0;font-weight:400}
 textarea{resize:vertical;min-height:70px}
 .focus-row{margin-top:10px}
@@ -274,3 +274,25 @@ dialog::backdrop{background:rgba(10,8,14,.45)}
 .links .off{opacity:.6}
 dialog{max-height:calc(100vh - 32px)}
 a.btn{text-decoration:none;display:inline-flex;align-items:center;color:inherit}
+
+/* ---------- second team color and logo ---------- */
+:root{--accent2:var(--team2,var(--accent))}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--accent2:color-mix(in srgb,var(--team2,var(--team,#5b2a86)) 60%,#ffffff)}}
+:root[data-theme="dark"]{--accent2:color-mix(in srgb,var(--team2,var(--team,#5b2a86)) 60%,#ffffff)}
+/* color 2 is used for stripes and fills, never for text, so a light gold or white stays readable */
+.has-c2 header.top,.has-c2 .pb-head{border-bottom:0;padding-bottom:16px;background:linear-gradient(90deg,var(--accent) 0 70%,var(--accent2) 70% 100%) left bottom/100% 5px no-repeat}
+.has-c2 .track i:nth-child(even){background:var(--accent2)}
+.has-c2 .sw-dot{box-shadow:inset -6px 0 0 var(--accent2)}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand-logo{height:56px;width:auto;max-width:96px;object-fit:contain;flex:none}
+@media (max-width:520px){.brand-logo{height:44px;max-width:72px}}
+.sw-logo{width:18px;height:18px;object-fit:contain;flex:none}
+.logo-edit{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logo-edit .preview{width:72px;height:72px;border:1px dashed var(--line);border-radius:8px;display:grid;place-items:center;background:var(--sunk);overflow:hidden;font-size:11px;color:var(--muted);text-align:center}
+.logo-edit .preview img{max-width:100%;max-height:100%;object-fit:contain}
+.c2row{display:flex;align-items:center;gap:10px}
+.c2row input[type=color]{flex:1}
+.c2row label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--ink);white-space:nowrap}
+.pb-brand{display:flex;align-items:center;gap:12px}
+.pb-brand img{height:64px;width:auto;max-width:110px;object-fit:contain}
+.logo-edit .btn{text-transform:none;letter-spacing:0;font-size:14px;font-weight:600;color:var(--ink)}
