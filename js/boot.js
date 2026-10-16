@@ -74,13 +74,22 @@ async function init(){
     teams=readDemoTeams();
     return teams.length?openTeam(pickLast()):showSetup(false);
   }
-  sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseAnonKey,{auth:{persistSession:true,detectSessionInUrl:true,flowType:"pkce"}});
+  sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseAnonKey,{auth:{persistSession:true,detectSessionInUrl:true,flowType:"implicit"}});
+  /* Implicit flow: the emailed link carries the sign-in itself, so it works even when the
+     email app opens it in a different browser than the one that asked for it. */
+  const back=new URLSearchParams(location.hash.slice(1)+"&"+location.search.slice(1));
+  const linkErr=back.get("error_description")||back.get("error");
   sb.auth.onAuthStateChange((event,session)=>{
     if(event==="SIGNED_IN"&&session&&!user)afterLogin(session.user);
     if(event==="SIGNED_OUT")location.reload();
   });
   const {data:{session}}=await sb.auth.getSession();
-  if(session)afterLogin(session.user);else show("screen-auth");
+  if(session){history.replaceState(null,"",location.pathname);afterLogin(session.user);return;}
+  show("screen-auth");
+  if(linkErr){
+    history.replaceState(null,"",location.pathname);
+    msg($("#authMsg"),/expired|invalid/i.test(linkErr)?"That sign-in link has expired or was already used. Send yourself a new one.":"Sign-in didn't finish: "+linkErr.replace(/\+/g," "),"err");
+  }
 }
 function pickLast(){let last=null;try{last=localStorage.getItem("cpp:lastTeam");}catch{}return teams.find(x=>x.id===last)||teams[0];}
 async function afterLogin(u){
