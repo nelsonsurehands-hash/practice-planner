@@ -445,6 +445,39 @@ function pushHist(){hist.push(JSON.stringify({frames:play.frames,fi}));if(hist.l
 /* pointer handling */
 function svgPt(e){const svg=$("#board"),p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(svg.getScreenCTM().inverse());return {x:Math.max(VB.x+8,Math.min(VB.x+VB.w-8,q.x)),y:Math.max(VB.y+8,Math.min(VB.y+VB.h-8,q.y))};}
 function hitTok(p,kinds){let best=null,bd=22;frame().tokens.forEach(t=>{if(kinds&&!kinds.includes(t.kind))return;const d=dist(p,t)-(t.kind==="ball"?6:0);if(d<bd){bd=d;best=t;}});return best;}
+/* Where a player ends up at the end of this step (the end of their cut, or where they stand). */
+function destOf(fr,id){const a=fr.actions.find(a=>a.from===id&&a.type!=="pass");if(a)return {x:a.x2,y:a.y2};const t=fr.tokens.find(t=>t.id===id);return t?{x:t.x,y:t.y}:null;}
+/* A pass to a player always ends where that player will catch it (after their cut). */
+function syncPasses(fr){
+  fr.actions.forEach(a=>{if(a.type!=="pass"||!a.to)return;const d=destOf(fr,a.to);if(!d){a.to=null;return;}
+    const dx=d.x-a.x2,dy=d.y-a.y2;if(Math.abs(dx)+Math.abs(dy)<.5)return;a.x2=d.x;a.y2=d.y;a.cx+=dx/2;a.cy+=dy/2;});
+}
+/* After a change in step i, carry the new end positions into the following steps,
+   but only for players and the ball that were just sitting where the old step left them. */
+function carryForward(i,before){
+  const after=nextTokens(play.frames[i]);
+  after.forEach(n=>{
+    const o=before.find(x=>x.id===n.id);if(!o||dist(o,n)<1)return;
+    for(let j=i+1;j<play.frames.length;j++){
+      const fj=play.frames[j],t=fj.tokens.find(x=>x.id===n.id);
+      if(!t||dist(t,o)>2)break;
+      const dx=n.x-t.x,dy=n.y-t.y;
+      if(t.kind!=="ball"){const h=holderOf(fj);const b=fj.tokens.find(x=>x.kind==="ball");
+        fj.actions.forEach(a=>{if(a.from===t.id){a.x1+=dx;a.y1+=dy;a.cx+=dx/2;a.cy+=dy/2;}});
+        t.x=n.x;t.y=n.y;
+        if(h&&h.id===t.id&&b&&!after.some(x=>x.kind==="ball"&&before.some(y=>y.kind==="ball"&&dist(x,y)>=1))){b.x+=dx;b.y+=dy;}
+        syncPasses(fj);
+        if(fj.actions.some(a=>a.from===t.id&&a.type!=="pass"))break;
+      }else{
+        t.x=n.x;t.y=n.y;
+        const h=holderOf(fj);
+        if(fj.actions.some(a=>a.type==="pass")||(h&&fj.actions.some(a=>a.from===h.id&&a.type!=="pass")))break;
+      }
+    }
+  });
+}
+/* Run an edit on the current step, then keep the arrows and later steps in line with it. */
+function editStep(fn){const before=nextTokens(frame());fn();syncPasses(frame());carryForward(fi,before);}
 function hitAct(p){let best=null,bd=12;frame().actions.forEach(a=>{samples(a).forEach(q=>{const d=dist(p,q);if(d<bd){bd=d;best=a;}});});return best;}
 
 const board=$("#board");
@@ -454,7 +487,7 @@ board.addEventListener("pointerdown",e=>{
   if(tool==="move"){
     const t=hitTok(p);if(!t)return;
     pushHist();const h=holderOf(fr);
-    drag={t,dx:p.x-t.x,dy:p.y-t.y,ball:t.kind!=="ball"&&h&&h.id===t.id?fr.tokens.find(x=>x.kind==="ball"):null,moved:false};
+    drag={t,dx:p.x-t.x,dy:p.y-t.y,ball:t.kind!=="ball"&&h&&h.id===t.id?fr.tokens.find(x=>x.kind==="ball"):null,moved:false,before:nextTokens(fr)};
     board.setPointerCapture(e.pointerId);return;
   }
   if(tool==="o"||tool==="d"){
@@ -476,7 +509,7 @@ board.addEventListener("pointerdown",e=>{
   if(tool==="erase"){
     const t=hitTok(p);
     if(t){pushHist();fr.tokens=fr.tokens.filter(x=>x!==t);fr.actions=fr.actions.filter(a=>a.from!==t.id&&a.to!==t.id);markDirty();renderBoard();return;}
-    const a=hitAct(p);if(a){pushHist();fr.actions=fr.actions.filter(x=>x!==a);markDirty();renderBoard();}
+    const a=hitAct(p);if(a){pushHist();editStep(()=>{fr.actions=fr.actions.filter(x=>x!==a);});markDirty();renderBoard();}
     return;
   }
   // line tools
@@ -488,27 +521,34 @@ board.addEventListener("pointerdown",e=>{
 board.addEventListener("pointermove",e=>{
   if(drag){const p=svgPt(e),t=drag.t,ox=t.x,oy=t.y;t.x=p.x-drag.dx;t.y=p.y-drag.dy;const dx=t.x-ox,dy=t.y-oy;
     if(drag.ball){drag.ball.x+=dx;drag.ball.y+=dy;}
-    frame().actions.forEach(a=>{if(a.from===t.id){a.x1+=dx;a.y1+=dy;a.cx+=dx/2;a.cy+=dy/2;}if(a.to===t.id){a.x2+=dx;a.y2+=dy;a.cx+=dx/2;a.cy+=dy/2;}});
+    frame().actions.forEach(a=>{if(a.from===t.id){a.x1+=dx;a.y1+=dy;a.cx+=dx/2;a.cy+=dy/2;}});syncPasses(frame());
     drag.moved=true;renderBoard();return;}
   if(temp){const p=svgPt(e),last=temp.pts[temp.pts.length-1];if(dist(p,last)<3)return;temp.pts.push(p);
     const s=temp.pts[0],m=temp.pts[Math.floor(temp.pts.length/2)];
     Object.assign(temp,{x2:p.x,y2:p.y,cx:2*m.x-(s.x+p.x)/2,cy:2*m.y-(s.y+p.y)/2});renderBoard();}
 });
 function endPointer(){
-  if(drag){if(drag.moved)markDirty();else hist.pop();drag=null;return;}
+  if(drag){if(drag.moved){syncPasses(frame());carryForward(fi,drag.before);markDirty();}else hist.pop();drag=null;return;}
   if(!temp)return;
   const t=temp;temp=null;
   const s=t.pts[0],e=t.pts[t.pts.length-1];
   if(t.pts.length<3||dist(s,e)<20){renderBoard();pflash(hints(tool));return;}
   let to=null,end={x:e.x,y:e.y};
-  if(t.type==="pass"){const r=hitTok(end,["o"]);if(r&&r.id!==t.from){to=r.id;end={x:r.x,y:r.y};}}
+  if(t.type==="pass"){
+    /* Who catches it: a teammate whose cut ends where you let go, or a teammate standing there.
+       The ball goes where they'll be; with nobody there, it goes exactly where you let go. */
+    const fr=frame();let r=null,bd=26;
+    fr.tokens.forEach(o=>{if(o.kind!=="o"||o.id===t.from)return;const d=destOf(fr,o.id),k=Math.min(dist(end,d),dist(end,o)+4);if(k<bd){bd=k;r=o;}});
+    if(r){to=r.id;end=destOf(fr,r.id);}
+  }
   const m=t.pts[Math.floor(t.pts.length/2)],mid={x:(s.x+end.x)/2,y:(s.y+end.y)/2};
   const chord=Math.hypot(end.x-s.x,end.y-s.y)||1;
   const dev=Math.abs((end.x-s.x)*(s.y-m.y)-(s.x-m.x)*(end.y-s.y))/chord;
   const c=dev<10?mid:{x:2*m.x-mid.x,y:2*m.y-mid.y};
   pushHist();
-  frame().actions.push({id:uid(),type:t.type,from:t.from,to,x1:s.x,y1:s.y,cx:c.x,cy:c.y,x2:end.x,y2:end.y});
+  editStep(()=>{frame().actions.push({id:uid(),type:t.type,from:t.from,to,x1:s.x,y1:s.y,cx:c.x,cy:c.y,x2:end.x,y2:end.y});});
   markDirty();renderBoard();
+  if(t.type==="pass")pflash(to?`Pass to ${(frame().tokens.find(x=>x.id===to)||{}).n||"player"}: the ball moves to where they catch it.`:"Pass to a spot: the ball moves to where you let go.");
 }
 board.addEventListener("pointerup",endPointer);
 board.addEventListener("pointercancel",()=>{drag=null;temp=null;renderBoard();});
@@ -557,9 +597,15 @@ let clearStepArmed=false;
 $("#pClear").addEventListener("click",e=>{
   if(!frame().actions.length){pflash("No lines to clear on this step.");return;}
   if(!clearStepArmed){clearStepArmed=true;e.currentTarget.textContent="Tap again to clear lines";setTimeout(()=>{clearStepArmed=false;$("#pClear").textContent="Clear lines";},3000);return;}
-  clearStepArmed=false;$("#pClear").textContent="Clear lines";pushHist();frame().actions=[];markDirty();renderBoard();
+  clearStepArmed=false;$("#pClear").textContent="Clear lines";pushHist();editStep(()=>{frame().actions=[];});markDirty();renderBoard();
 });
 $("#pSteps").addEventListener("click",e=>{const b=e.target.closest("[data-step]");if(!b)return;if(anim)stopAnim();fi=+b.dataset.step;renderSteps();renderBoard();});
+$("#pDup").addEventListener("click",()=>{
+  pushHist();
+  const f=frame(),copy=JSON.parse(JSON.stringify(f));copy.actions.forEach(a=>a.id=uid());
+  play.frames.splice(fi+1,0,copy);fi++;markDirty();renderSteps();renderBoard();
+  pflash(`Step ${fi} copied as step ${fi+1}, with the same players and lines.`);
+});
 $("#pNext").addEventListener("click",()=>{
   pushHist();
   const nf={caption:"",tokens:nextTokens(frame()),actions:[]};
