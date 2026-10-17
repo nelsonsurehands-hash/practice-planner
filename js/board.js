@@ -215,7 +215,37 @@ function playbookPayload(title,team,playList){
 /* Whole numbers are plenty for a diagram and keep packed links shorter. */
 function compactFrame(f){
   const r=v=>typeof v==="number"?Math.round(v):v;
-  return {caption:f.caption||"",
+  const extra={};["fid","opt","optName","from"].forEach(k=>{if(f[k])extra[k]=f[k];});
+  return {...extra,caption:f.caption||"",
     tokens:f.tokens.map(t=>{const o={id:t.id,kind:t.kind,x:r(t.x),y:r(t.y)};if(t.n)o.n=t.n;if(t.label)o.label=t.label;return o;}),
     actions:f.actions.map(a=>({type:a.type,from:a.from||null,to:a.to||null,x1:r(a.x1),y1:r(a.y1),cx:r(a.cx),cy:r(a.cy),x2:r(a.x2),y2:r(a.y2)}))};
 }
+
+/* ---------- options (branches of a play) ----------
+   A play has a main line of steps. An option is a branch of extra steps that starts from the end of
+   one main step. Option steps are stored in the same frames list, marked {opt, optName, from}, where
+   "from" is the fid of the main step they branch from. Old plays with no options are unchanged. */
+function playLines(frames){
+  const main=[],byId={},order=[];
+  frames.forEach((f,i)=>{
+    if(f.opt){if(!byId[f.opt]){byId[f.opt]={id:f.opt,name:f.optName||"",from:f.from,steps:[]};order.push(f.opt);}byId[f.opt].steps.push(i);}
+    else main.push(i);
+  });
+  const options=order.map((id,n)=>{
+    const o=byId[id];let b=main.findIndex(i=>frames[i].fid&&frames[i].fid===o.from);if(b<0)b=main.length-1;
+    const letter=String.fromCharCode(65+n);
+    return {...o,branch:b,letter,title:`Option ${letter}${o.name?": "+o.name:""}`};
+  });
+  return {main,options};
+}
+function optionOf(frames,lines,i){const f=frames[i];return f&&f.opt?lines.options.find(o=>o.id===f.opt)||null:null;}
+/* The frame indexes you see when playing a line: the main steps, or the main steps up to the branch then the option. */
+function lineIdx(lines,opt){return opt?lines.main.slice(0,opt.branch+1).concat(opt.steps):lines.main.slice();}
+function stepName(frames,lines,i){
+  const o=optionOf(frames,lines,i);
+  if(!o){const k=lines.main.indexOf(i);return {short:`Step ${k+1}`,long:`Step ${k+1} of ${lines.main.length}`,opt:null};}
+  const k=o.steps.indexOf(i);
+  return {short:`${o.letter}${k+1}`,long:`${o.title} · step ${k+1} of ${o.steps.length}`,where:`branches off after step ${o.branch+1}`,opt:o};
+}
+/* Display order: main steps, then each option's steps. */
+function displayOrder(lines){return lines.main.concat(...lines.options.map(o=>o.steps));}

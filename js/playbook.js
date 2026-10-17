@@ -54,7 +54,8 @@ function renderList(){
   if(!list.length){$("#pbList").innerHTML=`<p class="help">No plays match.</p>`;return;}
   const groups={};list.forEach(x=>{(groups[x.p.type||"Plays"]=groups[x.p.type||"Plays"]||[]).push(x);});
   $("#pbList").innerHTML=Object.entries(groups).map(([type,items])=>`<div class="pb-group">${esc(type)}</div><div class="pb-list">`+
-    items.map(({p,i})=>`<button class="pb-card" data-open="${i}">${boardSVG(p.frames[0],"screen")}<span><b>${esc(p.name)}</b><small>${p.frames.length} step${p.frames.length>1?"s":""}</small></span></button>`).join("")+`</div>`).join("");
+    items.map(({p,i})=>{const L=playLines(p.frames),n=L.main.length,k=L.options.length;
+      return `<button class="pb-card" data-open="${i}">${boardSVG(p.frames[0],"screen")}<span><b>${esc(p.name)}</b><small>${n} step${n>1?"s":""}${k?` · <b class="optcount">${k} option${k>1?"s":""}</b>`:""}</small></span></button>`;}).join("")+`</div>`).join("");
 }
 $("#pbTypes").addEventListener("click",e=>{const b=e.target.closest("[data-type]");if(!b)return;filter=b.dataset.type;renderList();});
 $("#pbSearch").addEventListener("input",renderList);
@@ -70,16 +71,28 @@ function openPlay(i){
   show("#pbListView",false);show("#pbPlayView",true);window.scrollTo(0,0);
   renderStep();
 }
+/* step = real frame index. Prev/next walk the display order: main steps, then each option. */
+function order(){return displayOrder(playLines(BOOK.plays[cur].frames));}
 function renderStep(){
-  const p=BOOK.plays[cur],f=p.frames[step];
+  const p=BOOK.plays[cur],f=p.frames[step],L=playLines(p.frames),n=stepName(p.frames,L,step),ord=displayOrder(L),pos=ord.indexOf(step);
   $("#pbBoard").innerHTML=boardInner(f,"screen");
-  $("#pbSteps").innerHTML=p.frames.length>1?p.frames.map((_,k)=>`<button class="step" aria-pressed="${k===step}" data-step="${k}">Step ${k+1}</button>`).join(""):"";
-  $("#pbCap").innerHTML=`<b>Step ${step+1} of ${p.frames.length}</b>${esc(f.caption||"")}`;
-  $("#pbPrev").disabled=step===0;$("#pbNext").disabled=step===p.frames.length-1;
+  const branches=k=>L.options.filter(o=>o.branch===k).map(o=>o.letter).join("");
+  $("#pbSteps").innerHTML=p.frames.length>1?L.main.map((i,k)=>`<button class="step" aria-pressed="${i===step}" data-step="${i}">Step ${k+1}${branches(k)?`<span class="branch">${branches(k)}</span>`:""}</button>`).join("")+
+    L.options.map(o=>`<div class="optgroup"><span class="optlabel">${esc(o.title)}<small>after step ${o.branch+1}</small></span>`+o.steps.map((i,k)=>`<button class="step opt" aria-pressed="${i===step}" data-step="${i}">${o.letter}${k+1}</button>`).join("")+`</div>`).join(""):"";
+  $("#pbLines").hidden=!L.options.length;
+  $("#pbLines").innerHTML=`<span class="lbl">Watch</span><button class="btn" data-line="">Main play</button>`+L.options.map(o=>`<button class="btn optbtn" data-line="${o.id}">${esc(o.title)}</button>`).join("");
+  const lead=!n.opt&&anim&&anim.opt?L.options.find(x=>x.id===anim.opt.id):null;
+  $("#pbOptBanner").hidden=!n.opt&&!lead;$("#pbBoardWrap").classList.toggle("opt",!!n.opt);
+  if(n.opt)$("#pbOptBanner").innerHTML=`<b>${esc(n.opt.title)}</b><span>Step ${n.opt.steps.indexOf(step)+1} of ${n.opt.steps.length} · ${esc(n.where)}</span>`;
+  else if(lead)$("#pbOptBanner").innerHTML=`<b>${esc(lead.title)}</b><span>Set-up: the option starts after step ${lead.branch+1}</span>`;
+  $("#pbCap").innerHTML=`<b>${n.opt?"Option "+n.opt.letter+" · step "+(n.opt.steps.indexOf(step)+1):n.long}</b>${esc(f.caption||"")}`;
+  $("#pbPrev").disabled=pos<=0;$("#pbNext").disabled=pos>=ord.length-1;
+  if(anim)document.querySelectorAll("#pbLines [data-line]").forEach(b=>b.setAttribute("aria-pressed",(b.dataset.line||null)===(anim.opt?anim.opt.id:null)));
 }
 $("#pbSteps").addEventListener("click",e=>{const b=e.target.closest("[data-step]");if(!b)return;stopRun();step=+b.dataset.step;renderStep();});
-$("#pbPrev").addEventListener("click",()=>{stopRun();if(step>0){step--;renderStep();}});
-$("#pbNext").addEventListener("click",()=>{stopRun();if(step<BOOK.plays[cur].frames.length-1){step++;renderStep();}});
+$("#pbPrev").addEventListener("click",()=>{stopRun();const o=order(),k=o.indexOf(step);if(k>0){step=o[k-1];renderStep();}});
+$("#pbNext").addEventListener("click",()=>{stopRun();const o=order(),k=o.indexOf(step);if(k<o.length-1){step=o[k+1];renderStep();}});
+$("#pbLines").addEventListener("click",e=>{const b=e.target.closest("[data-line]");if(!b)return;stopRun();run(b.dataset.line||"main");});
 $("#pbBack").addEventListener("click",()=>{stopRun();show("#pbPlayView",false);show("#pbListView",true);});
 $("#pbPrevPlay").addEventListener("click",()=>{if(cur>0)openPlay(cur-1);});
 $("#pbNextPlay").addEventListener("click",()=>{if(cur<BOOK.plays.length-1)openPlay(cur+1);});
@@ -88,20 +101,28 @@ $("#pbNextPlay").addEventListener("click",()=>{if(cur<BOOK.plays.length-1)openPl
 let sx=null;
 $("#pbBoard").addEventListener("touchstart",e=>{sx=e.touches[0].clientX;},{passive:true});
 $("#pbBoard").addEventListener("touchend",e=>{if(sx===null)return;const dx=e.changedTouches[0].clientX-sx;sx=null;
-  if(Math.abs(dx)<50)return;stopRun();const n=BOOK.plays[cur].frames.length;step=Math.max(0,Math.min(n-1,step+(dx<0?1:-1)));renderStep();},{passive:true});
+  if(Math.abs(dx)<50)return;stopRun();const o=order(),k=o.indexOf(step);step=o[Math.max(0,Math.min(o.length-1,k+(dx<0?1:-1)))];renderStep();},{passive:true});
 
 /* ---------- play through ---------- */
-function stopRun(){if(!anim)return;anim=null;$("#pbRun").textContent="▶ Play through";}
+function stopRun(){if(!anim)return;anim=null;$("#pbRun").textContent="▶ Play through";document.querySelectorAll("#pbLines [data-line]").forEach(b=>b.removeAttribute("aria-pressed"));}
+/* Play one line: the main play, or an option (which starts from the step it branches off). */
+function run(line){
+  const all=BOOK.plays[cur].frames,L=playLines(all);
+  const opt=line===undefined?optionOf(all,L,step):line==="main"?null:L.options.find(o=>o.id===line)||null;
+  const seq=lineIdx(L,opt),frames=seq.map(i=>all[i]);
+  let s0;if(line===undefined){const k=seq.indexOf(step);s0=k>=0&&k<seq.length-1?k:0;}else s0=opt?opt.branch:0;
+  anim={i:s0,seq,frames,opt,phase:"hold",t:0,tr:buildTransition(frames,s0),last:performance.now(),paused:false};
+  step=seq[s0];renderStep();$("#pbRun").textContent="❚❚ Pause";requestAnimationFrame(tick);
+}
 $("#pbRun").addEventListener("click",()=>{
   if(anim&&!anim.done){if(anim.paused){anim.paused=false;anim.last=performance.now();$("#pbRun").textContent="❚❚ Pause";requestAnimationFrame(tick);}else{anim.paused=true;$("#pbRun").textContent="▶ Resume";}return;}
-  const frames=BOOK.plays[cur].frames,s0=anim&&anim.done?0:step;
-  anim={i:s0,phase:"hold",t:0,tr:buildTransition(frames,s0),last:performance.now(),paused:false};
-  step=s0;renderStep();$("#pbRun").textContent="❚❚ Pause";requestAnimationFrame(tick);
+  if(anim&&anim.done){const o=anim.opt;anim=null;run(o?o.id:"main");return;}
+  run();
 });
 function tick(now){
   if(!anim||anim.paused)return;
   anim.t+=now-anim.last;anim.last=now;
-  const tr=anim.tr,frames=BOOK.plays[cur].frames;
+  const tr=anim.tr,frames=anim.frames;
   const dur=anim.phase==="move"?(tr.moves?(tr.moveDur||DUR.move):0):anim.phase==="pass"?(tr.passCurve?DUR.pass:0):anim.phase==="end"?DUR.end:DUR.hold;
   if(anim.t>=dur){
     anim.t=0;
@@ -109,7 +130,7 @@ function tick(now){
     else if(anim.phase==="move")anim.phase="pass";
     else if(anim.phase==="pass"){
       if(tr.last)anim.phase="end";
-      else{anim.i++;step=anim.i;anim.tr=buildTransition(frames,anim.i);anim.phase="hold";renderStep();}
+      else{anim.i++;step=anim.seq[anim.i];anim.tr=buildTransition(frames,anim.i);anim.phase="hold";renderStep();}
     }else{
       $("#pbBoard").innerHTML=boardInner({tokens:animTokens(tr,"pass",1),actions:[]},"screen");
       anim.done=true;anim.paused=true;$("#pbRun").textContent="↻ Watch again";return;

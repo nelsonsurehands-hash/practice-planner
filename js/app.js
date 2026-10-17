@@ -424,12 +424,30 @@ function blankPlay(){const f=Object.keys(sp().forms)[0];return {id:null,name:"",
 
 /* geometry */
 /* editor rendering */
-function renderBoard(){$("#board").innerHTML=boardInner(frame(),"screen",temp);}
-function renderSteps(){
-  $("#pSteps").innerHTML=play.frames.map((f,i)=>`<button class="step" aria-pressed="${i===fi}" data-step="${i}">Step ${i+1}</button>`).join("");
-  $("#pDelStep").disabled=play.frames.length<2;
-  $("#pCaption").value=frame().caption||"";
+function renderBoard(){$("#board").innerHTML=boardInner(frame(),"screen",temp);renderOptBanner(fi);}
+/* The option banner above the board: says loudly when you're looking at an option, not the main play. */
+function renderOptBanner(i){
+  const L=playLines(play.frames),n=stepName(play.frames,L,i),lead=!n.opt&&anim&&anim.opt?L.options.find(x=>x.id===anim.opt.id):null;
+  $("#pOptBanner").hidden=!n.opt&&!lead;$("#boardFrame").classList.toggle("opt",!!n.opt);
+  if(n.opt)$("#pOptBanner").innerHTML=`<b>${esc(n.opt.title)}</b><span>Step ${n.opt.steps.indexOf(i)+1} of ${n.opt.steps.length} · ${esc(n.where)}</span>`;
+  else if(lead)$("#pOptBanner").innerHTML=`<b>${esc(lead.title)}</b><span>Set-up: the option starts after step ${lead.branch+1}</span>`;
 }
+function renderSteps(){
+  const L=playLines(play.frames);
+  const branches=k=>L.options.filter(o=>o.branch===k).map(o=>o.letter).join("");
+  $("#pSteps").innerHTML=L.main.map((i,k)=>`<button class="step" aria-pressed="${i===fi}" data-step="${i}">Step ${k+1}${branches(k)?`<span class="branch" title="Options branch off here">${branches(k)}</span>`:""}</button>`).join("")+
+    L.options.map(o=>`<div class="optgroup"><span class="optlabel">${esc(o.title)}<small>after step ${o.branch+1}</small></span>`+
+      o.steps.map((i,k)=>`<button class="step opt" aria-pressed="${i===fi}" data-step="${i}">${o.letter}${k+1}</button>`).join("")+`</div>`).join("");
+  $("#pDelStep").disabled=L.main.length<2&&!frame().opt;
+  $("#pCaption").value=frame().caption||"";
+  const o=optionOf(play.frames,L,fi);
+  $("#pOptBox").hidden=!o;if(o&&document.activeElement!==$("#pOptName"))$("#pOptName").value=o.name;
+  $("#pAddOpt").textContent=o?`+ Another option after step ${o.branch+1}`:`+ Add option after this step`;
+  $("#pLines").hidden=!L.options.length;
+  $("#pLines").innerHTML=`<span class="lbl">Play</span><button class="btn" data-line="">Main play</button>`+L.options.map(o=>`<button class="btn optbtn" data-line="${o.id}">${esc(o.title)}</button>`).join("");
+  renderOptBanner(fi);
+}
+const fidOf=f=>f.fid||(f.fid=uid());
 function renderEditor(){
   if(anim)stopAnim();
   $("#pName").value=play.name;$("#pType").value=play.type;$("#pNotes").value=play.notes||"";
@@ -490,10 +508,11 @@ function shotArc(s){const T=sp().target,len=Math.hypot(T.x-s.x,T.y-s.y),lift=Mat
    but only for players and the ball that were just sitting where the old step left them. */
 function carryForward(i,before){
   const after=nextTokens(play.frames[i]);
-  after.forEach(n=>{
+  const L=playLines(play.frames),seqs=[lineIdx(L,null),...L.options.map(o=>lineIdx(L,o))].filter(q=>q.includes(i));
+  seqs.forEach(seq=>after.forEach(n=>{
     const o=before.find(x=>x.id===n.id);if(!o||dist(o,n)<1)return;
-    for(let j=i+1;j<play.frames.length;j++){
-      const fj=play.frames[j],t=fj.tokens.find(x=>x.id===n.id);
+    for(let q=seq.indexOf(i)+1;q<seq.length;q++){
+      const fj=play.frames[seq[q]],t=fj.tokens.find(x=>x.id===n.id);
       if(!t||dist(t,o)>2)break;
       const dx=n.x-t.x,dy=n.y-t.y;
       if(t.kind!=="ball"){const h=holderOf(fj);const b=fj.tokens.find(x=>x.kind==="ball");
@@ -508,7 +527,7 @@ function carryForward(i,before){
         if(fj.actions.some(a=>!isMove(a))||(h&&fj.actions.some(a=>a.from===h.id&&isMove(a))))break;
       }
     }
-  });
+  }));
 }
 /* Run an edit on the current step, then keep the arrows and later steps in line with it. */
 function editStep(fn){const before=nextTokens(frame());fn();syncPasses(frame());carryForward(fi,before);}
@@ -647,39 +666,72 @@ $("#pShot").addEventListener("click",()=>{
   pushHist();editStep(()=>{fr.actions.push({id:uid(),type:"shot",from:h.id,to:null,...shotArc(shotStart(fr,h.id))});});
   markDirty();renderBoard();pflash(`${h.label||h.n} shoots${catchers(fr).includes(h.id)?" off the catch":fr.actions.some(a=>a.from===h.id&&isMove(a))?" after their move":""}. Tap Shot again to remove it.`);
 });
+$("#pAddOpt").addEventListener("click",()=>{
+  if(anim)stopAnim();
+  const L=playLines(play.frames),o=optionOf(play.frames,L,fi);
+  const baseIdx=o?L.main[o.branch]:fi,base=play.frames[baseIdx];
+  pushHist();
+  const id="opt"+uid(),letter=String.fromCharCode(65+L.options.length);
+  const nf={caption:"",tokens:nextTokens(base),actions:[],opt:id,optName:"",from:fidOf(base)};
+  play.frames.push(nf);fi=play.frames.length-1;markDirty();renderSteps();renderBoard();
+  $("#pOptName").focus();
+  pflash(`Option ${letter} starts where step ${L.main.indexOf(baseIdx)+1} ends. Name it, draw it, and use + Next step for more option steps.`);
+});
+$("#pOptName").addEventListener("input",e=>{const f=frame();if(!f.opt)return;play.frames.forEach(x=>{if(x.opt===f.opt)x.optName=e.target.value.trim();});markDirty();
+  const keep=e.target.selectionStart;renderSteps();e.target.focus();try{e.target.setSelectionRange(keep,keep);}catch{}});
+let delOptArmed=false;
+$("#pOptDel").addEventListener("click",e=>{
+  const f=frame();if(!f.opt)return;
+  if(!delOptArmed){delOptArmed=true;e.currentTarget.textContent="Tap again to delete the option";setTimeout(()=>{delOptArmed=false;$("#pOptDel").textContent="Delete this option";},3000);return;}
+  delOptArmed=false;$("#pOptDel").textContent="Delete this option";
+  pushHist();const L=playLines(play.frames),o=optionOf(play.frames,L,fi),back=play.frames[L.main[o.branch]];
+  play.frames=play.frames.filter(x=>x.opt!==f.opt);fi=Math.max(0,play.frames.indexOf(back));markDirty();renderSteps();renderBoard();
+});
+$("#pLines").addEventListener("click",e=>{const b=e.target.closest("[data-line]");if(!b)return;if(anim)stopAnim();startAnim(b.dataset.line||"main");});
 $("#pDup").addEventListener("click",()=>{
   pushHist();
-  const f=frame(),copy=JSON.parse(JSON.stringify(f));copy.actions.forEach(a=>a.id=uid());
+  const f=frame(),copy=JSON.parse(JSON.stringify(f));copy.actions.forEach(a=>a.id=uid());delete copy.fid;
   play.frames.splice(fi+1,0,copy);fi++;markDirty();renderSteps();renderBoard();
   pflash(`Step ${fi} copied as step ${fi+1}, with the same players and lines.`);
 });
 $("#pNext").addEventListener("click",()=>{
   pushHist();
-  const nf={caption:"",tokens:nextTokens(frame()),actions:[]};
+  const cf=frame(),nf={caption:"",tokens:nextTokens(cf),actions:[]};
+  if(cf.opt)Object.assign(nf,{opt:cf.opt,optName:cf.optName||"",from:cf.from});
   play.frames.splice(fi+1,0,nf);fi++;markDirty();renderSteps();renderBoard();
-  pflash("New step: players moved to where their lines ended.");
+  pflash(cf.opt?"New option step: players moved to where their lines ended.":"New step: players moved to where their lines ended.");
 });
 
 
 /* ---------- play-through animation ---------- */
 let anim=null;
-function animCaption(i){
-  const f=play.frames[i];
-  $("#pAnimCap").innerHTML=`<b>Step ${i+1} of ${play.frames.length}</b>${f.caption?esc(f.caption):""}`;
+/* k = position in the line being played; anim.seq maps it to the real step */
+function animCaption(k){
+  const i=anim.seq[k],f=play.frames[i],L=playLines(play.frames),n=stepName(play.frames,L,i);
+  $("#pAnimCap").innerHTML=`<b>${n.opt?esc(n.opt.title)+" · ":""}${n.opt?`Step ${n.opt.steps.indexOf(i)+1} of ${n.opt.steps.length}`:n.long}</b>${f.caption?esc(f.caption):""}`;
   document.querySelectorAll("#pSteps [data-step]").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.step===i));
+  renderOptBanner(i);
 }
-function startAnim(){
+/* line: undefined = the line of the step you're on; "main" = main play; or an option id */
+function startAnim(line){
   if(!play.frames.length)return;
-  if(anim&&anim.paused){anim.paused=false;anim.last=performance.now();$("#pPlay").innerHTML="&#10074;&#10074; Pause";requestAnimationFrame(tick);return;}
-  if(anim&&!anim.paused){anim.paused=true;$("#pPlay").innerHTML="&#9654; Resume";return;}
-  const start=play.frames.length>1&&fi<play.frames.length-1?fi:0;
-  anim={i:start,phase:"hold",t:0,tr:buildTransition(play.frames,start),last:performance.now(),paused:false};
+  if(line===undefined&&anim&&anim.paused&&!anim.done){anim.paused=false;anim.last=performance.now();$("#pPlay").innerHTML="&#10074;&#10074; Pause";requestAnimationFrame(tick);return;}
+  if(line===undefined&&anim&&!anim.paused){anim.paused=true;$("#pPlay").innerHTML="&#9654; Resume";return;}
+  const L=playLines(play.frames);
+  const opt=line===undefined?optionOf(play.frames,L,fi):line==="main"?null:L.options.find(o=>o.id===line)||null;
+  const seq=lineIdx(L,opt),frames=seq.map(i=>play.frames[i]);
+  let start;
+  if(line===undefined){const k=seq.indexOf(fi);start=k>=0&&k<seq.length-1?k:0;}
+  else start=opt?Math.max(0,opt.branch):0;    // an option plays from the step it branches off
+  anim={i:start,seq,frames,opt,phase:"hold",t:0,tr:buildTransition(frames,start),last:performance.now(),paused:false};
   $("#pPlay").innerHTML="&#10074;&#10074; Pause";$("#pStop").hidden=false;$("#boardFrame").classList.add("playing");
+  document.querySelectorAll("#pLines [data-line]").forEach(b=>b.setAttribute("aria-pressed",(b.dataset.line||null)===(opt?opt.id:null)));
   board.style.cursor="default";animCaption(start);requestAnimationFrame(tick);
 }
 function stopAnim(){
   if(!anim)return;anim=null;
   $("#pPlay").innerHTML="&#9654; Play through";$("#pStop").hidden=true;$("#boardFrame").classList.remove("playing");
+  document.querySelectorAll("#pLines [data-line]").forEach(b=>b.removeAttribute("aria-pressed"));
   board.style.cursor="";$("#pAnimCap").textContent="";renderSteps();renderBoard();
 }
 function tick(now){
@@ -694,7 +746,7 @@ function tick(now){
     else if(anim.phase==="move")anim.phase="pass";
     else if(anim.phase==="pass"){
       if(tr.last){anim.phase="end";}
-      else{anim.i++;anim.tr=buildTransition(play.frames,anim.i);anim.phase="hold";animCaption(anim.i);}
+      else{anim.i++;anim.tr=buildTransition(anim.frames,anim.i);anim.phase="hold";animCaption(anim.i);}
     }
     else if(anim.phase==="end"){
       $("#board").innerHTML=boardInner({tokens:animTokens(tr,"pass",1),actions:[]},"screen");
@@ -709,11 +761,11 @@ function tick(now){
   requestAnimationFrame(tick);
 }
 $("#pPlay").addEventListener("click",()=>{
-  if(anim&&anim.done){anim=null;fi=0;}
+  if(anim&&anim.done){const o=anim.opt;anim=null;startAnim(o?o.id:"main");return;}
   startAnim();
 });
 $("#pStop").addEventListener("click",stopAnim);
-document.querySelector(".board-card").addEventListener("click",e=>{const b=e.target.closest("button");if(anim&&b&&!["pPlay","pStop"].includes(b.id))stopAnim();},true);
+document.querySelector(".board-card").addEventListener("click",e=>{const b=e.target.closest("button");if(anim&&b&&!["pPlay","pStop"].includes(b.id)&&!b.closest("#pLines"))stopAnim();},true);
 document.querySelector(".board-card").addEventListener("change",e=>{if(anim&&e.target.id==="pForm")stopAnim();},true);
 
 let delStepArmed=false;
@@ -721,7 +773,13 @@ $("#pDelStep").addEventListener("click",e=>{
   if(play.frames.length<2)return;
   if(!delStepArmed){delStepArmed=true;e.currentTarget.textContent="Tap again to delete";setTimeout(()=>{delStepArmed=false;$("#pDelStep").textContent="Delete step";},3000);return;}
   delStepArmed=false;$("#pDelStep").textContent="Delete step";
-  pushHist();play.frames.splice(fi,1);fi=Math.max(0,fi-1);markDirty();renderSteps();renderBoard();
+  pushHist();
+  const gone=play.frames[fi];
+  if(!gone.opt&&gone.fid){   // options that branched off this step now branch off the step before it (or after it)
+    const L=playLines(play.frames),k=L.main.indexOf(fi),alt=play.frames[L.main[k-1]!==undefined?L.main[k-1]:L.main[k+1]];
+    if(alt)play.frames.forEach(f=>{if(f.opt&&f.from===gone.fid)f.from=fidOf(alt);});
+  }
+  play.frames.splice(fi,1);fi=Math.max(0,Math.min(fi-1,play.frames.length-1));markDirty();renderSteps();renderBoard();
 });
 $("#pCaption").addEventListener("input",e=>{frame().caption=e.target.value;markDirty();});
 $("#pName").addEventListener("input",e=>{play.name=e.target.value;markDirty();});
@@ -747,13 +805,14 @@ $("#pNew").addEventListener("click",e=>{
   newArmed=false;$("#pNew").textContent="New play";
   play=blankPlay();fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();$("#pName").focus();
 });
+function playSummary(frames){const L=playLines(frames),n=L.main.length,k=L.options.length;return `${n} step${n>1?"s":""}${k?` · <b class="optcount">${k} option${k>1?"s":""}</b>`:""}`;}
 function renderPlayLib(){
   $("#playCount").textContent=plays.length?`(${plays.length})`:"";
   const q=$("#plSearch").value.trim().toLowerCase();
   const list=[...plays].sort((a,b)=>a.name.localeCompare(b.name)).filter(p=>!q||(p.name+" "+p.type+" "+(p.notes||"")).toLowerCase().includes(q));
   $("#plList").innerHTML=list.length?list.map(p=>`<article class="pcard${play&&play.id===p.id?" open":""}" data-card="${p.id}">
       <div class="pthumb">${boardSVG(p.frames[0],"screen")}</div>
-      <div style="min-width:0"><b>${esc(p.name)}</b><span>${esc(p.type)} · ${p.frames.length} step${p.frames.length>1?"s":""}</span>
+      <div style="min-width:0"><b>${esc(p.name)}</b><span>${esc(p.type)} · ${playSummary(p.frames)}</span>
       <div class="actions"><button class="btn" data-open="${p.id}">${READONLY?"View":"View / edit"}</button><button class="btn edit-only" data-copy="plays" data-id="${p.id}">Copy</button><button class="btn danger edit-only" data-pdel="${p.id}">Delete</button></div></div></article>`).join("")
     :`<div class="empty">${plays.length?"No plays match.":"No plays saved yet. Draw a play on the board, name it, and tap Save play."}</div>`;
 }
@@ -792,13 +851,21 @@ async function addPlayPages(doc,p,fresh){
   y+=10;doc.setLineWidth(2);doc.line(M,y,R,y);y+=16;
   if(p.notes){doc.setFontSize(10);const n=doc.splitTextToSize(p.notes,R-M);doc.text(n,M,y);y+=n.length*12+4;}
   doc.setFontSize(8.5);doc.setFont("helvetica","italic");
-  const L=sp().tools;doc.text([`Solid arrow = ${L.cut.toLowerCase()}`,`Dashed arrow = ${L.pass.toLowerCase()}`,L.dribble&&`Zigzag = ${L.dribble.toLowerCase()}`,L.screen&&`Line with bar = ${L.screen.toLowerCase()}`].filter(Boolean).join("     "),M,y);y+=14;
-  for(let i=0;i<p.frames.length;i++){
-    const f=p.frames[i];
+  const L=sp().tools;doc.text([`Solid arrow = ${L.cut.toLowerCase()}`,`Dashed arrow = ${L.pass.toLowerCase()}`,L.dribble&&`Zigzag = ${L.dribble.toLowerCase()}`,L.screen&&`Line with bar = ${L.screen.toLowerCase()}`,L.shot&&`Dotted arc = ${L.shot.toLowerCase()}`].filter(Boolean).join("     "),M,y);y+=14;
+  /* Main steps first, then each option under its own heading, boxed with a heavier border. */
+  const PL=playLines(p.frames);let lastOpt=null;
+  for(const i of displayOrder(PL)){
+    const f=p.frames[i],n=stepName(p.frames,PL,i),o=n.opt;
+    if(o&&o!==lastOpt){
+      if(y+IH+40>H-M){doc.addPage();y=M;}
+      y+=6;doc.setFillColor(0);doc.rect(M,y,R-M,22,"F");doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(12);
+      doc.text(o.title.toUpperCase(),M+8,y+15);doc.setFont("helvetica","normal");doc.setFontSize(9.5);doc.text(`Branches off after step ${o.branch+1}`,R-8,y+15,{align:"right"});
+      doc.setTextColor(0);y+=32;lastOpt=o;
+    }
     if(y+IH>H-M){doc.addPage();y=M;}
     const img=await svgToPng(boardSVG(f,"print",900),900);
-    doc.addImage(img,"PNG",M,y,IW,IH);doc.setLineWidth(.75);doc.rect(M,y,IW,IH);
-    doc.setFont("helvetica","bold");doc.setFontSize(13);doc.text(`STEP ${i+1}`,M+IW+16,y+16);
+    doc.addImage(img,"PNG",M,y,IW,IH);doc.setLineWidth(o?2.5:.75);doc.rect(M,y,IW,IH);
+    doc.setFont("helvetica","bold");doc.setFontSize(13);doc.text(o?`OPTION ${o.letter} · STEP ${o.steps.indexOf(i)+1}`:n.short.toUpperCase(),M+IW+16,y+16);
     doc.setFont("helvetica","normal");doc.setFontSize(10);
     if(f.caption){const c=doc.splitTextToSize(f.caption,R-(M+IW+16));doc.text(c,M+IW+16,y+34);}
     y+=IH+18;

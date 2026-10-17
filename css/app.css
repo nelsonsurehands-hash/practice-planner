@@ -306,3 +306,23 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;color:inherit}
   .narrow-only{display:inline-flex}
   .board-card{scroll-margin-top:12px}
 }
+/* ---------- play options (branches) ---------- */
+.optgroup{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px;padding:6px 8px 6px 10px;border-left:4px solid var(--accent2);background:var(--accent-soft);border-radius:0 8px 8px 0}
+.optgroup .optlabel{font-family:var(--display);font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:var(--ink);margin-right:4px}
+.optgroup .optlabel small{font-family:var(--body);font-size:11.5px;font-weight:500;text-transform:none;color:var(--muted);margin-left:4px}
+.step.opt{border-style:dashed;border-color:var(--accent)}
+.step.opt[aria-pressed="true"]{border-style:solid}
+.step .branch{display:inline-block;margin-left:5px;font-size:10.5px;font-weight:700;padding:0 5px;border-radius:8px;background:var(--accent2);color:var(--accent-ink);vertical-align:1px}
+.has-c2 .step .branch{color:#17141c}
+.opt-banner{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;padding:8px 12px;border-left:5px solid var(--accent2);background:var(--accent-soft);border-radius:0 8px 8px 0;font-size:13px;color:var(--muted)}
+.opt-banner b{font-family:var(--display);font-size:20px;line-height:1.1;text-transform:uppercase;color:var(--ink)}
+.board-frame.opt{box-shadow:0 0 0 3px var(--accent2)}
+.board-frame.opt.playing{box-shadow:0 0 0 3px var(--accent2),0 0 0 6px var(--accent)}
+.lines{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.lines .lbl{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-right:2px}
+.lines .btn{padding:5px 11px;font-size:13px}
+.lines .btn.optbtn{border-left:4px solid var(--accent2)}
+.lines .btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.opt-box{display:flex;gap:8px;align-items:end;flex-wrap:wrap;padding:8px 10px;border-left:4px solid var(--accent2);background:var(--accent-soft);border-radius:0 8px 8px 0}
+.opt-box .f{flex:1;min-width:180px}
+.optcount{display:inline!important;font-size:inherit!important;color:var(--accent)}

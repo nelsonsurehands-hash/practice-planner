@@ -173,6 +173,7 @@
       </div>
       <div class="hint edit-only" id="pHint" aria-live="polite"></div>
       <form class="labelbox" id="labelForm"><div id="labelBox" hidden style="display:flex;gap:8px;align-items:end;flex-wrap:wrap"><label class="f"><span id="labelWho">Label</span><input id="labelInput" maxlength="3" style="width:90px" placeholder="e.g. QB"></label><button class="btn primary" type="submit">Set label</button><button class="btn" type="button" id="labelCancel">Cancel</button></div></form>
+      <div class="opt-banner" id="pOptBanner" hidden></div>
       <div class="board-frame" id="boardFrame"><svg id="board" viewBox="-30 -45 560 530" role="img" aria-label="Half-court drawing board"></svg></div>
       <div class="player">
         <button class="btn primary" id="pPlay">&#9654; Play through</button>
@@ -180,13 +181,18 @@
         <label class="spd">Speed <select id="pSpeed"><option value="0.5">Slow</option><option value="1" selected>Normal</option><option value="1.75">Fast</option></select></label>
         <div class="anim-cap" id="pAnimCap" aria-live="polite"></div>
       </div>
+      <div class="lines" id="pLines" hidden></div>
       <div class="toolbar edit-only">
         <button class="btn" id="pUndo">Undo</button>
         <button class="btn" id="pShot"><svg viewBox="0 0 24 14" width="22" height="13" aria-hidden="true" style="vertical-align:-2px;margin-right:4px"><path d="M2 12Q10 -3 21 6" style="fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-dasharray:0.1 4"/><circle cx="21" cy="7" r="2.6" style="fill:none;stroke:currentColor;stroke-width:1.6"/></svg>Shot</button>
         <button class="btn" id="pAutoD">Add defense</button>
         <button class="btn danger" id="pClear">Clear lines</button>
       </div>
-      <div class="steps"><div class="steps" id="pSteps"></div><button class="btn edit-only" id="pNext">+ Next step</button><button class="btn edit-only" id="pDup">Duplicate step</button><button class="btn danger edit-only" id="pDelStep">Delete step</button></div>
+      <div class="steps"><div class="steps" id="pSteps"></div><button class="btn edit-only" id="pNext">+ Next step</button><button class="btn edit-only" id="pDup">Duplicate step</button><button class="btn danger edit-only" id="pDelStep">Delete step</button><button class="btn edit-only opt-add" id="pAddOpt">+ Add option</button></div>
+      <div class="opt-box edit-only" id="pOptBox" hidden>
+        <label class="f">Option name<input id="pOptName" maxlength="40" placeholder="e.g. Backdoor, Skip pass, Kick-out"></label>
+        <button class="btn danger" type="button" id="pOptDel">Delete this option</button>
+      </div>
       <label class="f">What happens in this step<input id="pCaption" placeholder="e.g. 1 passes to 2, 5 sets a down screen for 3"></label>
       <label class="f">Play notes<textarea id="pNotes" placeholder="When to call it, reads, counters"></textarea></label>
       <div class="actions" style="margin-top:0">

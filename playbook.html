@@ -32,6 +32,7 @@ body{max-width:760px}
 .pb-type{font-size:13px;color:var(--muted)}
 .pb-board{border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .pb-board svg{display:block;width:100%;height:auto}
+.pb-board.opt{box-shadow:0 0 0 3px var(--accent2)}
 .pb-ctrl{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
 .pb-ctrl .btn{padding:10px 14px;font-size:15px}
 .pb-cap{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:16px;line-height:1.45;min-height:3.2em}
@@ -69,12 +70,14 @@ body{max-width:760px}
   <section id="pbPlayView" class="pb-play" hidden>
     <button class="btn pb-back" id="pbBack">‹ All plays</button>
     <div><h2 id="pbName"></h2><div class="pb-type" id="pbPlayType"></div></div>
-    <div class="pb-board"><svg id="pbBoard" viewBox="-30 -45 560 530" role="img" aria-label="Play diagram"></svg></div>
+    <div class="opt-banner" id="pbOptBanner" hidden></div>
+    <div class="pb-board" id="pbBoardWrap"><svg id="pbBoard" viewBox="-30 -45 560 530" role="img" aria-label="Play diagram"></svg></div>
     <div class="pb-ctrl">
       <button class="btn" id="pbPrev" aria-label="Previous step">‹ Step</button>
       <button class="btn primary" id="pbRun">▶ Play through</button>
       <button class="btn" id="pbNext" aria-label="Next step">Step ›</button>
     </div>
+    <div class="lines" id="pbLines" hidden></div>
     <div class="steps" id="pbSteps"></div>
     <div class="pb-cap" id="pbCap" aria-live="polite"></div>
     <div class="pb-notes" id="pbNotes"></div>
