@@ -41,7 +41,7 @@ function cellHTML(iso,d){
     const g=d.game;cls="game";
     body+=`<span class="tag ${g.home===false?"away":"home"}">${g.home===false?"Away":"Home"}</span><span class="ev"><b>${g.home===false?"at ":""}${esc(g.opponent||"Game")}</b><small>${ampm(g.time)}</small></span>`;
   }
-  if(d.off){cls=cls||"holiday";body+=`<span class="ev holiday"><b>${esc(d.off.note||"No practice")}</b><small>No practice</small></span>`;}
+  if(d.off&&d.off.note){cls=cls||"holiday";body+=`<span class="ev holiday"><b>${esc(d.off.note)}</b><small>No practice</small></span>`;}
   if(d.practice){
     const p=d.practice,tr=isTryout(p.note);cls=cls||(tr?"tryout":"practice");
     if(p.note&&!tr&&!isMeeting(p.note))body+=`<span class="tag holiday">${esc(p.note)}</span>`;
@@ -56,7 +56,7 @@ function monthHTML(y,m,days){
   const first=new Date(y,m,1),n=new Date(y,m+1,0).getDate(),pad=first.getDay();
   const isoD=dd=>`${y}-${String(m+1).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;
   let pr=0,gm=0;const offs=[];
-  for(let dd=1;dd<=n;dd++){const d=days[isoD(dd)];if(!d)continue;if(d.practice)pr++;if(d.game)gm++;if(d.off)offs.push([dd,d.off.note]);}
+  for(let dd=1;dd<=n;dd++){const d=days[isoD(dd)];if(!d)continue;if(d.practice)pr++;if(d.game)gm++;if(d.off&&d.off.note)offs.push([dd,d.off.note]);}
   const offTxt=offs.length?` · No practice ${offs.map(([dd,t])=>`${MONTHS[m].slice(0,3)} ${dd}${t?" ("+esc(t)+")":""}`).join(", ")}`:"";
   let cells="";for(let i=0;i<pad;i++)cells+=`<div class="cal-cell pad"></div>`;
   for(let dd=1;dd<=n;dd++){const iso=isoD(dd);cells+=cellHTML(iso,days[iso]);}
@@ -102,12 +102,12 @@ function renderDay(){
   const sp=(st.special||[]).find(x=>x.date===iso);
   let h=`<h2 id="dayTitle">${fullDay(iso)}</h2>`;
   if(d.game){const g=d.game;
-    h+=`<div class="day-ev game"><b>${g.home===false?"at ":"vs "}${esc(g.opponent||"Game")}</b><span>${ampm(g.time)} · ${g.home===false?"Away":"Home"}</span></div>`;
+    h+=`<div class="day-ev game"><b>${g.home===false?"at ":"vs "}${esc(g.opponent||"Game")}</b><span>${ampm(g.time)} · ${g.home===false?"Away":"Home"}</span>${ed?delBtn("delGame","Delete game"):""}</div>`;
     if(ed)h+=`<details class="day-edit"><summary>Edit this game</summary>${gameForm(g)}</details>`;
   }
   if(d.practice){const p=d.practice,pi=planInfo(iso);
     h+=`<div class="day-ev practice"><b>${isTryout(p.note)?"Tryouts":"Practice"}</b><span>${span(p.start,p.end)}${p.note?" · "+esc(p.note):""}</span>
-      <span>${pi?`Plan ready: ${pi.used} of ${pi.avail} minutes booked`:"No practice plan yet"}</span></div>
+      <span>${pi?`Plan ready: ${pi.used} of ${pi.avail} minutes booked`:"No practice plan yet"}</span>${ed?delBtn("delPractice",isTryout(p.note)?"Delete tryouts":"Delete practice"):""}</div>
       <button class="btn primary" type="button" data-go="plan">${pi?"Open practice plan":"Plan this practice"}</button>`;
     if(ed)h+=`<details class="day-edit"><summary>Change time or note</summary>
       <div class="grid2"><label class="f">Starts<input type="time" id="dpStart" value="${p.start}"></label><label class="f">Ends<input type="time" id="dpEnd" value="${p.end}"></label></div>
@@ -115,10 +115,10 @@ function renderDay(){
       <div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="savePractice">Save</button><button class="btn danger" type="button" data-act="cancelPractice">No practice this day</button></div></details>`;
   }
   if(d.off){
-    h+=`<div class="day-ev holiday"><b>${esc(d.off.note||"No practice")}</b><span>No practice</span></div>`;
-    if(ed)h+=`<div class="actions" style="margin:0"><button class="btn" type="button" data-act="restore">${regular?"Put practice back on":"Remove this day off"}</button></div>`;
+    h+=d.off.note?`<div class="day-ev holiday"><b>${esc(d.off.note)}</b><span>No practice${regular?" (normally a practice day)":""}</span>${ed?delBtn("restore",regular?"Delete day off (practice goes back on)":"Delete day off"):""}</div>`
+      :`<div class="day-ev"><b>Practice deleted</b><span>This is normally a practice day.</span>${ed?`<button class="btn" type="button" data-act="restore">Put practice back</button>`:""}</div>`;
   }
-  if(d.note&&!d.practice&&!d.off)h+=`<div class="day-ev"><b>${esc(d.note.note||"Note")}</b></div>`;
+  if(d.note&&!d.practice&&!d.off)h+=`<div class="day-ev"><b>${esc(d.note.note||"Note")}</b>${ed?delBtn("restore","Delete note"):""}</div>`;
   if(!d.game&&!d.practice&&!d.off&&!d.note)h+=`<p class="help">Nothing scheduled.</p>`;
   if(ed&&!d.game)h+=`<details class="day-edit"><summary>Add a game this day</summary>${gameForm({date:iso,home:true,time:"17:30"})}</details>`;
   if(ed&&!d.practice&&!d.off){const t=practiceTimes(iso,st);
@@ -128,11 +128,12 @@ function renderDay(){
   h+=`<div class="msg" id="dayMsg"></div><div class="actions" style="margin:0"><button class="btn" type="button" data-act="close">Close</button></div>`;
   $("#dayBody").innerHTML=h;
 }
+const delBtn=(act,label)=>`<button class="btn danger day-del" type="button" data-act="${act}" data-label="${label}">${label}</button>`;
 function gameForm(g){
   return `<div class="day-game" data-orig="${esc(g.date||"")}"><label class="f">Opponent<input id="dgOpp" value="${esc(g.opponent||"")}" placeholder="e.g. Waynesville"></label>
     <div class="grid2"><label class="f">Date<input type="date" id="dgDate" value="${esc(g.date||dayIso)}"></label><label class="f">Time<input type="time" id="dgTime" value="${esc(g.time||"")}"></label></div>
     <label class="f">Where<select id="dgHome"><option value="1"${g.home!==false?" selected":""}>Home</option><option value="0"${g.home===false?" selected":""}>Away</option></select></label>
-    <div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="saveGame">Save game</button>${g.opponent!==undefined&&(SETTINGS.games||[]).some(x=>x.date===g.date)?`<button class="btn danger" type="button" data-act="delGame">Delete game</button>`:""}</div></div>`;
+    <div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="saveGame">Save game</button></div></div>`;
 }
 async function change(fn,done){
   const st=JSON.parse(JSON.stringify(team.settings||{}));st.games=st.games||[];st.special=st.special||[];
@@ -150,6 +151,7 @@ $("#dayBody").addEventListener("click",e=>{
   }
   const a=b.dataset.act;
   if(a==="close"){$("#dayDlg").close();return;}
+  if(b.classList.contains("day-del")&&b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to delete";setTimeout(()=>{b.dataset.armed="";b.textContent=b.dataset.label;},3000);return;}
   const regular=(st0.practiceDays||[]).includes(dObj(iso).getDay())&&st0.seasonStart&&iso>=st0.seasonStart&&iso<=st0.seasonEnd&&!(st0.games||[]).some(g=>g.date===iso);
   if(a==="savePractice"){
     const start=$("#dpStart").value,end=$("#dpEnd").value,note=$("#dpNote").value.trim();
@@ -160,7 +162,8 @@ $("#dayBody").addEventListener("click",e=>{
   }
   if(a==="cancelPractice")change(st=>setSpecial(st,iso,{kind:"off",note:$("#dpNote")?$("#dpNote").value.trim():""}),"Marked as no practice");
   if(a==="markOff")change(st=>setSpecial(st,iso,{kind:"off",note:$("#dpOff").value.trim()}),"Day off saved");
-  if(a==="restore")change(st=>setSpecial(st,iso,null),"Saved");
+  if(a==="restore")change(st=>setSpecial(st,iso,null),"Deleted");
+  if(a==="delPractice")change(st=>setSpecial(st,iso,regular?{kind:"off",note:""}:null),"Practice deleted");
   if(a==="saveGame"){
     const box=b.closest(".day-game"),orig=box.dataset.orig,date=$("#dgDate").value,opp=$("#dgOpp").value.trim();
     if(!date||!opp){msg($("#dayMsg"),"Add the opponent and date.","err");return;}
@@ -169,7 +172,6 @@ $("#dayBody").addEventListener("click",e=>{
     if(date!==iso)dayIso=date;
   }
   if(a==="delGame"){
-    if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to delete";setTimeout(()=>{b.dataset.armed="";b.textContent="Delete game";},3000);return;}
     change(st=>{st.games=st.games.filter(x=>x.date!==iso);},"Game deleted");
   }
 });
@@ -181,23 +183,96 @@ $("#calToday").addEventListener("click",()=>{
   if(el)el.scrollIntoView({behavior:"smooth",block:"start"});
 });
 
-/* ---------- add everything to a phone calendar (.ics) ---------- */
-$("#calIcs").addEventListener("click",async()=>{
-  const st=SETTINGS,{days}=buildDays(st),team0=[st.school,st.mascot].filter(Boolean).join(" ")||"Team";
-  const stamp=new Date().toISOString().replace(/[-:]/g,"").slice(0,15)+"Z";
-  const dt=(iso,t)=>iso.replace(/-/g,"")+"T"+(t||"00:00").replace(":","")+"00";
-  const plus=(t,m)=>{const x=toMin(t)+m;return String(Math.floor(x/60)%24).padStart(2,"0")+":"+String(x%60).padStart(2,"0");};
-  const escI=s=>String(s||"").replace(/[\\;,]/g,m=>"\\"+m).replace(/\n/g,"\\n");
-  const ev=[];
-  Object.entries(days).sort().forEach(([iso,d])=>{
-    if(d.practice)ev.push(["practice-"+iso,dt(iso,d.practice.start),dt(iso,d.practice.end),`${team0} ${isTryout(d.practice.note)?"tryouts":"practice"}`,d.practice.note||""]);
-    if(d.game&&d.game.time)ev.push(["game-"+iso,dt(iso,d.game.time),dt(iso,plus(d.game.time,90)),`${team0} ${d.game.home===false?"at":"vs"} ${d.game.opponent||"game"}`,d.game.home===false?"Away game":"Home game"]);
+/* ---------- export: phone calendar (.ics), printable PDF, spreadsheet (.csv) ---------- */
+$("#calIcs").addEventListener("click",()=>{$("#expMsg").textContent="";$("#calExpDlg").showModal();});
+$("#expClose").addEventListener("click",()=>$("#calExpDlg").close());
+function exportEvents(){
+  const st=SETTINGS,{days}=buildDays(st),want={p:$("#expP").checked,g:$("#expG").checked,o:$("#expO").checked};
+  const team0=[st.school,st.mascot].filter(Boolean).join(" ")||"Team",ev=[];
+  Object.keys(days).sort().forEach(iso=>{const d=days[iso];
+    if(want.p&&d.practice)ev.push({iso,kind:"practice",title:isTryout(d.practice.note)?"Tryouts":"Practice",start:d.practice.start,end:d.practice.end,note:d.practice.note||""});
+    if(want.g&&d.game)ev.push({iso,kind:"game",title:`${d.game.home===false?"at":"vs"} ${d.game.opponent||"Game"}`,start:d.game.time,end:d.game.time?plus(d.game.time,90):"",note:d.game.home===false?"Away":"Home"});
+    if(want.o&&d.off&&d.off.note)ev.push({iso,kind:"off",title:d.off.note,note:"No practice"});
   });
-  const ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Practice Planner//EN","CALSCALE:GREGORIAN",`X-WR-CALNAME:${escI(team0)}`,
-    ...ev.flatMap(([id,s,e,sum,desc])=>["BEGIN:VEVENT",`UID:${id}-${(team&&team.id)||"team"}@practice-planner`,`DTSTAMP:${stamp}`,`DTSTART:${s}`,`DTEND:${e}`,`SUMMARY:${escI(sum)}`,desc?`DESCRIPTION:${escI(desc)}`:null,"END:VEVENT"].filter(Boolean)),
-    "END:VCALENDAR"].join("\r\n");
   const slug=team0.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"team";
-  await saveFile(`${slug}-schedule.ics`,new Blob([ics],{type:"text/calendar"}));
-  $("#calHint").textContent=`Saved ${ev.length} practices and games. Open the file to add them to your calendar.`;
+  return {st,ev,team0,slug};
+}
+const plus=(t,m)=>{const x=toMin(t)+m;return String(Math.floor(x/60)%24).padStart(2,"0")+":"+String(x%60).padStart(2,"0");};
+$("#calExpDlg").addEventListener("click",async e=>{
+  const b=e.target.closest("[data-exp]");if(!b)return;
+  const {st,ev,team0,slug}=exportEvents();
+  if(!ev.length){msg($("#expMsg"),"Pick at least one kind of event to export.","err");return;}
+  const kind=b.dataset.exp;msg($("#expMsg"),"Building…");
+  try{
+    if(kind==="ics"){
+      const stamp=new Date().toISOString().replace(/[-:]/g,"").slice(0,15)+"Z";
+      const dt=(iso,t)=>iso.replace(/-/g,"")+"T"+t.replace(":","")+"00",dd=iso=>iso.replace(/-/g,"");
+      const escI=x=>String(x||"").replace(/[\\;,]/g,m=>"\\"+m).replace(/\n/g,"\\n");
+      const lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Practice Planner//EN","CALSCALE:GREGORIAN",`X-WR-CALNAME:${escI(team0)}`];
+      ev.forEach(x=>{
+        lines.push("BEGIN:VEVENT",`UID:${x.kind}-${x.iso}-${(team&&team.id)||"team"}@practice-planner`,`DTSTAMP:${stamp}`);
+        if(x.start)lines.push(`DTSTART:${dt(x.iso,x.start)}`,`DTEND:${dt(x.iso,x.end||plus(x.start,60))}`);
+        else lines.push(`DTSTART;VALUE=DATE:${dd(x.iso)}`,`DTEND;VALUE=DATE:${dd(addDays(x.iso,1))}`);
+        lines.push(`SUMMARY:${escI(team0+" "+x.title.replace(/^Practice$/,"practice").replace(/^Tryouts$/,"tryouts"))}`);
+        if(x.note)lines.push(`DESCRIPTION:${escI(x.note)}`);
+        lines.push("END:VEVENT");
+      });
+      lines.push("END:VCALENDAR");
+      await saveFile(`${slug}-schedule.ics`,new Blob([lines.join("\r\n")],{type:"text/calendar"}));
+      msg($("#expMsg"),`Saved ${ev.length} events. Open the file on your phone to add them to your calendar.`,"ok");
+    }
+    if(kind==="csv"){
+      const q=v=>/[",\n]/.test(v)?`"${String(v).replace(/"/g,'""')}"`:String(v);
+      const rows=[["Date","Day","Event","Start","End","Notes"],...ev.map(x=>[x.iso,DOW[dObj(x.iso).getDay()],x.title,x.start?ampm(x.start):"",x.end?ampm(x.end):"",x.note])];
+      await saveFile(`${slug}-schedule.csv`,new Blob([rows.map(r=>r.map(q).join(",")).join("\r\n")],{type:"text/csv"}));
+      msg($("#expMsg"),`Saved ${ev.length} events as a spreadsheet.`,"ok");
+    }
+    if(kind==="pdf"){
+      if(!window.jspdf){msg($("#expMsg"),"The PDF tool didn't load. Check your connection and try again.","err");return;}
+      await saveFile(`${slug}-calendar.pdf`,calendarPdf(st,ev,team0).output("blob"));
+      msg($("#expMsg"),"Saved a printable calendar, one month per page.","ok");
+    }
+  }catch(err){msg($("#expMsg"),"Couldn't export: "+(err.message||err),"err");}
 });
+/* Black-and-white month grids, one month per landscape page, plus a game list. */
+function calendarPdf(st,ev,team0){
+  const {jsPDF}=window.jspdf,doc=new jsPDF({unit:"pt",format:"letter",orientation:"landscape"});
+  const W=792,H=612,M=32,byDay={};ev.forEach(x=>(byDay[x.iso]=byDay[x.iso]||[]).push(x));
+  const isos=ev.map(x=>x.iso).sort();let y0=+isos[0].slice(0,4),m0=+isos[0].slice(5,7)-1;const y1=+isos[isos.length-1].slice(0,4),m1=+isos[isos.length-1].slice(5,7)-1;
+  const label=[team0,st.teamLabel].filter(Boolean).join("  |  ").toUpperCase();let first=true;
+  for(let y=y0,m=m0;y<y1||(y===y1&&m<=m1);m===11?(m=0,y++):m++){
+    if(!first)doc.addPage();first=false;
+    doc.setTextColor(0);doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text(label,M,M);
+    doc.setFontSize(24);doc.text(`${MONTHS[m].toUpperCase()} ${y}`,M,M+26);
+    const top=M+40,cw=(W-2*M)/7,first0=new Date(y,m,1).getDay(),n=new Date(y,m+1,0).getDate(),rows=Math.ceil((first0+n)/7),ch=(H-top-M-14)/rows;
+    doc.setFillColor(0);doc.rect(M,top,W-2*M,14,"F");doc.setTextColor(255);doc.setFontSize(8);
+    DOW.forEach((d,i)=>doc.text(d.toUpperCase(),M+i*cw+cw/2,top+10,{align:"center"}));doc.setTextColor(0);
+    doc.setDrawColor(0);doc.setLineWidth(.6);
+    for(let i=0;i<rows*7;i++){
+      const x=M+(i%7)*cw,yy=top+14+Math.floor(i/7)*ch,dd=i-first0+1;
+      const iso=`${y}-${String(m+1).padStart(2,"0")}-${String(dd).padStart(2,"0")}`,list=dd>=1&&dd<=n?byDay[iso]||[]:[];
+      if(list.some(e=>e.kind==="game")){doc.setFillColor(225);doc.rect(x,yy,cw,ch,"F");}
+      doc.rect(x,yy,cw,ch);
+      if(dd<1||dd>n)continue;
+      doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text(String(dd),x+4,yy+11);
+      let ty=yy+23;
+      list.forEach(e=>{
+        doc.setFont("helvetica",e.kind==="off"?"italic":"bold");doc.setFontSize(8);
+        const t=doc.splitTextToSize(e.title,cw-8);doc.text(t,x+4,ty);ty+=t.length*9;
+        doc.setFont("helvetica","normal");doc.setFontSize(7.5);
+        const sub=e.kind==="practice"?span(e.start,e.end)+(e.note&&!isTryout(e.note)?" · "+e.note:""):e.kind==="game"?[ampm(e.start),e.note].filter(Boolean).join(" · "):"No practice";
+        if(sub){const s2=doc.splitTextToSize(sub,cw-8);doc.text(s2,x+4,ty);ty+=s2.length*8.5+2;}
+      });
+    }
+  }
+  const games=ev.filter(e=>e.kind==="game");
+  if(games.length){
+    doc.addPage();doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text(label,M,M);doc.setFontSize(22);doc.text("GAME LIST",M,M+26);
+    let y=M+50;const cols=[M,M+130,M+430,M+530];doc.setFontSize(9);["DATE","OPPONENT","TIME","LOCATION"].forEach((h,i)=>doc.text(h,cols[i],y));
+    y+=6;doc.setLineWidth(1.5);doc.line(M,y,W-M,y);y+=16;doc.setLineWidth(.5);
+    games.forEach(g=>{doc.setFont("helvetica","normal");doc.setFontSize(10.5);doc.text(longDay(g.iso),cols[0],y);doc.setFont("helvetica","bold");doc.text(g.title.replace(/^(vs|at) /,""),cols[1],y);
+      doc.setFont("helvetica","normal");doc.text(ampm(g.start),cols[2],y);doc.text(g.note,cols[3],y);y+=7;doc.line(M,y,W-M,y);y+=15;if(y>H-M){doc.addPage();y=M;}});
+  }
+  return doc;
+}
 })();

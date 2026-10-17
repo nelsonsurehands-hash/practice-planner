@@ -1,6 +1,6 @@
 /* Offline support: keeps the app itself available with no signal (gym basements).
    Team data still needs a connection to sync. Bump VERSION when you deploy changes. */
-const VERSION="cpp-v17";
+const VERSION="cpp-v18";
 const SHELL=["./","index.html","css/app.css","js/config.js","js/store.js","js/sports.js","js/board.js","playbook.html","js/playbook.js","js/app.js","js/boot.js","js/calendar.js","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png"];
 const CDN=["cdn.jsdelivr.net","cdnjs.cloudflare.com","fonts.googleapis.com","fonts.gstatic.com"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(VERSION).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));});

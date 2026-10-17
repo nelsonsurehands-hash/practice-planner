@@ -264,7 +264,7 @@
   </div>
   <div class="cal-tools">
     <button class="btn" type="button" id="calToday">Jump to today</button>
-    <button class="btn" type="button" id="calIcs">Add to my phone calendar</button>
+    <button class="btn" type="button" id="calIcs">Export calendar</button>
     <button class="btn edit-only" type="button" id="calAddGame">+ Game</button>
     <span class="help" id="calHint">Tap a day to see it, open its practice plan, or change it.</span>
   </div>
@@ -340,6 +340,25 @@
   </div>
 </section>
 </div>
+
+<dialog id="calExpDlg" aria-labelledby="expTitle">
+  <div class="dlg">
+    <h2 id="expTitle">Export calendar</h2>
+    <fieldset class="catpick"><legend>Include</legend><div class="exp-pick">
+      <label><input type="checkbox" id="expP" checked> Practices and tryouts</label>
+      <label><input type="checkbox" id="expG" checked> Games</label>
+      <label><input type="checkbox" id="expO"> Holidays and days off</label>
+    </div></fieldset>
+    <p class="help">Tip: send players and parents a games-only file.</p>
+    <div class="exp-opts">
+      <button class="btn primary" type="button" data-exp="ics">Phone calendar<small>Apple, Google or Outlook (.ics)</small></button>
+      <button class="btn" type="button" data-exp="pdf">Printable calendar<small>Black and white PDF, a month per page</small></button>
+      <button class="btn" type="button" data-exp="csv">Spreadsheet<small>Excel or Google Sheets (.csv)</small></button>
+    </div>
+    <div class="msg" id="expMsg" aria-live="polite"></div>
+    <div class="actions" style="margin:0"><button class="btn" type="button" id="expClose">Close</button></div>
+  </div>
+</dialog>
 
 <dialog id="dayDlg" aria-labelledby="dayTitle">
   <div class="dlg" id="dayBody"></div>
