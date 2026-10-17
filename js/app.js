@@ -406,7 +406,7 @@ function hints(t){
   return ({move:"Drag players and the ball. Lines attached to a player move with them.",
     o:`Tap to place the next player (1–${n}).`,d:`Tap to place the next defender (X1–X${n}).`,
     ball:"Tap a player to give them the ball.",
-    cut:`Drag from a player to draw a ${(L.cut||"move").toLowerCase()}.`,pass:`Drag from one player to another to draw a ${(L.pass||"pass").toLowerCase()}.`,
+    cut:`Drag from a player to draw a ${(L.cut||"move").toLowerCase()}.`,pass:`Tap the player to ${(L.pass||"pass").toLowerCase()} to. Keep tapping players to ${(L.pass||"pass").toLowerCase()} again in the same step. (You can still drag to draw a curved one.)`,
     dribble:`Drag from the player with the ball to draw a ${(L.dribble||"dribble").toLowerCase()}.`,screen:`Drag from a player to where she sets the ${(L.screen||"screen").toLowerCase()}.`,
     label:"Tap a player to give them a label, like PG, QB or 1B.",
     erase:"Tap a player, the ball or a line to remove it."})[t]||"";
@@ -457,6 +457,24 @@ function syncPasses(fr){
     if(a.to)caught.add(a.to);});
   fr.actions.forEach(a=>{if(a.type!=="shot")return;const who=finalHolder(fr);const s=who&&shotStart(fr,who);
     if(!s){fr.actions=fr.actions.filter(x=>x!==a);return;}a.from=who;Object.assign(a,shotArc(s));});
+}
+/* The teammate at a spot: someone standing there, or someone whose cut ends there. */
+function receiverAt(fr,pt,except){let r=null,bd=26;
+  fr.tokens.forEach(o=>{if(o.kind!=="o"||o.id===except)return;const d=destOf(fr,o.id),k=Math.min(dist(pt,d),dist(pt,o)+4);if(k<bd){bd=k;r=o;}});return r;}
+/* Tap-to-pass: the ball goes from whoever has it now (after earlier passes this step) to the tapped teammate. */
+function tapPass(pt){
+  const fr=frame(),from=finalHolder(fr),passer=from&&fr.tokens.find(x=>x.id===from);
+  if(fr.actions.some(a=>a.type==="shot")){pflash("This step ends with a shot. Tap Shot to remove it before adding passes.");return;}
+  if(!passer){pflash(fr.actions.some(a=>a.type==="pass")?"The last pass went to an empty spot. Tap Undo, or start a new step.":"Give a player the ball first (Ball tool), then tap players to pass.");return;}
+  const r=receiverAt(fr,pt,from);
+  if(!r&&dist(pt,destOf(fr,from))<26){pflash(`${passer.label||passer.n} already has the ball. Tap a teammate to pass to.`);return;}
+  const a0=destOf(fr,from),start=catchers(fr).includes(from)||fr.actions.some(a=>a.from===from&&isMove(a))?a0:{x:passer.x,y:passer.y};
+  const end=r?destOf(fr,r.id):pt;
+  pushHist();
+  editStep(()=>{fr.actions.push({id:uid(),type:"pass",from,to:r?r.id:null,x1:start.x,y1:start.y,cx:(start.x+end.x)/2,cy:(start.y+end.y)/2,x2:end.x,y2:end.y});});
+  markDirty();renderBoard();
+  const n=fr.actions.filter(a=>a.type==="pass").length;
+  pflash(r?`Pass ${n}: ${passer.label||passer.n} → ${r.label||r.n}. Tap the next player to pass again${n>1?"":" in this step"}, or Undo.`:`Pass ${n}: ${passer.label||passer.n} → that spot.`);
 }
 /* Who has the ball after this step's passes (null if the last pass goes to an empty spot). */
 function finalHolder(fr){const h=holderOf(fr);let id=h?h.id:null;fr.actions.forEach(a=>{if(a.type==="pass")id=a.to||null;});return id;}
@@ -552,14 +570,13 @@ function endPointer(){
   if(!temp)return;
   const t=temp;temp=null;
   const s=t.pts[0],e=t.pts[t.pts.length-1];
-  if(t.pts.length<3||dist(s,e)<20){renderBoard();pflash(hints(tool));return;}
+  if(t.pts.length<3||dist(s,e)<20){if(t.type==="pass"){tapPass(e);return;}renderBoard();pflash(hints(tool));return;}
   let to=null,end={x:e.x,y:e.y};
   if(t.type==="pass"){
     /* Who catches it: a teammate whose cut ends where you let go, or a teammate standing there.
        The ball goes where they'll be; with nobody there, it goes exactly where you let go. */
-    const fr=frame();let r=null,bd=26;
-    fr.tokens.forEach(o=>{if(o.kind!=="o"||o.id===t.from)return;const d=destOf(fr,o.id),k=Math.min(dist(end,d),dist(end,o)+4);if(k<bd){bd=k;r=o;}});
-    if(r){to=r.id;end=destOf(fr,r.id);}
+    const r=receiverAt(frame(),end,t.from);
+    if(r){to=r.id;end=destOf(frame(),r.id);}
   }
   const m=t.pts[Math.floor(t.pts.length/2)],mid={x:(s.x+end.x)/2,y:(s.y+end.y)/2};
   const chord=Math.hypot(end.x-s.x,end.y-s.y)||1;
