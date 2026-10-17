@@ -406,7 +406,7 @@ function hints(t){
   return ({move:"Drag players and the ball. Lines attached to a player move with them.",
     o:`Tap to place the next player (1–${n}).`,d:`Tap to place the next defender (X1–X${n}).`,
     ball:"Tap a player to give them the ball.",
-    cut:`Drag from a player to draw a ${(L.cut||"move").toLowerCase()}.`,pass:`Tap the player to ${(L.pass||"pass").toLowerCase()} to. Keep tapping players to ${(L.pass||"pass").toLowerCase()} again in the same step. (You can still drag to draw a curved one.)`,
+    cut:`Drag from a player to draw a ${(L.cut||"move").toLowerCase()}.`,pass:`Tap the player to ${(L.pass||"pass").toLowerCase()} to. Keep tapping players to ${(L.pass||"pass").toLowerCase()} again in the same step.`,
     dribble:`Drag from the player with the ball to draw a ${(L.dribble||"dribble").toLowerCase()}.`,screen:`Drag from a player to where she sets the ${(L.screen||"screen").toLowerCase()}.`,
     label:"Tap a player to give them a label, like PG, QB or 1B.",
     erase:"Tap a player, the ball or a line to remove it."})[t]||"";
@@ -581,7 +581,7 @@ function endPointer(){
   const m=t.pts[Math.floor(t.pts.length/2)],mid={x:(s.x+end.x)/2,y:(s.y+end.y)/2};
   const chord=Math.hypot(end.x-s.x,end.y-s.y)||1;
   const dev=Math.abs((end.x-s.x)*(s.y-m.y)-(s.x-m.x)*(end.y-s.y))/chord;
-  const c=dev<10?mid:{x:2*m.x-mid.x,y:2*m.y-mid.y};
+  const c=dev<10||t.type==="pass"?mid:{x:2*m.x-mid.x,y:2*m.y-mid.y};   // passes are always straight
   pushHist();
   editStep(()=>{frame().actions.push({id:uid(),type:t.type,from:t.from,to,x1:s.x,y1:s.y,cx:c.x,cy:c.y,x2:end.x,y2:end.y});});
   markDirty();renderBoard();

@@ -34,6 +34,7 @@ function arrowHead(pts,col){
   return `<path d="M${a.x.toFixed(1)} ${a.y.toFixed(1)}L${e.x.toFixed(1)} ${e.y.toFixed(1)}L${b.x.toFixed(1)} ${b.y.toFixed(1)}Z" style="fill:${col};stroke:${col};stroke-width:1.5;stroke-linejoin:round"/>`;
 }
 function actSVG(a,col){
+  if(a.type==="pass")a={...a,cx:(a.x1+a.x2)/2,cy:(a.y1+a.y2)/2};   // passes are always straight
   const pts=samples(a), base=`style="fill:none;stroke:${col};stroke-width:3;stroke-linecap:round;stroke-linejoin:round`;
   if(a.type==="cut")return `<path d="${poly(pts)}" ${base}"/>`+arrowHead(pts,col);
   if(a.type==="pass")return `<path d="${poly(pts)}" ${base};stroke-dasharray:9 7"/>`+arrowHead(pts,col);
@@ -157,7 +158,7 @@ function buildTransition(frames,i){
       if(u<s0)return carry(c,u);
       if(u<e0){
         const A=carry(c,s0)||{x:a.x1,y:a.y1},B=toId?carry({id:toId},u):{x:a.x2,y:a.y2},v=ease((u-s0)/((e0-s0)||1));
-        const bend={x:a.cx-(a.x1+a.x2)/2,y:a.cy-(a.y1+a.y2)/2};
+        const bend=a.type==="shot"?{x:a.cx-(a.x1+a.x2)/2,y:a.cy-(a.y1+a.y2)/2}:{x:0,y:0};
         return qpt({x1:A.x,y1:A.y,cx:(A.x+B.x)/2+bend.x,cy:(A.y+B.y)/2+bend.y,x2:B.x,y2:B.y},v);
       }
       c=toId?{id:toId}:{pt:{x:a.x2,y:a.y2}};
