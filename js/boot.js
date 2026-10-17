@@ -151,8 +151,34 @@ $("#authForm").addEventListener("submit",async e=>{
   $("#authBtn").disabled=true;msg($("#authMsg"),"Sending…");
   const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
   $("#authBtn").disabled=false;
-  if(error)msg($("#authMsg"),error.message,"err");
-  else msg($("#authMsg"),`Check ${email} for your sign-in link. You can close this tab once you've tapped it.`,"ok");
+  if(error){msg($("#authMsg"),/rate limit/i.test(error.message)?"Too many sign-in emails in the last hour. Wait a bit, or sign in with your password.":error.message,"err");return;}
+  $("#codeForm").hidden=false;
+  msg($("#authMsg"),`Sent to ${email}. Tap the link in the email on this device, or type the code from the email above.`,"ok");
+});
+/* Code from the email: lets you read the email on your phone and sign in on a laptop. */
+$("#codeForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const email=$("#authEmail").value.trim(),token=$("#authCode").value.replace(/\D/g,"");if(!email||!token)return;
+  $("#codeBtn").disabled=true;msg($("#authMsg"),"Checking…");
+  const {error}=await sb.auth.verifyOtp({email,token,type:"email"});
+  $("#codeBtn").disabled=false;
+  if(error)msg($("#authMsg"),/expired|invalid/i.test(error.message)?"That code is wrong or expired. Use the newest email, or send a new one.":error.message,"err");
+});
+function authTab(pw){
+  $("#authTabLink").setAttribute("aria-selected",!pw);$("#authTabPw").setAttribute("aria-selected",pw);
+  $("#authForm").hidden=pw;$("#codeForm").hidden=pw||!$("#authMsg").textContent;$("#pwForm").hidden=!pw;
+  if(pw&&!$("#pwEmail").value)$("#pwEmail").value=$("#authEmail").value;
+  $("#authMsg").textContent="";$("#authMsg").className="msg";
+}
+$("#authTabLink").addEventListener("click",()=>authTab(false));
+$("#authTabPw").addEventListener("click",()=>authTab(true));
+$("#pwForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const email=$("#pwEmail").value.trim(),password=$("#pwPass").value;if(!email||!password)return;
+  $("#pwBtn").disabled=true;msg($("#authMsg"),"Signing in…");
+  const {error}=await sb.auth.signInWithPassword({email,password});
+  $("#pwBtn").disabled=false;
+  if(error)msg($("#authMsg"),/invalid/i.test(error.message)?"Email or password is wrong. No password yet? Use the email link once, then set one in Settings → Your account.":error.message,"err");
 });
 
 /* ---------- create or join a team ---------- */
@@ -400,6 +426,7 @@ function renderAccount(){
   const box=$("#accountBody");
   box.innerHTML=(HOSTED?`<p class="help">Signed in as <b>${esc(user.email||"")}</b>.</p>`:`<p class="help">Demo mode: no account needed.</p>`)+
     `<form id="nameForm" class="actions" style="margin:0;align-items:end"><label class="f" style="flex:1 1 200px">Your name (shown to your staff)<input id="myName" value="${esc(ME.name||"")}"></label><button class="btn" type="submit">Save name</button></form><div class="msg" id="nameMsg"></div>`+
+    (HOSTED?`<form id="pwSetForm" class="actions" style="margin:0;align-items:end"><input type="email" autocomplete="username" value="${esc(user.email||"")}" hidden aria-hidden="true"><label class="f" style="flex:1 1 200px">Password for signing in on other devices<input id="newPw" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></label><button class="btn" type="submit">Set password</button></form><div class="msg" id="pwMsg"></div>`:"")+
     `<div class="actions" style="margin-top:0">${HOSTED?`<button class="btn danger" id="signOut">Sign out</button>`:`<button class="btn danger" id="resetDemo">Erase demo data</button>`}</div>`;
   $("#nameForm").addEventListener("submit",async e=>{
     e.preventDefault();const v=$("#myName").value.trim();if(!v)return;
@@ -412,6 +439,14 @@ function renderAccount(){
     msg($("#nameMsg"),"Saved","ok");renderStaff();if(cur)renderPlan();window.onViewChange();
   });
   if(HOSTED)$("#signOut").addEventListener("click",async()=>{await sb.auth.signOut();});
+  if(HOSTED)$("#pwSetForm").addEventListener("submit",async e=>{
+    e.preventDefault();const v=$("#newPw").value;
+    if(v.length<8){msg($("#pwMsg"),"Use at least 8 characters.","err");return;}
+    msg($("#pwMsg"),"Saving…");
+    const {error}=await sb.auth.updateUser({password:v});
+    if(error){msg($("#pwMsg"),/reauth|recent/i.test(error.message)?"For safety, sign out and back in with an email link, then set the password right away.":error.message,"err");return;}
+    $("#newPw").value="";msg($("#pwMsg"),`Password set. On another device, choose Password on the sign-in screen and use ${user.email}.`,"ok");
+  });
   else $("#resetDemo").addEventListener("click",e=>{
     if(e.target.dataset.armed!=="1"){e.target.dataset.armed="1";e.target.textContent="Tap again to erase every demo team";return;}
     Object.keys(localStorage).filter(k=>k.startsWith("cpp:")).forEach(k=>localStorage.removeItem(k));location.reload();

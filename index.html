@@ -23,13 +23,29 @@
 <!-- Sign in -->
 <div id="screen-auth" class="screen" hidden>
   <div class="brand-mark"><img src="icons/icon-192.png" alt=""><div><div class="eyebrow">For coaching staffs</div><h1>Practice Planner</h1></div></div>
-  <form class="card" id="authForm">
+  <div class="card auth-card">
     <h2>Sign in</h2>
-    <p>Enter your email and we'll send you a sign-in link. No password needed.</p>
-    <label class="f">Email<input id="authEmail" type="email" autocomplete="email" required placeholder="coach@school.org"></label>
-    <button class="btn primary" type="submit" id="authBtn">Email me a sign-in link</button>
+    <div class="auth-tabs" role="tablist">
+      <button type="button" role="tab" id="authTabLink" aria-selected="true">Email link or code</button>
+      <button type="button" role="tab" id="authTabPw" aria-selected="false">Password</button>
+    </div>
+    <form id="authForm">
+      <p>We'll email you a sign-in link. Signing in on a different device than the one you read email on? Type the 6-digit code from the same email instead.</p>
+      <label class="f">Email<input id="authEmail" type="email" autocomplete="email" required placeholder="coach@school.org"></label>
+      <button class="btn primary" type="submit" id="authBtn">Email me a sign-in link</button>
+    </form>
+    <form id="codeForm" hidden>
+      <label class="f">6-digit code from the email<input id="authCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" maxlength="10" placeholder="123456"></label>
+      <button class="btn primary" type="submit" id="codeBtn">Sign in with code</button>
+    </form>
+    <form id="pwForm" hidden>
+      <p>Set a password once from <b>Settings → Your account</b> on a device where you're signed in. Then use it here on any device.</p>
+      <label class="f">Email<input id="pwEmail" type="email" autocomplete="username" required placeholder="coach@school.org"></label>
+      <label class="f">Password<input id="pwPass" type="password" autocomplete="current-password" required minlength="8"></label>
+      <button class="btn primary" type="submit" id="pwBtn">Sign in</button>
+    </form>
     <div class="msg" id="authMsg" aria-live="polite"></div>
-  </form>
+  </div>
 </div>
 
 <!-- Team setup -->
