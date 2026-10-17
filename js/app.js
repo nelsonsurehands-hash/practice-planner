@@ -76,6 +76,7 @@ function applySettings(st){
   document.title=(SETTINGS.mascot||SETTINGS.school||"Coach")+" Practice Planner";
   const tc=document.querySelector('meta[name="theme-color"]');if(tc)tc.content=SETTINGS.color||"#5b2a86";
   if(cur){buildDateSelect();renderPlan();}
+  if(window.onCalChange)window.onCalChange();
 }
 
 const toMin=t=>{const [h,m]=(t||"0:0").split(":").map(Number);return h*60+m};
@@ -92,9 +93,15 @@ let plans={};            // date -> plan
 let cur=null;            // current plan object (working copy)
 let pickCat="", saveTimer=null;
 
-function defaultPlan(date){
+/* Practice times for a day: a special day's own times (e.g. no-school days start earlier), else weekday/weekend times. */
+function practiceTimes(date,st){
+  st=st||SETTINGS;const sp=(st.special||[]).find(x=>x.date===date);
   const wk=[0,6].includes(dObj(date).getDay());
-  return {date,start:(wk?SETTINGS.weekendStart:SETTINGS.weekdayStart)||"16:00",end:(wk?SETTINGS.weekendEnd:SETTINGS.weekdayEnd)||"18:00",focus:"",blocks:[]};
+  return {start:(sp&&sp.start)||(wk?st.weekendStart:st.weekdayStart)||"16:00",end:(sp&&sp.end)||(wk?st.weekendEnd:st.weekdayEnd)||"18:00"};
+}
+function defaultPlan(date){
+  const t=practiceTimes(date);
+  return {date,start:t.start,end:t.end,focus:"",blocks:[]};
 }
 function todayISO(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 
@@ -901,6 +908,7 @@ function setTab(t){
   document.querySelectorAll("section.view").forEach(v=>v.hidden=v.id!=="view-"+t);
   if(window.onViewChange)window.onViewChange();
   if(t==="settings"&&window.onSettingsTab)window.onSettingsTab();
+  if(t==="cal"&&window.onCalChange)window.onCalChange();
   try{localStorage.setItem("tab",t)}catch{}
 }
 try{const t=localStorage.getItem("tab");if(t)setTab(t)}catch{}

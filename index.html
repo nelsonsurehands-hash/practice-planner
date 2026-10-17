@@ -109,9 +109,10 @@
     <div class="sw-menu" id="swMenu"></div>
   </details>
   <div class="tabs" role="tablist">
-    <button id="tab-plan" role="tab" aria-selected="true" data-tab="plan">Practice Plan</button>
-    <button id="tab-lib" role="tab" aria-selected="false" data-tab="lib">Drill Library <span id="drillCount"></span></button>
+    <button id="tab-plan" role="tab" aria-selected="true" data-tab="plan">Practice</button>
     <button id="tab-plays" role="tab" aria-selected="false" data-tab="plays">Plays <span id="playCount"></span></button>
+    <button id="tab-lib" role="tab" aria-selected="false" data-tab="lib">Drill Library <span id="drillCount"></span></button>
+    <button id="tab-cal" role="tab" aria-selected="false" data-tab="cal">Calendar</button>
     <button id="tab-settings" role="tab" aria-selected="false" data-tab="settings">Settings</button>
   </div>
   </div>
@@ -252,6 +253,27 @@
   </div>
 </section>
 
+<section id="view-cal" class="view" hidden>
+  <div class="cal-head">
+    <div><div class="eyebrow" id="calEyebrow"></div><h2 class="cal-title">Practice &amp; Game Calendar</h2></div>
+    <div class="cal-season" id="calSeason"></div>
+  </div>
+  <div class="cal-legend" aria-label="Legend">
+    <span><i class="sw game"></i>Game</span><span><i class="sw tryout"></i>Tryouts</span><span><i class="sw practice"></i>Practice</span>
+    <span><i class="sw meeting"></i>Meeting</span><span><i class="sw holiday"></i>Holiday / no school</span><span><i class="sw planned"></i>Plan ready</span>
+  </div>
+  <div class="cal-tools">
+    <button class="btn" type="button" id="calToday">Jump to today</button>
+    <button class="btn" type="button" id="calIcs">Add to my phone calendar</button>
+    <button class="btn edit-only" type="button" id="calAddGame">+ Game</button>
+    <span class="help" id="calHint">Tap a day to see it, open its practice plan, or change it.</span>
+  </div>
+  <div class="cal-callout" id="calCallout" hidden></div>
+  <div id="calMonths"></div>
+  <div class="cal-list-wrap"><table class="cal-list" id="calGames"></table></div>
+  <p class="help cal-foot" id="calFoot"></p>
+</section>
+
 <section id="view-settings" class="view" hidden>
   <div class="actions edit-only" style="margin:0 0 14px"><button class="btn primary" id="sSave">Save settings</button><span class="saved" id="sStatus" style="margin-left:0"></span></div>
   <div class="settings">
@@ -287,6 +309,7 @@
         <label class="f">Season ends<input id="sEnd" type="date"></label>
       </div>
       <fieldset class="catpick"><legend>Regular practice days</legend><div class="catboxes" id="sDays"></div></fieldset>
+      <label class="f" style="max-width:320px">Practices required before the first game<input id="sMinPr" type="number" min="0" max="60" placeholder="e.g. 14 (optional)"></label>
       <p class="preview-dates" id="sPreview"></p>
     </div>
     <div class="panel">
@@ -317,6 +340,10 @@
   </div>
 </section>
 </div>
+
+<dialog id="dayDlg" aria-labelledby="dayTitle">
+  <div class="dlg" id="dayBody"></div>
+</dialog>
 
 <dialog id="shareDlg" aria-labelledby="shareTitle">
   <form method="dialog" class="dlg" id="shareForm">
@@ -357,5 +384,6 @@
 <script src="js/board.js"></script>
 <script src="js/app.js"></script>
 <script src="js/boot.js"></script>
+<script src="js/calendar.js"></script>
 </body>
 </html>

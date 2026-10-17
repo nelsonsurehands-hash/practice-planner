@@ -210,8 +210,8 @@ input[type=color]{padding:2px;height:38px;width:64px}
 .rows{display:flex;flex-direction:column;gap:6px}
 .row{display:grid;gap:6px;align-items:center}
 .row.game{grid-template-columns:136px minmax(0,1fr) 116px 84px 32px}
-.row.special{grid-template-columns:130px 150px minmax(0,1fr) 32px}
-@media (max-width:560px){.row.game{grid-template-columns:1fr 1fr}.row.game .rm{justify-self:end}.row.special{grid-template-columns:1fr 1fr}}
+.row.special{grid-template-columns:130px 140px minmax(0,1fr) 96px 96px 32px}
+@media (max-width:560px){.row.game{grid-template-columns:1fr 1fr}.row.game .rm{justify-self:end}.row.special{grid-template-columns:1fr 1fr}.row.special [data-f=note]{grid-column:1/-1}}
 .row input,.row select{padding:6px 8px;font-size:14px}
 .code{font-family:var(--mono);font-size:22px;letter-spacing:.12em;background:var(--sunk);padding:6px 12px;border-radius:6px;display:inline-block}
 .members{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:14px}
@@ -336,3 +336,76 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;color:inherit}
 .or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.12em}
 .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
 .oauth-btn{display:flex;align-items:center;justify-content:center;gap:10px;padding:10px 14px;font-weight:600}
+
+/* ---------- Calendar tab (laid out like the season schedule calendar) ---------- */
+:root{--cal-game:#8f2d3a;--cal-game-soft:#f6e2e2;--cal-try:#b58a1f;--cal-try-soft:#fbf1d7;--cal-prac:#2b6f76;--cal-prac-soft:#e0eeef;--cal-meet:#5b4b8a;--cal-meet-soft:#eae5f6;--cal-hol:#a1461f;--cal-hol-soft:#f7e6dd}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--cal-game:#e2828f;--cal-game-soft:#3a2024;--cal-try:#e0b64a;--cal-try-soft:#332a13;--cal-prac:#6fc2c9;--cal-prac-soft:#173036;--cal-meet:#b6a4e8;--cal-meet-soft:#2a2340;--cal-hol:#e2926c;--cal-hol-soft:#3a2417}}
+:root[data-theme="dark"]{--cal-game:#e2828f;--cal-game-soft:#3a2024;--cal-try:#e0b64a;--cal-try-soft:#332a13;--cal-prac:#6fc2c9;--cal-prac-soft:#173036;--cal-meet:#b6a4e8;--cal-meet-soft:#2a2340;--cal-hol:#e2926c;--cal-hol-soft:#3a2417}
+#view-cal{display:flex;flex-direction:column;gap:16px}
+#view-cal[hidden]{display:none!important}
+.cal-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;padding-bottom:12px;border-bottom:3px solid var(--ink)}
+.cal-title{font-size:clamp(26px,5vw,36px);text-transform:uppercase;line-height:1}
+.cal-season{text-align:right;display:flex;flex-direction:column;font-size:14px}
+.cal-season small{color:var(--muted);font-size:13px}
+.cal-legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:13px;color:var(--muted)}
+.cal-legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;border:1px solid var(--line);display:inline-block}
+.sw.game{background:var(--cal-game-soft);border-color:var(--cal-game)}.sw.tryout{background:var(--cal-try-soft);border-color:var(--cal-try)}
+.sw.practice{background:var(--cal-prac-soft);border-color:var(--cal-prac)}.sw.meeting{background:var(--cal-meet-soft);border-color:var(--cal-meet)}
+.sw.holiday{background:var(--cal-hol-soft);border-color:var(--cal-hol)}.sw.planned{background:var(--accent);border-color:var(--accent);border-radius:50%}
+.cal-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cal-tools .help{flex-basis:100%;margin:0}
+.cal-callout{display:flex;gap:10px;align-items:flex-start;background:var(--cal-try-soft);border:1px solid var(--cal-try);border-radius:8px;padding:12px 14px;font-size:14px;line-height:1.45}
+.cal-callout.short{background:var(--warn-soft);border-color:var(--warn)}
+.cal-callout .mark{font-family:var(--display);font-weight:800;font-size:22px;line-height:1;color:var(--cal-try);min-width:18px;text-align:center}
+.cal-callout.short .mark{color:var(--warn)}
+.cal-month h3{font-size:24px;text-transform:uppercase}
+.cal-month .sub{margin:2px 0 10px;font-size:13px;color:var(--muted)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.cal-grid .dow{background:var(--ink);color:var(--bg);font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;text-align:center;padding:7px 2px}
+.cal-cell{background:var(--surface);min-height:84px;padding:5px 5px 7px;display:flex;flex-direction:column;align-items:stretch;gap:3px;min-width:0;border:0;border-radius:0;text-align:left;font:inherit;color:inherit;cursor:pointer}
+button.cal-cell:hover{box-shadow:inset 0 0 0 2px var(--accent)}
+.cal-cell.pad{background:var(--bg);cursor:default}
+.cal-cell .d{font-size:12px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.cal-cell.today .d{background:var(--ink);color:var(--bg);border-radius:10px;padding:0 6px;align-self:flex-start}
+.cal-cell.game{background:var(--cal-game-soft)}.cal-cell.game .d{color:var(--cal-game)}
+.cal-cell.tryout{background:var(--cal-try-soft)}.cal-cell.tryout .d{color:var(--cal-try)}
+.cal-cell.practice{background:var(--cal-prac-soft)}.cal-cell.practice .d{color:var(--cal-prac)}
+.cal-cell.holiday{background:var(--cal-hol-soft)}.cal-cell.holiday .d{color:var(--cal-hol)}
+.cal-cell .ev{font-size:11.5px;line-height:1.25;overflow-wrap:break-word;hyphens:auto}
+.cal-cell .ev b{display:block;font-weight:700}
+.cal-cell .ev small{display:block;color:var(--muted);font-variant-numeric:tabular-nums;font-size:11px}
+.cal-cell .ev.holiday b{color:var(--cal-hol)}.cal-cell .ev.meeting b{color:var(--cal-meet)}
+.cal-cell .tag{display:inline-block;align-self:flex-start;max-width:100%;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:1px 5px;border-radius:3px;overflow-wrap:break-word;hyphens:auto}
+.cal-cell .tag.home{background:var(--cal-try-soft);color:var(--cal-try)}
+.cal-cell .tag.away{background:var(--sunk);color:var(--muted)}
+.cal-cell .tag.holiday{background:var(--cal-hol-soft);color:var(--cal-hol);border:1px solid var(--cal-hol)}
+.plan-dot{align-self:flex-start;font-size:10px;font-weight:700;padding:1px 6px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-variant-numeric:tabular-nums}
+@media (max-width:560px){
+  .cal-cell{min-height:62px;padding:3px 2px 5px}
+  .cal-cell .ev{font-size:9.5px}.cal-cell .ev small{font-size:9px}
+  .cal-cell .tag{font-size:7.5px;padding:1px 3px;letter-spacing:0}
+  .cal-grid .dow{font-size:9.5px;letter-spacing:.04em}
+  .plan-dot{font-size:0;width:8px;height:8px;padding:0}
+  .cal-season{text-align:left}
+}
+.cal-list-wrap{overflow-x:auto}
+.cal-list{width:100%;border-collapse:collapse;font-size:14px}
+.cal-list caption{text-align:left;font-family:var(--display);font-size:22px;font-weight:700;text-transform:uppercase;margin-bottom:8px}
+.cal-list th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--ink);padding:6px 10px 8px 0}
+.cal-list td{padding:9px 10px 9px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.cal-list td.opp{font-weight:600}
+.cal-list tr[data-day]{cursor:pointer}
+.cal-list tr[data-day]:hover td{background:var(--sunk)}
+.cal-foot{margin:0}
+.day-ev{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:8px;border-left:5px solid var(--line);background:var(--sunk)}
+.day-ev b{font-family:var(--display);font-size:20px;text-transform:uppercase}
+.day-ev span{font-size:14px;color:var(--muted)}
+.day-ev.game{border-color:var(--cal-game);background:var(--cal-game-soft)}
+.day-ev.practice{border-color:var(--cal-prac);background:var(--cal-prac-soft)}
+.day-ev.holiday{border-color:var(--cal-hol);background:var(--cal-hol-soft)}
+.day-edit{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.day-edit summary{cursor:pointer;font-weight:600;font-size:14px}
+.day-edit[open]{display:flex;flex-direction:column;gap:10px}
+.day-edit .day-game{display:flex;flex-direction:column;gap:10px}
+#dayDlg{width:min(460px,calc(100vw - 32px))}

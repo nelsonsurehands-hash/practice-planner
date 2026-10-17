@@ -320,6 +320,8 @@ function specialRow(x,i){return `<div class="row special" data-i="${i}">
   <input type="date" data-f="date" value="${esc(x.date||"")}" aria-label="Date">
   <select data-f="kind" aria-label="Kind of day"><option value="off"${x.kind==="off"?" selected":""}>No practice</option><option value="extra"${x.kind==="extra"?" selected":""}>Extra practice</option><option value="note"${x.kind==="note"?" selected":""}>Note only</option></select>
   <input data-f="note" value="${esc(x.note||"")}" placeholder="e.g. Thanksgiving, Tryouts" aria-label="Note">
+  <input type="time" data-f="start" value="${esc(x.start||"")}" aria-label="Practice starts (optional)" title="Practice starts (leave blank for the usual time)">
+  <input type="time" data-f="end" value="${esc(x.end||"")}" aria-label="Practice ends (optional)" title="Practice ends (leave blank for the usual time)">
   <button class="icon rm" data-rm="special" aria-label="Remove day">✕</button></div>`;}
 function renderRows(){
   $("#sGames").innerHTML=draft.games.length?draft.games.map(gameRow).join(""):`<p class="help">No games yet.</p>`;
@@ -331,6 +333,8 @@ function readForm(){
   draft.color2=$("#sUseC2").checked?$("#sColor2").value:"";
   draft.weekdayStart=$("#sWdS").value;draft.weekdayEnd=$("#sWdE").value;draft.weekendStart=$("#sWeS").value;draft.weekendEnd=$("#sWeE").value;
   draft.seasonStart=$("#sStart").value;draft.seasonEnd=$("#sEnd").value;
+  draft.minPractices=+$("#sMinPr").value||0;
+  draft.special.forEach(x=>{if(!x.start)delete x.start;if(!x.end)delete x.end;});
   draft.practiceDays=[...document.querySelectorAll("#sDays input:checked")].map(x=>+x.value);
   return draft;
 }
@@ -346,7 +350,7 @@ window.onSettingsTab=function(){
   $("#sSchool").value=draft.school||"";$("#sMascot").value=draft.mascot||"";$("#sLabel").value=draft.teamLabel||"";$("#sColor").value=draft.color||"#5b2a86";
   $("#sColor2").value=draft.color2||"#f2b705";$("#sUseC2").checked=!!draft.color2;renderLogoEdit();
   $("#sWdS").value=draft.weekdayStart||"";$("#sWdE").value=draft.weekdayEnd||"";$("#sWeS").value=draft.weekendStart||"";$("#sWeE").value=draft.weekendEnd||"";
-  $("#sStart").value=draft.seasonStart||"";$("#sEnd").value=draft.seasonEnd||"";
+  $("#sStart").value=draft.seasonStart||"";$("#sEnd").value=draft.seasonEnd||"";$("#sMinPr").value=draft.minPractices||"";
   document.querySelectorAll("#sDays input").forEach(x=>x.checked=(draft.practiceDays||[]).includes(+x.value));
   renderRows();updatePreview();$("#sStatus").textContent="";
   renderStaff();renderAccount();$("#importBox").innerHTML="";
@@ -633,7 +637,7 @@ $("#sImport").addEventListener("change",async e=>{
       if(n.plays)await store.bulkSet("plays",data.plays.map(p=>[p.id,strip(p)]));
       if(n.plans)await store.bulkSet("plans",data.plans.filter(p=>p.date).map(p=>[p.date,p]));
       const useSettings=data.settings&&$("#impSettings")&&$("#impSettings").checked;
-      if(useSettings){await saveSettings({...DEFAULT_SETTINGS,...data.settings});window.onSettingsTab();}
+      if(useSettings){await saveSettings({...DEFAULT_SETTINGS,...(team.settings||{}),...data.settings});window.onSettingsTab();}
       box.innerHTML=`<p class="msg ok" id="impMsg">Imported ${n.drills} drills, ${n.plays} plays and ${n.plans} plans${useSettings?", plus the team settings":""}.</p>`;
     }catch(err){msg($("#impMsg"),"Import stopped: "+(err.message||"check your connection"),"err");ev.target.disabled=false;}
   });
