@@ -94,6 +94,39 @@ const ease=u=>u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2;
 function buildTransition(frames,i){
   const f=frames[i], last=i===frames.length-1;
   const g=last?nextTokens(f):frames[i+1].tokens;
+  const b0=f.tokens.find(t=>t.kind==="ball"),b1=g.find(t=>t.kind==="ball"),h=holderOf(f);
+  const hasTok=id=>f.tokens.some(x=>x.id===id);
+  const anyMove=f.tokens.some(t=>{if(t.kind==="ball")return false;const e=g.find(x=>x.id===t.id);return e&&dist(t,e)>1;});
+
+  /* Ball events in order: the passes, then a shot. */
+  const events=f.actions.filter(a=>a.type==="pass").concat(f.actions.filter(a=>a.type==="shot"));
+  const off0=b0&&h?{x:b0.x-h.x,y:b0.y-h.y}:{x:13,y:-13};
+  const start0=b0?(h?{id:h.id,first:true}:{pt:{x:b0.x,y:b0.y}}):null;
+  /* No pass drawn but the next step has the ball somewhere else: fly it there. */
+  if(b0&&b1&&!events.length){
+    const hd=h&&f.actions.find(a=>a.from===h.id&&isMove(a));
+    const e=h?(hd?{x:hd.x2+13,y:hd.y2-13}:{x:b0.x,y:b0.y}):{x:b0.x,y:b0.y};
+    if(dist(e,b1)>2)events.push({type:"pass",to:null,x1:e.x,y1:e.y,x2:b1.x,y2:b1.y,cx:(e.x+b1.x)/2,cy:(e.y+b1.y)/2});
+  }
+
+  /* Timeline (0..1). Passes happen DURING the movement, not after it: each ball event gets an equal
+     slice and flies in the back half of it. A cutter who receives a pass finishes the cut right as the
+     ball arrives; a player who catches and then dribbles starts after the catch; the starting ball
+     handler drives first, then passes. Everyone else moves across the whole step. */
+  const k=events.length,L=anyMove?0.5:0;
+  const win=events.map((a,n)=>({s:(n+L)/Math.max(k,1),e:(n+1)/Math.max(k,1)}));
+  const recv=id=>events.findIndex(a=>a.type==="pass"&&a.to===id);
+  const sends=(id,after)=>events.findIndex((a,n)=>n>after&&a.from===id);
+  const windowFor=(id,act)=>{
+    if(!k||!act)return [0,1];
+    const r=recv(id);
+    if(r>=0){
+      if(act.type==="dribble"){const nx=sends(id,r);return [win[r].e,nx>=0?win[nx].s:1];}
+      return [0,win[r].e];
+    }
+    if(h&&id===h.id){const nx=sends(id,-1);if(nx>=0)return [0,Math.max(win[nx].s,.05)];}
+    return [0,1];
+  };
   const paths={};let moves=false;
   f.tokens.forEach(t=>{
     if(t.kind==="ball")return;
@@ -101,25 +134,38 @@ function buildTransition(frames,i){
     if(!e){paths[t.id]=null;return;}
     const a=f.actions.find(a=>a.from===t.id&&isMove(a)&&Math.hypot(a.x2-e.x,a.y2-e.y)<3);
     if(a||dist(t,e)>1)moves=true;
-    paths[t.id]=a?(u=>qpt(a,u)):(u=>({x:t.x+(e.x-t.x)*u,y:t.y+(e.y-t.y)*u}));
+    const raw=a?(v=>qpt(a,v)):(v=>({x:t.x+(e.x-t.x)*v,y:t.y+(e.y-t.y)*v}));
+    const [w0,w1]=windowFor(t.id,a);
+    paths[t.id]=u=>raw(ease(Math.min(1,Math.max(0,(u-w0)/((w1-w0)||1)))));   // u is raw step time
   });
-  const b0=f.tokens.find(t=>t.kind==="ball"),b1=g.find(t=>t.kind==="ball");
-  const h=holderOf(f), pass=f.actions.find(a=>a.type==="pass"||a.type==="shot");
-  const ballMove=u=>{
-    if(!b0)return null;
-    if(h&&paths[h.id]){const p=paths[h.id](u);return {x:p.x+(b0.x-h.x),y:p.y+(b0.y-h.y)};}
-    return {x:b0.x,y:b0.y};
+  const posAt=(id,u)=>{const p=paths[id];if(p)return p(u);const t=f.tokens.find(x=>x.id===id);return t?{x:t.x,y:t.y}:null;};
+  const holderMoves=!!(h&&paths[h.id]&&f.actions.some(a=>a.from===h.id&&isMove(a)));
+  const carry=(c,u)=>{
+    if(!c)return null;
+    if(c.pt)return c.pt;
+    const p=posAt(c.id,u);if(!p)return null;
+    let o={x:13,y:-13};
+    if(c.first){if(holderMoves){const [w0,w1]=windowFor(h.id,f.actions.find(a=>a.from===h.id&&isMove(a)));const v=Math.min(1,Math.max(0,(u-w0)/((w1-w0)||1)));o={x:off0.x+(13-off0.x)*v,y:off0.y+(-13-off0.y)*v};}else o=off0;}
+    return {x:p.x+o.x,y:p.y+o.y};
   };
-  let passCurve=null;
-  if(b0&&b1){
-    const s=ballMove(1);
-    if(dist(s,b1)>2){
-      let c={x:(s.x+b1.x)/2,y:(s.y+b1.y)/2};
-      if(pass){c={x:c.x+(pass.cx-(pass.x1+pass.x2)/2),y:c.y+(pass.cy-(pass.y1+pass.y2)/2)};}
-      passCurve={x1:s.x,y1:s.y,cx:c.x,cy:c.y,x2:b1.x,y2:b1.y};
+  const ballAt=u=>{
+    if(!b0)return null;
+    let c=start0;
+    for(let n=0;n<k;n++){
+      const a=events[n],{s:s0,e:e0}=win[n];
+      const toId=a.type==="pass"&&a.to&&hasTok(a.to)?a.to:null;
+      if(u<s0)return carry(c,u);
+      if(u<e0){
+        const A=carry(c,s0)||{x:a.x1,y:a.y1},B=toId?carry({id:toId},u):{x:a.x2,y:a.y2},v=ease((u-s0)/((e0-s0)||1));
+        const bend={x:a.cx-(a.x1+a.x2)/2,y:a.cy-(a.y1+a.y2)/2};
+        return qpt({x1:A.x,y1:A.y,cx:(A.x+B.x)/2+bend.x,cy:(A.y+B.y)/2+bend.y,x2:B.x,y2:B.y},v);
+      }
+      c=toId?{id:toId}:{pt:{x:a.x2,y:a.y2}};
     }
-  }
-  return {i,f,g,paths,ballMove,passCurve,moves,last,added:g.filter(t=>!f.tokens.some(x=>x.id===t.id))};
+    return carry(c,u);
+  };
+  return {i,f,g,paths,ballAt,ballMove:ballAt,passCurve:null,moves:moves||!!(b0&&k),
+    moveDur:DUR.move*Math.max(1,0.5+0.5*k),last,added:g.filter(t=>!f.tokens.some(x=>x.id===t.id))};
 }
 function animTokens(tr,phase,u){
   const out=[];
@@ -127,14 +173,14 @@ function animTokens(tr,phase,u){
     if(t.kind==="ball")return;
     const p=tr.paths[t.id];
     if(!p){if(phase==="hold")out.push(t);return;}
-    const q=phase==="hold"?{x:t.x,y:t.y}:phase==="move"?p(ease(u)):p(1);
+    const q=phase==="hold"?{x:t.x,y:t.y}:phase==="move"?p(u):p(1);
     out.push({...t,x:q.x,y:q.y});
   });
   if(phase!=="hold")tr.added.forEach(t=>{if(t.kind!=="ball")out.push(t);});
   let b=null;
   if(phase==="hold")b=tr.f.tokens.find(t=>t.kind==="ball");
-  else if(phase==="move")b=tr.ballMove(ease(u));
-  else b=tr.passCurve?qpt(tr.passCurve,ease(u)):tr.ballMove(1);
+  else if(phase==="move")b=tr.ballAt(u);
+  else b=tr.ballAt(1);
   if(b)out.push({id:"ball",kind:"ball",x:b.x,y:b.y});
   return out;
 }

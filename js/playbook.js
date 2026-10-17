@@ -102,7 +102,7 @@ function tick(now){
   if(!anim||anim.paused)return;
   anim.t+=now-anim.last;anim.last=now;
   const tr=anim.tr,frames=BOOK.plays[cur].frames;
-  const dur=anim.phase==="move"?(tr.moves?DUR.move:0):anim.phase==="pass"?(tr.passCurve?DUR.pass:0):anim.phase==="end"?DUR.end:DUR.hold;
+  const dur=anim.phase==="move"?(tr.moves?(tr.moveDur||DUR.move):0):anim.phase==="pass"?(tr.passCurve?DUR.pass:0):anim.phase==="end"?DUR.end:DUR.hold;
   if(anim.t>=dur){
     anim.t=0;
     if(anim.phase==="hold")anim.phase="move";

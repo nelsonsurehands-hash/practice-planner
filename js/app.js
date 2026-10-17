@@ -451,11 +451,20 @@ function destOf(fr,id){const a=fr.actions.find(a=>a.from===id&&isMove(a));if(a)r
 function syncPasses(fr){
   fr.actions.forEach(a=>{if(a.type!=="pass"||!a.to)return;const d=destOf(fr,a.to);if(!d){a.to=null;return;}
     const dx=d.x-a.x2,dy=d.y-a.y2;if(Math.abs(dx)+Math.abs(dy)<.5)return;a.x2=d.x;a.y2=d.y;a.cx+=dx/2;a.cy+=dy/2;});
-  fr.actions.forEach(a=>{if(a.type!=="shot")return;const s=shotStart(fr,a.from);if(!s){fr.actions=fr.actions.filter(x=>x!==a);return;}Object.assign(a,shotArc(s));});
+  const caught=new Set();
+  fr.actions.forEach(a=>{if(a.type!=="pass")return;
+    if(a.from&&caught.has(a.from)){const d=destOf(fr,a.from);if(d){const dx=d.x-a.x1,dy=d.y-a.y1;if(Math.abs(dx)+Math.abs(dy)>=.5){a.x1=d.x;a.y1=d.y;a.cx+=dx/2;a.cy+=dy/2;}}}
+    if(a.to)caught.add(a.to);});
+  fr.actions.forEach(a=>{if(a.type!=="shot")return;const who=finalHolder(fr);const s=who&&shotStart(fr,who);
+    if(!s){fr.actions=fr.actions.filter(x=>x!==a);return;}a.from=who;Object.assign(a,shotArc(s));});
 }
+/* Who has the ball after this step's passes (null if the last pass goes to an empty spot). */
+function finalHolder(fr){const h=holderOf(fr);let id=h?h.id:null;fr.actions.forEach(a=>{if(a.type==="pass")id=a.to||null;});return id;}
+/* Players who catch a pass in this step: a later pass from them starts where they caught it. */
+function catchers(fr){return fr.actions.filter(a=>a.type==="pass"&&a.to).map(a=>a.to);}
 /* A shot leaves from where the shooter is at the end of the step and arcs to the basket or goal. */
-function shotStart(fr,id){const d=destOf(fr,id),t=fr.tokens.find(x=>x.id===id),b=fr.tokens.find(x=>x.kind==="ball");
-  if(!d||!t)return null;return b?{x:d.x+(b.x-t.x),y:d.y+(b.y-t.y)}:{x:d.x+13,y:d.y-13};}
+function shotStart(fr,id){const d=destOf(fr,id),t=fr.tokens.find(x=>x.id===id),b=fr.tokens.find(x=>x.kind==="ball"),h=holderOf(fr);
+  if(!d||!t)return null;return b&&h&&h.id===id&&!catchers(fr).includes(id)?{x:d.x+(b.x-t.x),y:d.y+(b.y-t.y)}:{x:d.x+13,y:d.y-13};}
 function shotArc(s){const T=sp().target,len=Math.hypot(T.x-s.x,T.y-s.y),lift=Math.max(22,len*.32);
   const mx=(s.x+T.x)/2,my=(s.y+T.y)/2,nx=(T.y-s.y)/(len||1),ny=-(T.x-s.x)/(len||1),side=ny<0?1:-1;
   return {x1:s.x,y1:s.y,cx:mx+nx*lift*side,cy:my+ny*lift*side,x2:T.x,y2:T.y};}
@@ -520,8 +529,12 @@ board.addEventListener("pointerdown",e=>{
     return;
   }
   // line tools
-  const s=hitTok(p,["o","d"]);
-  const st=s?{x:s.x,y:s.y}:p;
+  let s=hitTok(p,["o","d"]),st=s?{x:s.x,y:s.y}:null;
+  if(tool==="pass"){
+    /* Chain passes in one step: start a pass from where a teammate catches the previous one. */
+    let bd=24;catchers(fr).forEach(id=>{const d=destOf(fr,id);if(d&&dist(p,d)<bd){bd=dist(p,d);s=fr.tokens.find(x=>x.id===id);st={x:d.x,y:d.y};}});
+  }
+  st=st||p;
   temp={type:tool,pts:[st],from:s?s.id:null,x1:st.x,y1:st.y,cx:st.x,cy:st.y,x2:st.x,y2:st.y};
   board.setPointerCapture(e.pointerId);
 });
@@ -541,7 +554,6 @@ function endPointer(){
   const s=t.pts[0],e=t.pts[t.pts.length-1];
   if(t.pts.length<3||dist(s,e)<20){renderBoard();pflash(hints(tool));return;}
   let to=null,end={x:e.x,y:e.y};
-  if(t.type==="pass"&&frame().actions.some(a=>a.type==="shot")){renderBoard();pflash("This step ends with a shot. Draw the pass on the step before, or erase the shot.");return;}
   if(t.type==="pass"){
     /* Who catches it: a teammate whose cut ends where you let go, or a teammate standing there.
        The ball goes where they'll be; with nobody there, it goes exactly where you let go. */
@@ -556,7 +568,7 @@ function endPointer(){
   pushHist();
   editStep(()=>{frame().actions.push({id:uid(),type:t.type,from:t.from,to,x1:s.x,y1:s.y,cx:c.x,cy:c.y,x2:end.x,y2:end.y});});
   markDirty();renderBoard();
-  if(t.type==="pass")pflash(to?`Pass to ${(frame().tokens.find(x=>x.id===to)||{}).n||"player"}: the ball moves to where they catch it.`:"Pass to a spot: the ball moves to where you let go.");
+  if(t.type==="pass")pflash(to?`Pass to ${(frame().tokens.find(x=>x.id===to)||{}).n||"player"}: the ball moves to where they catch it. To pass again in this step, draw from that catch spot.`:"Pass to a spot: the ball moves to where you let go.");
 }
 board.addEventListener("pointerup",endPointer);
 board.addEventListener("pointercancel",()=>{drag=null;temp=null;renderBoard();});
@@ -613,10 +625,10 @@ $("#pShot").addEventListener("click",()=>{
   if(anim)stopAnim();
   const fr=frame(),had=fr.actions.find(a=>a.type==="shot");
   if(had){pushHist();editStep(()=>{fr.actions=fr.actions.filter(a=>a!==had);});markDirty();renderBoard();pflash("Shot removed.");return;}
-  if(fr.actions.some(a=>a.type==="pass")){pflash("This step already has a pass. Tap + Next step, then Shot, so the catch comes first.");return;}
-  const h=holderOf(fr);if(!h){pflash("Give a player the ball first (Ball tool), then tap Shot.");return;}
+  const who=finalHolder(fr),h=who&&fr.tokens.find(x=>x.id===who);
+  if(!h){pflash(fr.actions.some(a=>a.type==="pass")?"The last pass goes to an empty spot, so nobody has the ball to shoot.":"Give a player the ball first (Ball tool), then tap Shot.");return;}
   pushHist();editStep(()=>{fr.actions.push({id:uid(),type:"shot",from:h.id,to:null,...shotArc(shotStart(fr,h.id))});});
-  markDirty();renderBoard();pflash(`${h.label||h.n} shoots${fr.actions.some(a=>a.from===h.id&&isMove(a))?" after their move":""}. Tap Shot again to remove it.`);
+  markDirty();renderBoard();pflash(`${h.label||h.n} shoots${catchers(fr).includes(h.id)?" off the catch":fr.actions.some(a=>a.from===h.id&&isMove(a))?" after their move":""}. Tap Shot again to remove it.`);
 });
 $("#pDup").addEventListener("click",()=>{
   pushHist();
@@ -658,7 +670,7 @@ function tick(now){
   const spd=+$("#pSpeed").value||1;
   anim.t+=(now-anim.last)*spd;anim.last=now;
   const tr=anim.tr;
-  const dur=anim.phase==="move"?(tr.moves?DUR.move:0):anim.phase==="pass"?(tr.passCurve?DUR.pass:0):anim.phase==="end"?DUR.end:DUR.hold;
+  const dur=anim.phase==="move"?(tr.moves?(tr.moveDur||DUR.move):0):anim.phase==="pass"?(tr.passCurve?DUR.pass:0):anim.phase==="end"?DUR.end:DUR.hold;
   if(anim.t>=dur){
     anim.t=0;
     if(anim.phase==="hold")anim.phase="move";
