@@ -4,5 +4,8 @@
    keeps each team's data private to its coaches. */
 window.APP_CONFIG = {
   supabaseUrl: "https://oxtylgrznthjbqreatio.supabase.co",
-  supabaseAnonKey: "sb_publishable_UkEX5LFpoT_GuWpPtO1ybg_dt_IS-9D"
+  supabaseAnonKey: "sb_publishable_UkEX5LFpoT_GuWpPtO1ybg_dt_IS-9D",
+  /* Social sign-in buttons to show. Turn each one on in Supabase first
+     (Authentication → Sign In / Providers), then list it here: "google", "facebook". */
+  oauth: []
 };

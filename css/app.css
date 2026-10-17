@@ -331,3 +331,8 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;color:inherit}
 .auth-tabs{display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:8px}
 .auth-tabs button{flex:1;border:0;background:transparent;padding:8px 10px;border-radius:6px;font-weight:600;color:var(--muted)}
 .auth-tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.linkbtn{align-self:flex-start;border:0;background:none;padding:2px 0;color:var(--accent);font-weight:600;font-size:13.5px;text-decoration:underline;text-underline-offset:3px}
+.oauth{display:flex;flex-direction:column;gap:8px}
+.or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.12em}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+.oauth-btn{display:flex;align-items:center;justify-content:center;gap:10px;padding:10px 14px;font-weight:600}

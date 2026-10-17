@@ -75,20 +75,23 @@ async function init(){
     return teams.length?openTeam(pickLast()):showSetup(false);
   }
   sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseAnonKey,{auth:{persistSession:true,detectSessionInUrl:true,flowType:"implicit"}});
-  /* Implicit flow: the emailed link carries the sign-in itself, so it works even when the
-     email app opens it in a different browser than the one that asked for it. */
+  /* Implicit flow: links in emails (confirm, reset password) and Google/Facebook sign-in return
+     with the session in the address, so they work even if the email opens in another browser. */
   const back=new URLSearchParams(location.hash.slice(1)+"&"+location.search.slice(1));
   const linkErr=back.get("error_description")||back.get("error");
+  RECOVERY=back.get("type")==="recovery";
+  renderOauth();
   sb.auth.onAuthStateChange((event,session)=>{
-    if(event==="SIGNED_IN"&&session&&!user)afterLogin(session.user);
+    if(event==="PASSWORD_RECOVERY"){RECOVERY=true;showNewPassword();return;}
+    if(event==="SIGNED_IN"&&session&&!user&&!RECOVERY)afterLogin(session.user);
     if(event==="SIGNED_OUT")location.reload();
   });
   const {data:{session}}=await sb.auth.getSession();
-  if(session){history.replaceState(null,"",location.pathname);afterLogin(session.user);return;}
+  if(session){history.replaceState(null,"",location.pathname);if(RECOVERY){showNewPassword();return;}afterLogin(session.user);return;}
   show("screen-auth");
   if(linkErr){
     history.replaceState(null,"",location.pathname);
-    msg($("#authMsg"),/expired|invalid/i.test(linkErr)?"That sign-in link has expired or was already used. Send yourself a new one.":"Sign-in didn't finish: "+linkErr.replace(/\+/g," "),"err");
+    msg($("#authMsg"),/expired|invalid/i.test(linkErr)?"That email link has expired or was already used. Tap Forgot password to get a new one.":"Sign-in didn't finish: "+linkErr.replace(/\+/g," "),"err");
   }
 }
 function pickLast(){let last=null;try{last=localStorage.getItem("cpp:lastTeam");}catch{}return teams.find(x=>x.id===last)||teams[0];}
@@ -145,40 +148,78 @@ $("#swMenu").addEventListener("click",e=>{
 document.addEventListener("click",e=>{const d=$("#teamSw");if(d.open&&!d.contains(e.target))d.open=false;});
 
 /* ---------- sign in ---------- */
-$("#authForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-  const email=$("#authEmail").value.trim();if(!email)return;
-  $("#authBtn").disabled=true;msg($("#authMsg"),"Sending…");
-  const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
-  $("#authBtn").disabled=false;
-  if(error){msg($("#authMsg"),/rate limit/i.test(error.message)?"Too many sign-in emails in the last hour. Wait a bit, or sign in with your password.":error.message,"err");return;}
-  $("#codeForm").hidden=false;
-  msg($("#authMsg"),`Sent to ${email}. Tap the link in the email on this device, or type the code from the email above.`,"ok");
-});
-/* Code from the email: lets you read the email on your phone and sign in on a laptop. */
-$("#codeForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-  const email=$("#authEmail").value.trim(),token=$("#authCode").value.replace(/\D/g,"");if(!email||!token)return;
-  $("#codeBtn").disabled=true;msg($("#authMsg"),"Checking…");
-  const {error}=await sb.auth.verifyOtp({email,token,type:"email"});
-  $("#codeBtn").disabled=false;
-  if(error)msg($("#authMsg"),/expired|invalid/i.test(error.message)?"That code is wrong or expired. Use the newest email, or send a new one.":error.message,"err");
-});
-function authTab(pw){
-  $("#authTabLink").setAttribute("aria-selected",!pw);$("#authTabPw").setAttribute("aria-selected",pw);
-  $("#authForm").hidden=pw;$("#codeForm").hidden=pw||!$("#authMsg").textContent;$("#pwForm").hidden=!pw;
-  if(pw&&!$("#pwEmail").value)$("#pwEmail").value=$("#authEmail").value;
+/* Email + password. "Create account" signs you up; "Forgot password?" emails a reset link. */
+let authMode="in";
+function authTab(mode){
+  authMode=mode;
+  $("#authTabIn").setAttribute("aria-selected",mode==="in");$("#authTabUp").setAttribute("aria-selected",mode==="up");
+  $("#authNameWrap").hidden=mode!=="up";$("#authForgot").hidden=mode!=="in";
+  $("#authPass").autocomplete=mode==="up"?"new-password":"current-password";
+  $("#authPass").placeholder=mode==="up"?"At least 8 characters":"";
+  $("#authBtn").textContent=mode==="up"?"Create account":"Sign in";
   $("#authMsg").textContent="";$("#authMsg").className="msg";
 }
-$("#authTabLink").addEventListener("click",()=>authTab(false));
-$("#authTabPw").addEventListener("click",()=>authTab(true));
-$("#pwForm").addEventListener("submit",async e=>{
+$("#authTabIn").addEventListener("click",()=>authTab("in"));
+$("#authTabUp").addEventListener("click",()=>authTab("up"));
+const authErr=m=>/invalid login/i.test(m)?"Email or password is wrong. New here? Tap Create account. Forgot it? Tap Forgot password.":
+  /already registered|already been registered/i.test(m)?"There's already an account with that email. Tap Sign in, or Forgot password to set a new one.":
+  /email not confirmed/i.test(m)?"Confirm your email first: tap the link in the email we sent, then sign in.":
+  /rate limit/i.test(m)?"Too many emails sent in the last hour. Wait a bit and try again.":
+  /provider is not enabled|unsupported provider/i.test(m)?"That sign-in option isn't turned on yet. Use email and password for now.":m;
+$("#authForm").addEventListener("submit",async e=>{
   e.preventDefault();
-  const email=$("#pwEmail").value.trim(),password=$("#pwPass").value;if(!email||!password)return;
-  $("#pwBtn").disabled=true;msg($("#authMsg"),"Signing in…");
+  const email=$("#authEmail").value.trim(),password=$("#authPass").value;if(!email||!password)return;
+  if(password.length<8){msg($("#authMsg"),"Passwords need at least 8 characters.","err");return;}
+  $("#authBtn").disabled=true;msg($("#authMsg"),authMode==="up"?"Creating your account…":"Signing in…");
+  if(authMode==="up"){
+    const name=$("#authName").value.trim();
+    const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname,data:name?{full_name:name}:{}}});
+    $("#authBtn").disabled=false;
+    if(error){msg($("#authMsg"),authErr(error.message),"err");return;}
+    if(!data.session){
+      if(data.user&&Array.isArray(data.user.identities)&&!data.user.identities.length){msg($("#authMsg"),authErr("already registered"),"err");return;}
+      authTab("in");$("#authEmail").value=email;
+      msg($("#authMsg"),`Almost done: tap the confirmation link we sent to ${email}, then sign in here.`,"ok");return;
+    }
+    return;   // signed in: onAuthStateChange opens the app
+  }
   const {error}=await sb.auth.signInWithPassword({email,password});
-  $("#pwBtn").disabled=false;
-  if(error)msg($("#authMsg"),/invalid/i.test(error.message)?"Email or password is wrong. No password yet? Use the email link once, then set one in Settings → Your account.":error.message,"err");
+  $("#authBtn").disabled=false;
+  if(error)msg($("#authMsg"),authErr(error.message),"err");
+});
+$("#authForgot").addEventListener("click",async()=>{
+  const email=$("#authEmail").value.trim();
+  if(!email){msg($("#authMsg"),"Type your email above, then tap Forgot password.","err");$("#authEmail").focus();return;}
+  msg($("#authMsg"),"Sending…");
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  if(error)msg($("#authMsg"),authErr(error.message),"err");
+  else msg($("#authMsg"),`Check ${email} for a link to set your password. Open it on this device.`,"ok");
+});
+/* Back from the reset email: pick a new password, then carry on into the app. */
+let RECOVERY=false;
+function showNewPassword(){
+  show("screen-auth");$("#authForm").hidden=true;$(".auth-tabs").hidden=true;$("#oauthBox").hidden=true;$("#newPwForm").hidden=false;$("#newPass").focus();
+}
+$("#newPwForm").addEventListener("submit",async e=>{
+  e.preventDefault();const v=$("#newPass").value;if(v.length<8){msg($("#authMsg"),"Use at least 8 characters.","err");return;}
+  $("#newPwBtn").disabled=true;msg($("#authMsg"),"Saving…");
+  const {data,error}=await sb.auth.updateUser({password:v});
+  $("#newPwBtn").disabled=false;
+  if(error){msg($("#authMsg"),authErr(error.message),"err");return;}
+  RECOVERY=false;$("#newPwForm").hidden=true;$("#authForm").hidden=false;$(".auth-tabs").hidden=false;msg($("#authMsg"),"");
+  afterLogin(data.user);
+});
+/* Google / Facebook: only the providers listed in js/config.js (turned on in Supabase) are shown. */
+function renderOauth(){
+  const list=(CFG.oauth||[]).filter(p=>["google","facebook"].includes(p));
+  $("#oauthBox").hidden=!list.length;
+  document.querySelectorAll("[data-provider]").forEach(b=>b.hidden=!list.includes(b.dataset.provider));
+}
+$("#oauthBox").addEventListener("click",async e=>{
+  const b=e.target.closest("[data-provider]");if(!b)return;
+  msg($("#authMsg"),"Opening "+b.textContent.replace("Continue with ","")+"…");
+  const {error}=await sb.auth.signInWithOAuth({provider:b.dataset.provider,options:{redirectTo:location.origin+location.pathname}});
+  if(error)msg($("#authMsg"),authErr(error.message),"err");
 });
 
 /* ---------- create or join a team ---------- */
@@ -426,7 +467,7 @@ function renderAccount(){
   const box=$("#accountBody");
   box.innerHTML=(HOSTED?`<p class="help">Signed in as <b>${esc(user.email||"")}</b>.</p>`:`<p class="help">Demo mode: no account needed.</p>`)+
     `<form id="nameForm" class="actions" style="margin:0;align-items:end"><label class="f" style="flex:1 1 200px">Your name (shown to your staff)<input id="myName" value="${esc(ME.name||"")}"></label><button class="btn" type="submit">Save name</button></form><div class="msg" id="nameMsg"></div>`+
-    (HOSTED?`<form id="pwSetForm" class="actions" style="margin:0;align-items:end"><input type="email" autocomplete="username" value="${esc(user.email||"")}" hidden aria-hidden="true"><label class="f" style="flex:1 1 200px">Password for signing in on other devices<input id="newPw" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></label><button class="btn" type="submit">Set password</button></form><div class="msg" id="pwMsg"></div>`:"")+
+    (HOSTED?`<form id="pwSetForm" class="actions" style="margin:0;align-items:end"><input type="email" autocomplete="username" value="${esc(user.email||"")}" hidden aria-hidden="true"><label class="f" style="flex:1 1 200px">Change password<input id="newPw" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></label><button class="btn" type="submit">Set password</button></form><div class="msg" id="pwMsg"></div>`:"")+
     `<div class="actions" style="margin-top:0">${HOSTED?`<button class="btn danger" id="signOut">Sign out</button>`:`<button class="btn danger" id="resetDemo">Erase demo data</button>`}</div>`;
   $("#nameForm").addEventListener("submit",async e=>{
     e.preventDefault();const v=$("#myName").value.trim();if(!v)return;
@@ -444,8 +485,8 @@ function renderAccount(){
     if(v.length<8){msg($("#pwMsg"),"Use at least 8 characters.","err");return;}
     msg($("#pwMsg"),"Saving…");
     const {error}=await sb.auth.updateUser({password:v});
-    if(error){msg($("#pwMsg"),/reauth|recent/i.test(error.message)?"For safety, sign out and back in with an email link, then set the password right away.":error.message,"err");return;}
-    $("#newPw").value="";msg($("#pwMsg"),`Password set. On another device, choose Password on the sign-in screen and use ${user.email}.`,"ok");
+    if(error){msg($("#pwMsg"),/reauth|recent/i.test(error.message)?"For safety, sign out, sign back in, then change the password right away.":error.message,"err");return;}
+    $("#newPw").value="";msg($("#pwMsg"),`Password saved. Sign in anywhere with ${user.email} and this password.`,"ok");
   });
   else $("#resetDemo").addEventListener("click",e=>{
     if(e.target.dataset.armed!=="1"){e.target.dataset.armed="1";e.target.textContent="Tap again to erase every demo team";return;}
