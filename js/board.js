@@ -52,11 +52,12 @@ function actSVG(a,col){
   }
   return "";
 }
-function boardInner(fr,mode,tmp,fade){
+function boardInner(fr,mode,tmp,fade,ghost){
   const P=mode==="print";
   const c=P?{out:"#fff",floor:"#fff",line:"#000",o:"#000",ofill:"#fff",d:"#000",act:"#000",ball:"#000",paint:"#fff"}
            :{out:"var(--court-out)",floor:"var(--court)",line:"var(--court-line)",o:"var(--accent)",ofill:"var(--surface)",d:"var(--ink)",act:"var(--ink)",ball:"var(--ball)",paint:"var(--court-paint)"};
   let s=courtSVG(SPORT,c);
+  if(ghost&&ghost.length)s+=`<g style="opacity:.22">`+ghost.map(a=>actSVG(a,c.act)).join("")+`</g>`;
   const acts=[...fr.actions];if(tmp)acts.push(tmp);
   s+=`<g style="opacity:${fade?0.3:1}">`+acts.map(a=>actSVG(a,c.act)).join("")+`</g>`;
   fr.tokens.filter(t=>t.kind!=="ball").forEach(t=>{

@@ -431,7 +431,12 @@ function blankPlay(){const f=Object.keys(sp().forms)[0];return {id:null,name:"",
 
 /* geometry */
 /* editor rendering */
-function renderBoard(){$("#board").innerHTML=boardInner(frame(),"screen",temp);renderOptBanner(fi);}
+function renderBoard(){$("#board").innerHTML=boardInner(frame(),"screen",temp,false,optionGhost());renderOptBanner(fi);}
+/* On the first step of an option, show the step it branches from as faint lines, so the play stays in view. */
+function optionGhost(){
+  const f=frame();if(!f.opt)return null;const L=playLines(play.frames),o=optionOf(play.frames,L,fi);
+  if(!o||o.steps[0]!==fi)return null;const b=play.frames[L.main[o.branch]];return b?b.actions:null;
+}
 /* The option banner above the board: says loudly when you're looking at an option, not the main play. */
 function renderOptBanner(i){
   const L=playLines(play.frames),n=stepName(play.frames,L,i),lead=!n.opt&&anim&&anim.opt?L.options.find(x=>x.id===anim.opt.id):null;
@@ -676,13 +681,15 @@ $("#pShot").addEventListener("click",()=>{
 $("#pAddOpt").addEventListener("click",()=>{
   if(anim)stopAnim();
   const L=playLines(play.frames),o=optionOf(play.frames,L,fi);
-  const baseIdx=o?L.main[o.branch]:fi,base=play.frames[baseIdx];
+  const k=o?o.branch:L.main.indexOf(fi),base=play.frames[L.main[k]];
   pushHist();
   const id="opt"+uid(),letter=String.fromCharCode(65+L.options.length);
-  const nf={caption:"",tokens:nextTokens(base),actions:[],opt:id,optName:"",from:fidOf(base)};
-  play.frames.push(nf);fi=play.frames.length-1;markDirty();renderSteps();renderBoard();
-  $("#pOptName").focus();
-  pflash(`Option ${letter} starts where step ${L.main.indexOf(baseIdx)+1} ends. Name it, draw it, and use + Next step for more option steps.`);
+  /* The option picks up exactly where step k ends: same players, same spots, ball with the same player.
+     The main play is untouched; step k's lines show faintly on the first option step for reference. */
+  play.frames.push({caption:"",tokens:nextTokens(base),actions:[],opt:id,optName:"",from:fidOf(base)});
+  fi=play.frames.length-1;markDirty();renderSteps();renderBoard();
+  $("#pOptBanner").scrollIntoView({behavior:"smooth",block:"start"});
+  pflash(`Option ${letter} starts where step ${k+1} ends. Draw what happens differently, then name it below.`);
 });
 $("#pOptName").addEventListener("input",e=>{const f=frame();if(!f.opt)return;play.frames.forEach(x=>{if(x.opt===f.opt)x.optName=e.target.value.trim();});markDirty();
   const keep=e.target.selectionStart;renderSteps();e.target.focus();try{e.target.setSelectionRange(keep,keep);}catch{}});
