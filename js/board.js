@@ -187,7 +187,7 @@ function animTokens(tr,phase,u){
   return out;
 }
 
-const DUR={hold:1100,move:1500,pass:800,end:900};
+const DUR={hold:2200,move:3000,pass:1600,end:1800};   // ms per phase (doubled Oct 18: play-through was too fast)
 
 /* Pack a playbook into a link (used when there's no server, e.g. demo mode).
    The JSON is compressed and base64url-encoded into the part after "#". */
