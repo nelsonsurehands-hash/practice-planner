@@ -484,3 +484,20 @@ body.pb-full{overflow:hidden}
   background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 12px 10px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:14px}
 .upd-bar .btn{padding:7px 14px}
 .upd-done{pointer-events:none}
+
+/* ---------- per-area permissions ---------- */
+.no-plans #view-plan .edit-only,.no-plays #view-plays .edit-only,.no-drills #view-lib .edit-only,
+.no-schedule #view-cal .edit-only,.no-schedule #view-settings .st-edit .edit-only,.no-schedule .set-save,
+.no-share .edit-share,.readonly .edit-share{display:none!important}
+.no-plans .plan-grid,.no-drills .lib-grid{grid-template-columns:minmax(0,1fr)}
+.member{flex-wrap:wrap}
+.perm-row{flex-basis:100%;min-width:0}
+.perm-sum{margin:0;font-size:13px;color:var(--muted)}
+.perm-edit summary{cursor:pointer;font-size:13px;color:var(--accent);font-weight:600}
+.perm-edit[open] summary{margin-bottom:8px}
+.perm-presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;color:var(--muted);margin-bottom:8px}
+.perm-presets .btn{padding:4px 10px;font-size:12.5px}
+.perm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 14px}
+.perm-grid label{display:flex;gap:8px;align-items:center;font-size:14px}
+.perm-grid input{width:auto}
+.members .member .perm-row{grid-column:1/-1}

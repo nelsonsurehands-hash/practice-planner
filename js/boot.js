@@ -49,6 +49,19 @@ function show(id){screens.forEach(x=>{$("#"+x).hidden=x!==id;});window.scrollTo(
 const msg=(el,text,kind)=>{el.textContent=text||"";el.className="msg"+(kind?" "+kind:"");};
 const sportName=t=>(SPORTS[(t.settings||{}).sport]||SPORTS.basketball).name;
 const roleName=r=>({owner:"Head coach",coach:"Coach",viewer:"View only"})[r]||r;
+/* ---------- roles and permissions ----------
+   Head coach: everything. Coach: everything except managing the staff. View only: nothing.
+   A head coach (or anyone allowed to manage the staff) can switch any area on or off per person. */
+let PERMS_DB=true;   // false until supabase/roles.sql has been run
+const AREA_LABELS={plans:"Practice plans",plays:"Plays",drills:"Drill library",schedule:"Calendar, games & team settings",share:"Share plays with players",staff:"Manage staff & permissions"};
+const PRESETS={assistant:{label:"Assistant coach",perms:{plans:true,plays:true,drills:true,schedule:true,share:true,staff:false}},
+  manager:{label:"Team manager",perms:{plans:false,plays:false,drills:false,schedule:true,share:false,staff:false}},
+  view:{label:"View only",perms:{plans:false,plays:false,drills:false,schedule:false,share:false,staff:false}}};
+function permsFor(role,perms){
+  const base=Object.fromEntries(AREAS.map(a=>[a,role==="owner"||(role==="coach"&&a!=="staff")]));
+  if(role==="owner"||!perms)return base;
+  AREAS.forEach(a=>{if(typeof perms[a]==="boolean")base[a]=perms[a];});return base;
+}
 const canEdit=t=>t&&t.role!=="viewer";
 
 /* ---------- demo mode: teams kept in this browser ---------- */
@@ -102,14 +115,18 @@ async function afterLogin(u){
 }
 async function loadTeams(){
   if(!HOSTED){teams=readDemoTeams();return;}
-  const {data,error}=await sb.from("team_members").select("role,title,display_name, teams(id,name,settings,join_code,viewer_code)").eq("user_id",user.id);
+  let {data,error}=await sb.from("team_members").select("role,title,display_name,perms, teams(id,name,settings,join_code,viewer_code)").eq("user_id",user.id);
+  if(error&&/perms/.test(error.message||"")){PERMS_DB=false;({data,error}=await sb.from("team_members").select("role,title,display_name, teams(id,name,settings,join_code,viewer_code)").eq("user_id",user.id));}
   if(error){show("screen-auth");msg($("#authMsg"),"Couldn't load your teams: "+error.message,"err");teams=[];return;}
   teams=(data||[]).filter(r=>r.teams).map(r=>({...r.teams,role:r.role,title:r.title,myName:r.display_name}))
     .sort((a,b)=>a.name.localeCompare(b.name));
+  teams.forEach(t=>{const r=(data||[]).find(x=>x.teams&&x.teams.id===t.id);t.perms=r&&r.perms||null;});
 }
 async function loadMembers(){
   if(!HOSTED){members=[{user_id:"me",display_name:demoName(),title:"Head Coach",role:"owner"}];return;}
-  const {data}=await sb.from("team_members").select("user_id,role,email,display_name,title,joined_at").eq("team_id",team.id).order("joined_at");
+  const cols="user_id,role,email,display_name,title,joined_at"+(PERMS_DB?",perms":"");
+  let {data,error}=await sb.from("team_members").select(cols).eq("team_id",team.id).order("joined_at");
+  if(error&&PERMS_DB){PERMS_DB=false;({data}=await sb.from("team_members").select("user_id,role,email,display_name,title,joined_at").eq("team_id",team.id).order("joined_at"));}
   members=data||[];
 }
 async function openTeam(t){
@@ -123,8 +140,8 @@ async function openTeam(t){
   STAFF=members.filter(m=>m.role!=="viewer").map(m=>m.display_name||(m.email||"").split("@")[0]).filter(Boolean);
   show("app");
   startPlanner(store,t.settings||{});
-  setReadOnly(!canEdit(t));
-  $("#viewOnlyBar").hidden=canEdit(t);
+  setPerms(HOSTED?permsFor(t.role,t.perms):permsFor("owner"));
+  $("#viewOnlyBar").hidden=!READONLY;
   renderSwitcher();
   if(!$("#view-settings").hidden)window.onSettingsTab();
   startPresence();
@@ -383,7 +400,7 @@ window.onSettingsTab=function(){
   document.querySelectorAll("#sDays input").forEach(x=>x.checked=(draft.practiceDays||[]).includes(+x.value));
   renderRows();updatePreview();$("#sStatus").textContent="";
   renderStaff();renderAccount();$("#importBox").innerHTML="";
-  document.querySelectorAll("#view-settings .st-edit .acc-body :is(input,select,button)").forEach(el=>el.disabled=!canEdit(team));
+  document.querySelectorAll("#view-settings .st-edit .acc-body :is(input,select,button)").forEach(el=>el.disabled=!PERM.schedule);
   accSummaries();
 };
 function renderLogoEdit(){
@@ -445,25 +462,46 @@ $("#sSave").addEventListener("click",async()=>{
 /* ---------- coaching staff ---------- */
 async function renderStaff(){
   const box=$("#staffBody");
-  if(!HOSTED){box.innerHTML=`<p class="help">Staffs need sign-in, which is off in demo mode. Once the app is connected to Supabase, this is where you invite assistant coaches, give them titles and decide who can edit.</p>`;return;}
+  if(!HOSTED){box.innerHTML=`<p class="help">Staffs need sign-in, which is off in demo mode. Once the app is connected to Supabase, this is where you invite assistant coaches, give them titles and decide what each one can change.</p>`;return;}
   await loadMembers();
-  const owner=team.role==="owner";
+  const owner=team.role==="owner",mgr=PERM.staff;
   const codeRow=(label,code,kind,help)=>`<div class="coderow"><div><div class="eyebrow">${label}</div><span class="code">${esc(code||"—")}</span></div>
-      <div class="actions" style="margin:0"><button class="btn" data-copycode="${esc(code||"")}">Copy</button>${owner?`<button class="btn" data-newcode="${kind}">New code</button>`:""}</div>
+      <div class="actions" style="margin:0"><button class="btn" data-copycode="${esc(code||"")}">Copy</button>${mgr?`<button class="btn" data-newcode="${kind}">New code</button>`:""}</div>
       <p class="help" style="flex-basis:100%">${help}</p></div>`;
-  box.innerHTML=(team.role==="viewer"?"":
-      codeRow("Staff code",team.join_code,"staff","Coaches who join with this code can edit plans, drills and plays.")+
-      codeRow("View-only code",team.viewer_code,"viewer","For team managers, trainers or players: they can see and print plans and play through plays, but not change anything."))+
+  const permUI=m=>{
+    if(m.role==="owner")return `<p class="perm-sum">Can change everything</p>`;
+    const p=permsFor(m.role,m.perms),on=AREAS.filter(a=>p[a]);
+    const sum=on.length?"Can change: "+on.map(a=>AREA_LABELS[a].split(/[,&]/)[0].trim().toLowerCase()).join(", "):"View only: can see and print everything, change nothing";
+    if(!mgr||!PERMS_DB)return `<p class="perm-sum">${esc(sum)}</p>`;
+    return `<details class="perm-edit"><summary>${esc(sum)}</summary>
+      <div class="perm-presets"><span>Quick set:</span>${Object.entries(PRESETS).map(([k,v])=>`<button class="btn" type="button" data-preset="${k}" data-uid="${m.user_id}">${v.label}</button>`).join("")}</div>
+      <div class="perm-grid">${AREAS.map(a=>`<label><input type="checkbox" data-perm="${a}" data-uid="${m.user_id}"${p[a]?" checked":""}${a==="staff"&&!owner?" disabled":""}> ${AREA_LABELS[a]}</label>`).join("")}</div></details>`;
+  };
+  box.innerHTML=(team.role==="viewer"&&!mgr?"":
+      codeRow("Staff code",team.join_code,"staff","Coaches who join with this code can edit plans, drills, plays and the calendar. You can narrow that per person below.")+
+      codeRow("View-only code",team.viewer_code,"viewer","For team managers, trainers or players: they can see and print plans and play through plays. You can let them edit some areas below (for example, the calendar)."))+
+    (!PERMS_DB&&owner?`<p class="msg err">Per-person permissions need one database update. Run supabase/roles.sql in Supabase (SQL Editor) to turn them on.</p>`:"")+
     `<ul class="members">${members.map(m=>{
       const me=m.user_id===user.id,name=esc(m.display_name||(m.email||"").split("@")[0]);
-      const roleSel=owner?`<select data-role="${m.user_id}" aria-label="Role for ${name}">${["owner","coach","viewer"].map(r=>`<option value="${r}"${r===m.role?" selected":""}>${roleName(r)}</option>`).join("")}</select>`:`<span class="role">${roleName(m.role)}</span>`;
-      const title=owner?`<input data-title="${m.user_id}" value="${esc(m.title||"")}" placeholder="Title (e.g. JV Coach)" aria-label="Title for ${name}">`:`<span class="mtitle">${esc(m.title||"")}</span>`;
-      const rm=owner&&!me?`<button class="icon" data-remove="${m.user_id}" aria-label="Remove ${name}">✕</button>`:"";
-      return `<li class="member"><div class="who"><b>${name}${me?" (you)":""}</b><small>${esc(m.email||"")}</small></div>${title}${roleSel}${rm}</li>`;}).join("")}</ul>
+      const canSet=mgr&&(owner||m.role!=="owner");
+      const roleSel=canSet?`<select data-role="${m.user_id}" aria-label="Role for ${name}">${["owner","coach","viewer"].filter(r=>owner||r!=="owner").map(r=>`<option value="${r}"${r===m.role?" selected":""}>${roleName(r)}</option>`).join("")}</select>`:`<span class="role">${roleName(m.role)}</span>`;
+      const title=canSet?`<input data-title="${m.user_id}" value="${esc(m.title||"")}" placeholder="Title (e.g. JV Coach)" aria-label="Title for ${name}">`:`<span class="mtitle">${esc(m.title||"")}</span>`;
+      const rm=canSet&&!me?`<button class="icon" data-remove="${m.user_id}" aria-label="Remove ${name}">✕</button>`:"";
+      return `<li class="member"><div class="who"><b>${name}${me?" (you)":""}</b><small>${esc(m.email||"")}</small></div>${title}${roleSel}${rm}<div class="perm-row">${permUI(m)}</div></li>`;}).join("")}</ul>
     <div class="msg" id="staffMsg"></div>
     <div class="actions" style="margin:0"><button class="btn danger" id="leaveTeam">Leave this team</button></div>`;
 }
+async function savePerms(uid,perms){
+  const {error}=await sb.rpc("set_member_perms",{p_team:team.id,p_user:uid,p_perms:perms});
+  if(error){msg($("#staffMsg"),error.message,"err");renderStaff();return;}
+  msg($("#staffMsg"),"Permissions saved","ok");
+  const keep=document.querySelector(`.perm-edit [data-uid="${uid}"]`);await renderStaff();
+  const det=document.querySelector(`.perm-edit [data-uid="${uid}"]`);if(det)det.closest("details").open=!!keep;
+  if(uid===user.id){await loadTeams();team=teams.find(t=>t.id===team.id)||team;openTeam(team);}
+}
 $("#staffBody").addEventListener("click",async e=>{
+  const pr=e.target.closest("[data-preset]");
+  if(pr){await savePerms(pr.dataset.uid,{...PRESETS[pr.dataset.preset].perms});return;}
   const c=e.target.closest("[data-copycode]");
   if(c){try{await navigator.clipboard.writeText(c.dataset.copycode);c.textContent="Copied";}catch{c.textContent=c.dataset.copycode;}setTimeout(()=>c.textContent="Copy",2000);return;}
   const n=e.target.closest("[data-newcode]");
@@ -487,6 +525,8 @@ $("#staffBody").addEventListener("click",async e=>{
   }
 });
 $("#staffBody").addEventListener("change",async e=>{
+  const pc=e.target.closest("[data-perm]");
+  if(pc){const uid=pc.dataset.uid,m=members.find(x=>x.user_id===uid);const p=permsFor(m.role,m.perms);p[pc.dataset.perm]=pc.checked;await savePerms(uid,p);return;}
   const sel=e.target.closest("[data-role]"),ti=e.target.closest("[data-title]");
   if(!sel&&!ti)return;
   const args=sel?{p_team:team.id,p_user:sel.dataset.role,p_role:sel.value,p_title:null}:{p_team:team.id,p_user:ti.dataset.title,p_role:null,p_title:ti.value};

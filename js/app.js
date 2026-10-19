@@ -1,9 +1,16 @@
 let SPORT="basketball", CATS=SPORTS.basketball.cats;
 let ME={id:"me",name:"Coach"}, STAFF=[], READONLY=false;   // set by boot.js
+/* What this person may change on the current team (set by boot.js from their role and permissions). */
+const AREAS=["plans","plays","drills","schedule","share","staff"];
+let PERM={plans:true,plays:true,drills:true,schedule:true,share:true,staff:true};
 function ago(ts){if(!ts)return "";const m=Math.round((Date.now()-ts)/60000);if(m<1)return "just now";if(m<60)return m+" min ago";const h=Math.round(m/60);if(h<24)return h+" hr ago";const d=Math.round(h/24);return d<7?d+" day"+(d>1?"s":"")+" ago":new Date(ts).toLocaleDateString("en-US",{month:"short",day:"numeric"});}
-function setReadOnly(flag){
-  READONLY=!!flag;document.body.classList.toggle("readonly",READONLY);
-  ["#planStart","#planEnd","#planFocus","#pName","#pType","#pCaption","#pNotes"].forEach(q=>{const el=$(q);if(el)el.disabled=READONLY;});
+function setReadOnly(flag){setPerms(Object.fromEntries(AREAS.map(a=>[a,!flag])));}
+function setPerms(p){
+  PERM={...p};READONLY=!AREAS.some(a=>PERM[a]);
+  document.body.classList.toggle("readonly",READONLY);
+  AREAS.forEach(a=>document.body.classList.toggle("no-"+a,!PERM[a]));
+  ["#planStart","#planEnd","#planFocus"].forEach(q=>{const el=$(q);if(el)el.disabled=!PERM.plans;});
+  ["#pName","#pType","#pCaption","#pNotes","#pOptName"].forEach(q=>{const el=$(q);if(el)el.disabled=!PERM.plays;});
   if(cur)renderPlan();
   if(typeof renderPlayLib==="function")renderPlayLib();
 }
@@ -125,7 +132,7 @@ function loadPlan(date){
   renderPlan();
 }
 function coachField(b){
-  if(READONLY)return b.coach?`<div class="led">Led by ${esc(b.coach)}</div>`:"";
+  if(!PERM.plans)return b.coach?`<div class="led">Led by ${esc(b.coach)}</div>`:"";
   if(STAFF.length<2&&!b.coach)return "";
   const names=[...new Set([...STAFF,b.coach].filter(Boolean))];
   return `<select class="coachSel" data-act="coach" aria-label="Coach leading ${esc(b.name)}"><option value="">Led by: anyone</option>${names.map(n=>`<option value="${esc(n)}"${n===b.coach?" selected":""}>Led by ${esc(n)}</option>`).join("")}</select>`;
@@ -147,7 +154,7 @@ function renderPlan(){
         <div class="time">${fmt(st)}–${fmt(t)}<small>${b.minutes} min</small></div>
         <div style="min-width:0"><div class="name">${esc(b.name)}${b.category?`<span class="chip">${esc(b.category)}</span>`:""}</div>
           ${coachField(b)}
-          ${READONLY?(b.notes?`<div class="note-ro">${esc(b.notes)}</div>`:""):`<input class="note" data-act="note" value="${esc(b.notes||"")}" placeholder="Notes for today" aria-label="Notes for ${esc(b.name)}">`}</div>
+          ${!PERM.plans?(b.notes?`<div class="note-ro">${esc(b.notes)}</div>`:""):`<input class="note" data-act="note" value="${esc(b.notes||"")}" placeholder="Notes for today" aria-label="Notes for ${esc(b.name)}">`}</div>
         <div class="ctrls edit-only">
           <div class="mins"><button data-act="dec" aria-label="Less time">−</button><input data-act="min" type="number" min="1" max="90" value="${b.minutes}" aria-label="Minutes"><button data-act="inc" aria-label="More time">+</button></div>
           <button class="icon" data-act="up" aria-label="Move up">↑</button>
@@ -465,7 +472,7 @@ function renderEditor(){
   $("#pName").value=play.name;$("#pType").value=play.type;$("#pNotes").value=play.notes||"";fsName();
   renderSteps();renderBoard();
   $("#pStatus").textContent=pdirty?"Unsaved changes":(play.id?"Saved":"");
-  $("#pEditTitle").textContent=play.id?(READONLY?play.name||"Play":"Edit play"):"New play";
+  $("#pEditTitle").textContent=play.id?(!PERM.plays?play.name||"Play":"Edit play"):"New play";
 }
 function setTool(t){tool=t;document.querySelectorAll("#ptools [data-tool]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.tool===t));$("#pHint").textContent=hints(t);$("#labelBox").hidden=true;}
 function pflash(t){$("#pHint").textContent=t;clearTimeout(hintTimer);hintTimer=setTimeout(()=>$("#pHint").textContent=hints(tool),3000);}
@@ -547,7 +554,7 @@ function hitAct(p){let best=null,bd=12;frame().actions.forEach(a=>{samples(a).fo
 
 const board=$("#board");
 board.addEventListener("pointerdown",e=>{
-  if(!play||anim||READONLY)return;
+  if(!play||anim||!PERM.plays)return;
   const p=svgPt(e), fr=frame();
   if(tool==="move"){
     const t=hitTok(p);if(!t)return;
@@ -827,7 +834,7 @@ function renderPlayLib(){
   $("#plList").innerHTML=list.length?list.map(p=>`<article class="pcard${play&&play.id===p.id?" open":""}" data-card="${p.id}">
       <div class="pthumb">${boardSVG(p.frames[0],"screen")}</div>
       <div style="min-width:0"><b>${esc(p.name)}</b><span>${esc(p.type)} · ${playSummary(p.frames)}</span>
-      <div class="actions"><button class="btn" data-open="${p.id}">${READONLY?"View":"View / edit"}</button><button class="btn edit-only" data-copy="plays" data-id="${p.id}">Copy</button><button class="btn danger edit-only" data-pdel="${p.id}">Delete</button></div></div></article>`).join("")
+      <div class="actions"><button class="btn" data-open="${p.id}">${!PERM.plays?"View":"View / edit"}</button><button class="btn edit-only" data-copy="plays" data-id="${p.id}">Copy</button><button class="btn danger edit-only" data-pdel="${p.id}">Delete</button></div></div></article>`).join("")
     :`<div class="empty">${plays.length?"No plays match.":"No plays saved yet. Draw a play on the board, name it, and tap Save play."}</div>`;
 }
 $("#plSearch").addEventListener("input",renderPlayLib);
@@ -873,7 +880,7 @@ $("#plList").addEventListener("click",async e=>{
   /* Tapping anywhere on a play card (picture or name) opens it, same as the button. */
   if(!o&&!d&&!e.target.closest("button")){const card=e.target.closest("[data-card]");if(card)o=card.querySelector("[data-open]");}
   if(o){
-    if(pdirty&&o.dataset.armed!=="1"){o.dataset.armed="1";o.textContent="Discard changes?";setTimeout(()=>{o.dataset.armed="";o.textContent=READONLY?"View":"View / edit";},3000);return;}
+    if(pdirty&&o.dataset.armed!=="1"){o.dataset.armed="1";o.textContent="Discard changes?";setTimeout(()=>{o.dataset.armed="";o.textContent=!PERM.plays?"View":"View / edit";},3000);return;}
     const p=plays.find(x=>x.id===o.dataset.open);play=clone(p);fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();
     document.querySelector("#view-plays .board-card").scrollIntoView({behavior:"smooth",block:"start"});
   }

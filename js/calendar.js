@@ -9,7 +9,7 @@ const span=(a,b)=>{const A=ampm(a),B=ampm(b);return A.slice(-2)===B.slice(-2)?`$
 const longDay=iso=>dObj(iso).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
 const fullDay=iso=>dObj(iso).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
 const isTryout=n=>/tryout/i.test(n||""), isMeeting=n=>/meeting/i.test(n||"");
-const editable=()=>typeof team!=="undefined"&&team&&canEdit(team);
+const editable=()=>typeof PERM!=="undefined"&&PERM.schedule;
 
 /* Everything that happens on each date. */
 function buildDays(st){
