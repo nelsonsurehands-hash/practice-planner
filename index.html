@@ -275,10 +275,14 @@
 </section>
 
 <section id="view-settings" class="view" hidden>
-  <div class="actions edit-only" style="margin:0 0 14px"><button class="btn primary" id="sSave">Save settings</button><span class="saved" id="sStatus" style="margin-left:0"></span></div>
-  <div class="settings">
-    <div class="panel">
-      <h2>Team</h2>
+  <nav class="set-nav" aria-label="Settings sections">
+    <button type="button" data-acc="team">Team</button><button type="button" data-acc="schedule">Schedule</button><button type="button" data-acc="games">Games</button><button type="button" data-acc="special">Special days</button><button type="button" data-acc="staff">Staff</button><button type="button" data-acc="data">Backup</button><button type="button" data-acc="account">Account</button>
+  </nav>
+  <div class="set-save edit-only"><button class="btn primary" id="sSave">Save settings</button><span class="saved" id="sStatus" style="margin-left:0"></span></div>
+  <div class="settings acc-list">
+    <details class="acc st-edit" id="acc-team">
+      <summary><span class="acc-t">Team &amp; colors</span><span class="acc-s" id="accSub-team"></span></summary>
+      <div class="acc-body">
       <label class="f">Sport<select id="sSport"><option value="basketball">Basketball</option><option value="volleyball">Volleyball</option><option value="soccer">Soccer</option><option value="football">Football</option><option value="baseball">Baseball / Softball</option><option value="other">Other sport</option></select></label>
       <p class="help" id="sSportHelp" hidden>Changing the sport switches drill categories and the play board. Plays drawn on the old board keep their positions but will sit on the new court.</p>
       <div class="grid2">
@@ -296,6 +300,11 @@
           <button class="btn" type="button" id="sLogoRm" hidden>Remove</button></div></div>
       </div>
       <p class="help">The second color shows in stripes and the minutes meter. The logo shows in the header, on printed plans and on your players' playbook. A square PNG with a clear background looks best.</p>
+      </div>
+    </details>
+    <details class="acc st-edit" id="acc-schedule">
+      <summary><span class="acc-t">Practice schedule</span><span class="acc-s" id="accSub-schedule"></span></summary>
+      <div class="acc-body">
       <h3>Practice times</h3>
       <div class="grid2">
         <label class="f">Weekday start<input id="sWdS" type="time"></label>
@@ -311,32 +320,41 @@
       <fieldset class="catpick"><legend>Regular practice days</legend><div class="catboxes" id="sDays"></div></fieldset>
       <label class="f" style="max-width:320px">Practices required before the first game<input id="sMinPr" type="number" min="0" max="60" placeholder="e.g. 14 (optional)"></label>
       <p class="preview-dates" id="sPreview"></p>
-    </div>
-    <div class="panel">
-      <h2>Games</h2>
+      </div>
+    </details>
+    <details class="acc st-edit" id="acc-games">
+      <summary><span class="acc-t">Games</span><span class="acc-s" id="accSub-games"></span></summary>
+      <div class="acc-body">
       <p class="help">No practice is scheduled on game days, and the practice before each game is marked in the planner.</p>
       <div class="rows" id="sGames"></div>
       <div class="edit-only"><button class="btn" id="sAddGame">+ Add game</button></div>
-      <h2 style="margin-top:8px">Special days</h2>
+      </div>
+    </details>
+    <details class="acc st-edit" id="acc-special">
+      <summary><span class="acc-t">Special days</span><span class="acc-s" id="accSub-special"></span></summary>
+      <div class="acc-body">
       <p class="help">Days off (holidays, breaks), extra practices outside your regular days (like a Sunday session), or a note on a practice day (like Tryouts).</p>
       <div class="rows" id="sSpecial"></div>
       <div class="edit-only"><button class="btn" id="sAddSpecial">+ Add special day</button></div>
-    </div>
-    <div class="panel" id="staffPanel">
-      <h2>Coaching staff</h2>
-      <div id="staffBody"></div>
-    </div>
-    <div class="panel">
-      <h2>Your data</h2>
+      </div>
+    </details>
+    <details class="acc" id="acc-staff">
+      <summary><span class="acc-t">Coaching staff</span><span class="acc-s" id="accSub-staff"></span></summary>
+      <div class="acc-body" id="staffPanel"><div id="staffBody"></div></div>
+    </details>
+    <details class="acc" id="acc-data">
+      <summary><span class="acc-t">Backup &amp; import</span><span class="acc-s" id="accSub-data">Download or load a backup</span></summary>
+      <div class="acc-body">
       <p class="help">Download a backup of your drills, plays and practice plans, or load one in. A backup from the Claude practice planner works here too.</p>
       <div class="actions" style="margin-top:0"><button class="btn" id="sExport">Download backup</button>
         <label class="btn edit-only" style="cursor:pointer">Import backup<input type="file" id="sImport" accept=".json,application/json" hidden></label></div>
       <div id="importBox"></div>
-    </div>
-    <div class="panel">
-      <h2>Account</h2>
-      <div id="accountBody"></div>
-    </div>
+      </div>
+    </details>
+    <details class="acc" id="acc-account">
+      <summary><span class="acc-t">Your account</span><span class="acc-s" id="accSub-account"></span></summary>
+      <div class="acc-body"><div id="accountBody"></div></div>
+    </details>
   </div>
 </section>
 </div>

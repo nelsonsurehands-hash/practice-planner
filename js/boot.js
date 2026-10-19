@@ -338,8 +338,37 @@ function readForm(){
   draft.practiceDays=[...document.querySelectorAll("#sDays input:checked")].map(x=>+x.value);
   return draft;
 }
+/* ---------- Settings sections (accordion) ---------- */
+/* One-line summary on each closed section, so you can see what's inside without opening it. */
+function accSummaries(){
+  if(!draft)return;
+  const t=x=>x?ampm12(x):"";
+  const sub=(id,txt)=>{const el=document.getElementById("accSub-"+id);if(el)el.textContent=txt;};
+  sub("team",[draft.school,draft.mascot].filter(Boolean).join(" ")+(draft.teamLabel?" · "+draft.teamLabel:""));
+  const n=computePractices(draft).length,dd=(draft.practiceDays||[]).map(i=>DOW[i]).join(", ");
+  sub("schedule",draft.seasonStart?`${n} practices · ${dd} · ${t(draft.weekdayStart)}–${t(draft.weekdayEnd)}`:"Set your season dates and practice days");
+  const g=(draft.games||[]).filter(x=>x.date).sort((a,b)=>a.date<b.date?-1:1),nx=g.find(x=>x.date>=todayISO());
+  sub("games",g.length?`${g.length} game${g.length>1?"s":""}${nx?` · next: ${dLabel(nx.date)} ${nx.home===false?"at":"vs"} ${nx.opponent||""}`:""}`:"No games yet");
+  const sp=(draft.special||[]).filter(x=>x.date),off=sp.filter(x=>x.kind==="off").length,ex=sp.filter(x=>x.kind==="extra").length;
+  sub("special",sp.length?`${off} day${off===1?"":"s"} off · ${ex} extra practice${ex===1?"":"s"} · ${sp.length-off-ex} with notes`:"Holidays, extra practices and notes");
+  sub("staff",members.length?`${members.length} on staff`:"");
+  sub("account",HOSTED&&user?user.email||"":"Demo mode");
+}
+const ampm12=x=>{const [h,m]=x.split(":").map(Number);return `${((h+11)%12)+1}:${String(m).padStart(2,"0")}${h<12?"am":"pm"}`;};
+function openAcc(id,scroll){
+  const d=document.getElementById("acc-"+id);if(!d)return;d.open=true;
+  if(scroll)d.scrollIntoView({behavior:"smooth",block:"start"});
+}
+document.querySelector(".set-nav").addEventListener("click",e=>{const b=e.target.closest("[data-acc]");if(b)openAcc(b.dataset.acc,true);});
+/* Remember which sections are open on this device. Team starts open the first time. */
+(function(){
+  let open=["team"];try{const v=JSON.parse(localStorage.getItem("cpp:accOpen")||"null");if(Array.isArray(v))open=v;}catch{}
+  document.querySelectorAll("#view-settings details.acc").forEach(d=>{d.open=open.includes(d.id.slice(4));
+    d.addEventListener("toggle",()=>{try{localStorage.setItem("cpp:accOpen",JSON.stringify([...document.querySelectorAll("#view-settings details.acc[open]")].map(x=>x.id.slice(4))));}catch{}});});
+})();
 function updatePreview(){
   const st=readForm(),list=computePractices(st);
+  accSummaries();
   $("#sPreview").textContent=list.length?`${list.length} practice days scheduled, ${dLabel(list[0][0])} to ${dLabel(list[list.length-1][0])}.`:"Set season dates and practice days to build your practice calendar.";
 }
 window.onSettingsTab=function(){
@@ -354,7 +383,8 @@ window.onSettingsTab=function(){
   document.querySelectorAll("#sDays input").forEach(x=>x.checked=(draft.practiceDays||[]).includes(+x.value));
   renderRows();updatePreview();$("#sStatus").textContent="";
   renderStaff();renderAccount();$("#importBox").innerHTML="";
-  document.querySelectorAll("#view-settings .settings > .panel:nth-child(-n+2) :is(input,select,button)").forEach(el=>el.disabled=!canEdit(team));
+  document.querySelectorAll("#view-settings .st-edit .acc-body :is(input,select,button)").forEach(el=>el.disabled=!canEdit(team));
+  accSummaries();
 };
 function renderLogoEdit(){
   $("#sLogoPrev").innerHTML=draft.logo?`<img src="${draft.logo}" alt="Team logo">`:"No logo";
@@ -382,7 +412,7 @@ settingsView.addEventListener("input",e=>{
   const row=e.target.closest(".row");
   if(row){const list=row.classList.contains("game")?draft.games:draft.special,item=list[+row.dataset.i],f=e.target.dataset.f;
     item[f]=f==="home"?e.target.value==="1":e.target.value;}
-  if(e.target.closest(".panel"))$("#sStatus").textContent="Unsaved changes";
+  if(e.target.closest(".st-edit"))$("#sStatus").textContent="Unsaved changes";
   updatePreview();
 });
 settingsView.addEventListener("change",e=>{if(e.target.matches("select[data-f]"))settingsView.dispatchEvent(new Event("input",{bubbles:true}));});
@@ -390,7 +420,7 @@ settingsView.addEventListener("click",e=>{
   const rm=e.target.closest("[data-rm]");
   if(rm){const row=rm.closest(".row");draft[rm.dataset.rm].splice(+row.dataset.i,1);renderRows();updatePreview();$("#sStatus").textContent="Unsaved changes";}
 });
-$("#sAddGame").addEventListener("click",()=>{draft.games.push({date:"",opponent:"",time:"",home:true});renderRows();$("#sGames .row:last-child input").focus();});
+$("#sAddGame").addEventListener("click",()=>{draft.games.push({date:"",opponent:"",time:"",home:true});renderRows();$("#sStatus").textContent="Unsaved changes";$("#sGames .row:last-child input").focus();});
 $("#sAddSpecial").addEventListener("click",()=>{draft.special.push({date:"",kind:"off",note:""});renderRows();$("#sSpecial .row:last-child input").focus();});
 async function saveSettings(st){
   st.games=(st.games||[]).filter(g=>g.date).sort((a,b)=>a.date<b.date?-1:1);
