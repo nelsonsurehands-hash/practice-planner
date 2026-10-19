@@ -444,3 +444,36 @@ details.acc.st-edit>summary .acc-t{color:var(--ink)}
 .acc-body{padding:14px 16px 18px;display:flex;flex-direction:column;gap:12px}
 .acc-body h3{margin-top:4px}
 @media (prefers-reduced-motion:reduce){details.acc>summary::after{transition:none}}
+
+/* ---------- Full-screen play builder ---------- */
+.board-head .bh-btns{display:flex;gap:6px;flex-wrap:wrap}
+body.pb-full{overflow:hidden}
+.board-card.full{position:fixed;inset:0;z-index:50;border-radius:0;border:0;margin:0;
+  padding:calc(env(safe-area-inset-top,0px) + 8px) max(10px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 8px) max(10px,env(safe-area-inset-left,0px));
+  display:flex;flex-direction:column;gap:6px;overflow:hidden;background:var(--bg)}
+.board-card.full>*{flex:none}
+.board-card.full>.board-head,.board-card.full>.pmeta,.board-card.full>label.f:has(#pNotes),.board-card.full>.actions{display:none}
+.fs-bar{display:flex;flex-direction:column;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 8px}
+.fs-row{display:flex;align-items:center;gap:6px;min-width:0}
+.fs-scroll{overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap}
+.fs-scroll::-webkit-scrollbar{display:none}
+.fs-scroll>*{flex:none}
+.fs-bar .toolbar,.fs-bar .steps,.fs-bar .player,.fs-bar .lines{flex-wrap:nowrap;margin:0;gap:5px}
+.fs-bar .toolbar{padding:0;border:0;background:none}
+.fs-bar .btn,.fs-bar .tool,.fs-bar .step{padding:6px 10px;font-size:13px;white-space:nowrap}
+.fs-bar .tsep{flex:none}
+.fs-bar .anim-cap{white-space:nowrap;font-size:13px}
+.fs-bar .optgroup{flex-basis:auto;flex:none;margin:0;padding:3px 6px}
+.fs-bar #pSteps{flex-wrap:nowrap}
+.fs-head .fs-name{font-family:var(--display);font-size:20px;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.fs-head .fs-gap{flex:1}
+.fs-head .saved{font-size:12px}
+.board-card.full>#boardFrame{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center}
+.board-card.full>#boardFrame svg{width:100%;height:100%;max-height:100%}
+.board-card.full>.hint{font-size:12.5px;min-height:0}
+.board-card.full>label.f:has(#pCaption){flex-direction:row;align-items:center;gap:8px}
+.board-card.full>label.f:has(#pCaption) input{flex:1}
+.board-card.full>.opt-box{padding:4px 8px}
+.board-card.full>.opt-banner{padding:4px 10px}
+.board-card.full>.opt-banner b{font-size:16px}
+@media (min-width:900px){.fs-bar{flex-direction:row;flex-wrap:wrap;align-items:center}.fs-bar .fs-row{flex:1 1 auto}.fs-bar .fs-head{flex-basis:100%}}

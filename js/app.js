@@ -462,7 +462,7 @@ function renderSteps(){
 const fidOf=f=>f.fid||(f.fid=uid());
 function renderEditor(){
   if(anim)stopAnim();
-  $("#pName").value=play.name;$("#pType").value=play.type;$("#pNotes").value=play.notes||"";
+  $("#pName").value=play.name;$("#pType").value=play.type;$("#pNotes").value=play.notes||"";fsName();
   renderSteps();renderBoard();
   $("#pStatus").textContent=pdirty?"Unsaved changes":(play.id?"Saved":"");
   $("#pEditTitle").textContent=play.id?(READONLY?play.name||"Play":"Edit play"):"New play";
@@ -796,7 +796,7 @@ $("#pDelStep").addEventListener("click",e=>{
   play.frames.splice(fi,1);fi=Math.max(0,Math.min(fi-1,play.frames.length-1));markDirty();renderSteps();renderBoard();
 });
 $("#pCaption").addEventListener("input",e=>{frame().caption=e.target.value;markDirty();});
-$("#pName").addEventListener("input",e=>{play.name=e.target.value;markDirty();});
+$("#pName").addEventListener("input",e=>{play.name=e.target.value;markDirty();fsName();});
 $("#pType").addEventListener("change",e=>{play.type=e.target.value;markDirty();});
 $("#pNotes").addEventListener("input",e=>{play.notes=e.target.value;markDirty();});
 
@@ -831,6 +831,41 @@ function renderPlayLib(){
     :`<div class="empty">${plays.length?"No plays match.":"No plays saved yet. Draw a play on the board, name it, and tap Save play."}</div>`;
 }
 $("#plSearch").addEventListener("input",renderPlayLib);
+/* ---------- Full-screen play builder ----------
+   Pops the builder out over the whole screen: every control moves into one toolbar at the top
+   and the court gets the rest of the screen. The same buttons are moved (not copied), so
+   everything keeps working; Exit puts them back where they were. */
+const FS={on:false,moved:[]};
+function fsMove(el,into){if(!el)return;const mark=document.createComment("fs");el.parentNode.insertBefore(mark,el);FS.moved.push([el,mark]);into.appendChild(el);}
+function enterFull(){
+  if(FS.on)return;FS.on=true;
+  const card=document.querySelector("#view-plays .board-card");
+  const bar=document.createElement("div");bar.id="fsBar";bar.className="fs-bar";
+  bar.innerHTML=`<div class="fs-row fs-head"><button class="btn" type="button" id="fsExit">✕ Exit</button><b class="fs-name" id="fsName"></b><span class="fs-gap"></span></div>
+    <div class="fs-row fs-scroll" id="fsTools"></div><div class="fs-row fs-scroll" id="fsSteps"></div><div class="fs-row fs-scroll" id="fsPlay"></div>`;
+  card.insertBefore(bar,card.firstChild);
+  const head=bar.querySelector(".fs-head");
+  fsMove($("#pSave"),head);fsMove($("#pStatus"),head);
+  fsMove($("#ptools"),$("#fsTools"));fsMove(document.querySelector("#view-plays .toolbar.edit-only:not(#ptools)"),$("#fsTools"));
+  fsMove($("#pSteps").parentNode,$("#fsSteps"));
+  fsMove(document.querySelector("#view-plays .player"),$("#fsPlay"));fsMove($("#pLines"),$("#fsPlay"));
+  fsName();document.body.classList.add("pb-full");card.classList.add("full");
+  $("#fsExit").addEventListener("click",exitFull);
+  try{const el=document.documentElement;if(el.requestFullscreen&&matchMedia("(pointer:fine)").matches)el.requestFullscreen().catch(()=>{});}catch{}
+  window.scrollTo(0,0);renderBoard();
+}
+function exitFull(){
+  if(!FS.on)return;FS.on=false;
+  FS.moved.reverse().forEach(([el,mark])=>{mark.parentNode.insertBefore(el,mark);mark.remove();});FS.moved=[];
+  const bar=$("#fsBar");if(bar)bar.remove();
+  document.body.classList.remove("pb-full");document.querySelector("#view-plays .board-card").classList.remove("full");
+  try{if(document.fullscreenElement)document.exitFullscreen();}catch{}
+  document.querySelector("#view-plays .board-card").scrollIntoView({block:"start"});
+}
+function fsName(){const n=$("#fsName");if(n)n.textContent=(play&&play.name)||"New play";}
+$("#pFull").addEventListener("click",enterFull);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&FS.on&&!document.querySelector("dialog[open]"))exitFull();});
+document.addEventListener("fullscreenchange",()=>{if(!document.fullscreenElement&&FS.on&&matchMedia("(pointer:fine)").matches)exitFull();});
 $("#pNewTop").addEventListener("click",()=>{$("#pNew").click();document.querySelector("#view-plays .board-card").scrollIntoView({behavior:"smooth",block:"start"});});
 $("#pToLib").addEventListener("click",()=>document.querySelector("#view-plays .playlib").scrollIntoView({behavior:"smooth",block:"start"}));
 $("#plList").addEventListener("click",async e=>{
@@ -911,6 +946,7 @@ async function saveFile(name,data){
 /* ---------- tabs ---------- */
 document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
 function setTab(t){
+  if(typeof FS!=="undefined"&&FS.on&&t!=="plays")exitFull();
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));
   document.querySelectorAll("section.view").forEach(v=>v.hidden=v.id!=="view-"+t);
   if(window.onViewChange)window.onViewChange();
