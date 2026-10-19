@@ -674,6 +674,6 @@ $("#sImport").addEventListener("change",async e=>{
 });
 
 /* ---------- offline support ---------- */
-if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
+if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>{window.SW_REG=r;}).catch(()=>{});
 
 init().catch(err=>{show("screen-auth");msg($("#authMsg"),"Something went wrong starting the app: "+err.message,"err");});

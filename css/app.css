@@ -477,3 +477,10 @@ body.pb-full{overflow:hidden}
 .board-card.full>.opt-banner{padding:4px 10px}
 .board-card.full>.opt-banner b{font-size:16px}
 @media (min-width:900px){.fs-bar{flex-direction:row;flex-wrap:wrap;align-items:center}.fs-bar .fs-row{flex:1 1 auto}.fs-bar .fs-head{flex-basis:100%}}
+
+/* ---------- update notice ---------- */
+.upd-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 14px);z-index:100;
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 24px);
+  background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 12px 10px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:14px}
+.upd-bar .btn{padding:7px 14px}
+.upd-done{pointer-events:none}

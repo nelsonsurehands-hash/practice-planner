@@ -136,6 +136,15 @@ It opens full-screen like a regular app. If the gym has no signal it still opens
 
 ---
 
+## Publishing updates
+
+Every time you publish a change, edit the number in `version.js` (any new value works, e.g. `2026.10.19-1`).
+Open copies of the app, including the one on a coach's home screen, check that file when they open,
+when someone switches back to them, and every 10 minutes. When the number changes they refresh
+themselves. If a coach is in the middle of something unsaved, they get an "Update now" bar instead.
+Nobody needs to reload, sign in again or re-add the app. (A new app icon is the one exception:
+phones keep the old icon until the app is re-added to the home screen.)
+
 ## How the data is stored
 
 | Table | What's in it |
