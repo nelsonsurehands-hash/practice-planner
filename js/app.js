@@ -164,7 +164,7 @@ function renderPlan(){
     }).join("");
   }
   renderMeter(s,avail,used);
-  renderCopyFrom();
+  renderCopyFrom();renderDupTo();
   renderPick();
 }
 function totals(){const avail=Math.max(0,toMin(cur.end)-toMin(cur.start));const used=cur.blocks.reduce((a,b)=>a+b.minutes,0);return {avail,used,left:avail-used};}
@@ -192,8 +192,44 @@ function renderCopyFrom(){
   const opts=Object.values(plans).filter(p=>p.date!==cur.date&&p.blocks&&p.blocks.length).sort((a,b)=>b.date.localeCompare(a.date));
   $("#copyFrom").innerHTML=`<option value="">Copy a past plan…</option>`+opts.map(p=>`<option value="${p.date}">${dLabel(p.date)}${p.focus?" — "+esc(p.focus):""}</option>`).join("");
 }
+/* ---------- duplicate this plan to another practice day ---------- */
+function nextPracticeAfter(date){const n=PRACTICES.find(p=>p[0]>date);return n?n[0]:null;}
+function renderDupTo(){
+  const nx=nextPracticeAfter(cur.date),b=$("#dupNext");
+  b.disabled=!nx||!cur.blocks.length;b.dataset.armed="";
+  b.textContent=nx?`Duplicate to ${dLabel(nx)} ›`:"No later practice";
+  b.title=!cur.blocks.length?"Add drills to this plan first":"";
+  const opts=PRACTICES.map(p=>p[0]).filter(d=>d!==cur.date);
+  $("#dupTo").innerHTML=`<option value="">Duplicate to another day…</option>`+opts.map(d=>`<option value="${d}">${dLabel(d)}${plans[d]&&plans[d].blocks&&plans[d].blocks.length?" (replaces its plan)":""}</option>`).join("");
+  $("#dupTo").disabled=!cur.blocks.length;
+}
+async function duplicateTo(date,replaced){
+  if(!date||!cur.blocks.length)return;
+  if(saveTimer){clearTimeout(saveTimer);saveTimer=null;cur.editedBy=ME.name;cur.editedAt=Date.now();plans[cur.date]=JSON.parse(JSON.stringify(cur));
+    if(db&&canWrite){try{await db.collection("plans").doc(cur.date).set(plans[cur.date]);}catch(e){handleWriteErr(e);return;}}}
+  const t=practiceTimes(date),from=cur.date;
+  const copy={date,start:t.start,end:t.end,focus:cur.focus||"",blocks:cur.blocks.map(b=>({...b,id:uid()})),editedBy:ME.name,editedAt:Date.now()};
+  plans[date]=copy;
+  if(db&&canWrite){try{await db.collection("plans").doc(date).set(copy);}catch(e){handleWriteErr(e);return;}}
+  const sel=$("#planDate");if(![...sel.options].some(o=>o.value===date))buildDateSelect();
+  sel.value=date;loadPlan(date);if(window.onViewChange)window.onViewChange();
+  const used=copy.blocks.reduce((a,b)=>a+b.minutes,0),avail=toMin(copy.end)-toMin(copy.start);
+  flash(`Copied from ${dLabel(from)}${replaced?", replacing the plan that was here":""}.${used>avail?` This practice is ${avail} min, so ${used-avail} min of drills run past the end.`:""}`);
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+$("#dupNext").addEventListener("click",e=>{
+  const nx=nextPracticeAfter(cur.date),b=e.currentTarget;if(!nx)return;
+  const has=plans[nx]&&plans[nx].blocks&&plans[nx].blocks.length;
+  if(has&&b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent=`${dLabel(nx)} already has a plan. Tap again to replace it`;setTimeout(()=>renderDupTo(),4000);return;}
+  duplicateTo(nx,has);
+});
+$("#dupTo").addEventListener("change",e=>{
+  const d=e.target.value;e.target.value="";if(!d)return;
+  const has=plans[d]&&plans[d].blocks&&plans[d].blocks.length;
+  duplicateTo(d,has);
+});
 
-function changed(){renderPlan();scheduleSave();}
+function changed(){renderPlan();scheduleSave();renderDupTo();}
 function scheduleSave(){
   if(!db||!canWrite){$("#saved").textContent=db?"View only":"Not saved in this view";return;}
   $("#saved").textContent="Saving…";
