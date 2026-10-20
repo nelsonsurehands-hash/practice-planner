@@ -154,7 +154,7 @@ function renderPlan(){
         <div class="time">${fmt(st)}–${fmt(t)}<small>${b.minutes} min</small></div>
         <div style="min-width:0"><div class="name">${esc(b.name)}${b.category?`<span class="chip">${esc(b.category)}</span>`:""}</div>
           ${coachField(b)}
-          ${!PERM.plans?(b.notes?`<div class="note-ro">${esc(b.notes)}</div>`:""):`<input class="note" data-act="note" value="${esc(b.notes||"")}" placeholder="Notes for today" aria-label="Notes for ${esc(b.name)}">`}</div>
+          ${!PERM.plans?(b.notes?`<div class="note-ro">${esc(b.notes)}</div>`:""):`<input class="note" data-act="note" value="${esc(b.notes||"")}" placeholder="Add a note" aria-label="Notes for ${esc(b.name)}">`}</div>
         <div class="ctrls edit-only">
           <div class="mins"><button data-act="dec" aria-label="Less time">−</button><input data-act="min" type="number" min="1" max="90" value="${b.minutes}" aria-label="Minutes"><button data-act="inc" aria-label="More time">+</button></div>
           <button class="icon" data-act="up" aria-label="Move up">↑</button>
@@ -336,7 +336,7 @@ async function buildPdf(){
     const d=b.drillId?drills.find(x=>x.id===b.drillId):null;
     doc.setFontSize(10);
     const nameL=doc.splitTextToSize(b.name+(b.category?` (${b.category})`:""),cols[3]-cols[2]-10);
-    const pts=[b.coach?("Led by: "+b.coach):"",b.notes?("Today: "+b.notes):"",d&&d.points?d.points:""].filter(Boolean).join("\n");
+    const pts=[b.coach?("Led by: "+b.coach):"",b.notes||"",d&&d.points?d.points:""].filter(Boolean).join("\n");
     doc.setFontSize(9);
     const ptsL=pts?doc.splitTextToSize(pts,R-cols[3]-10):[];
     const h=Math.max(nameL.length*12,ptsL.length*11,12)+12;
