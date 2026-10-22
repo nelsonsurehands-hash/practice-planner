@@ -501,3 +501,22 @@ body.pb-full{overflow:hidden}
 .perm-grid label{display:flex;gap:8px;align-items:center;font-size:14px}
 .perm-grid input{width:auto}
 .members .member .perm-row{grid-column:1/-1}
+/* calendar: no-practice days and the quick "mark this day" checkboxes */
+.sw.nopr{background:var(--sunk);border-color:var(--muted)}
+.cal-cell.nopr{background:var(--sunk)}.cal-cell.nopr .d{color:var(--muted)}
+.cal-cell .ev.nopr b{color:var(--muted)}
+.day-ev.nopr{border-color:var(--muted);background:var(--sunk)}
+.marks{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:6px}
+.marks legend{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;padding:0}
+.mark{display:inline-flex;align-items:center;gap:6px;padding:6px 11px 6px 8px;border-radius:20px;border:1.5px solid var(--line);background:var(--surface);font-size:13.5px;font-weight:600;cursor:pointer}
+.mark input{width:16px;height:16px;margin:0}
+.mark.holiday{border-color:var(--cal-hol)}.mark.holiday input{accent-color:var(--cal-hol)}
+.mark.nopr{border-color:var(--muted)}.mark.nopr input{accent-color:var(--muted)}
+.mark.tryout{border-color:var(--cal-try)}.mark.tryout input{accent-color:var(--cal-try)}
+.mark.meeting{border-color:var(--cal-meet)}.mark.meeting input{accent-color:var(--cal-meet)}
+.mark.practice{border-color:var(--cal-prac)}.mark.practice input{accent-color:var(--cal-prac)}
+.mark.holiday:has(input:checked){background:var(--cal-hol-soft)}
+.mark.nopr:has(input:checked){background:var(--sunk)}
+.mark.tryout:has(input:checked){background:var(--cal-try-soft)}
+.mark.meeting:has(input:checked){background:var(--cal-meet-soft)}
+.mark.practice:has(input:checked){background:var(--cal-prac-soft)}

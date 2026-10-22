@@ -41,7 +41,7 @@ function cellHTML(iso,d){
     const g=d.game;cls="game";
     body+=`<span class="tag ${g.home===false?"away":"home"}">${g.home===false?"Away":"Home"}</span><span class="ev"><b>${g.home===false?"at ":""}${esc(g.opponent||"Game")}</b><small>${ampm(g.time)}</small></span>`;
   }
-  if(d.off&&d.off.note){cls=cls||"holiday";body+=`<span class="ev holiday"><b>${esc(d.off.note)}</b><small>No practice</small></span>`;}
+  if(d.off&&d.off.note){const np=/^no practice$/i.test(d.off.note);cls=cls||(np?"nopr":"holiday");body+=np?`<span class="ev nopr"><b>No practice</b></span>`:`<span class="ev holiday"><b>${esc(d.off.note)}</b><small>No practice</small></span>`;}
   if(d.practice){
     const p=d.practice,tr=isTryout(p.note);cls=cls||(tr?"tryout":"practice");
     if(p.note&&!tr&&!isMeeting(p.note))body+=`<span class="tag holiday">${esc(p.note)}</span>`;
@@ -101,6 +101,8 @@ function renderDay(){
   const regular=(st.practiceDays||[]).includes(dObj(iso).getDay())&&st.seasonStart&&iso>=st.seasonStart&&iso<=st.seasonEnd;
   const sp=(st.special||[]).find(x=>x.date===iso);
   let h=`<h2 id="dayTitle">${fullDay(iso)}</h2>`;
+  if(ed){const cur=markOf(sp),list=MARKS.filter(m=>!m.only||m.only(regular,d));
+    h+=`<fieldset class="marks"><legend>Mark this day</legend>${list.map(m=>`<label class="mark ${m.cls}"><input type="checkbox" data-mark="${m.id}"${cur===m.id?" checked":""}><span>${m.label}</span></label>`).join("")}</fieldset>`;}
   if(d.game){const g=d.game;
     h+=`<div class="day-ev game"><b>${g.home===false?"at ":"vs "}${esc(g.opponent||"Game")}</b><span>${ampm(g.time)} · ${g.home===false?"Away":"Home"}</span>${ed?delBtn("delGame","Delete game"):""}</div>`;
     if(ed)h+=`<details class="day-edit"><summary>Edit this game</summary>${gameForm(g)}</details>`;
@@ -115,7 +117,7 @@ function renderDay(){
       <div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="savePractice">Save</button><button class="btn danger" type="button" data-act="cancelPractice">No practice this day</button></div></details>`;
   }
   if(d.off){
-    h+=d.off.note?`<div class="day-ev holiday"><b>${esc(d.off.note)}</b><span>No practice${regular?" (normally a practice day)":""}</span>${ed?delBtn("restore",regular?"Delete day off (practice goes back on)":"Delete day off"):""}</div>`
+    h+=d.off.note?`<div class="day-ev ${/^no practice$/i.test(d.off.note)?"nopr":"holiday"}"><b>${esc(d.off.note)}</b><span>No practice${regular?" (normally a practice day)":""}</span>${ed&&!/^no practice$/i.test(d.off.note)?`<label class="f">Name<input id="dpOffName" value="${esc(d.off.note)}" placeholder="e.g. Thanksgiving"></label>`:""}${ed?delBtn("restore",regular?"Delete day off (practice goes back on)":"Delete day off"):""}</div>`
       :`<div class="day-ev"><b>Practice deleted</b><span>This is normally a practice day.</span>${ed?`<button class="btn" type="button" data-act="restore">Put practice back</button>`:""}</div>`;
   }
   if(d.note&&!d.practice&&!d.off)h+=`<div class="day-ev"><b>${esc(d.note.note||"Note")}</b>${ed?delBtn("restore","Delete note"):""}</div>`;
@@ -128,6 +130,42 @@ function renderDay(){
   h+=`<div class="msg" id="dayMsg"></div><div class="actions" style="margin:0"><button class="btn" type="button" data-act="close">Close</button></div>`;
   $("#dayBody").innerHTML=h;
 }
+/* Quick marks: one tap sets the day, colored like the legend. Tap again to clear it.
+   A day has one mark at a time, so picking a new one replaces the old. */
+const MARKS=[
+  {id:"noschool",label:"No school",cls:"holiday",test:x=>/no school/i.test(x.note||"")},
+  {id:"holiday",label:"Holiday",cls:"holiday",test:x=>x.kind==="off"&&!/no school|^no practice$/i.test(x.note||"")},
+  {id:"nopractice",label:"No practice",cls:"nopr",test:x=>x.kind==="off"&&(!x.note||/^no practice$/i.test(x.note))},
+  {id:"tryout",label:"Tryouts",cls:"tryout",test:x=>/tryout/i.test(x.note||"")},
+  {id:"meeting",label:"Meeting",cls:"meeting",test:x=>/meeting/i.test(x.note||"")},
+  {id:"extra",label:"Extra practice",cls:"practice",test:x=>x.kind==="extra"&&!x.note,only:(reg,d)=>!reg&&!d.game},
+];
+const markOf=sp=>{if(!sp)return null;const m=MARKS.find(m=>m.test(sp));return m?m.id:null;};
+function markValue(id,regular,sp){
+  const keep=sp&&sp.kind!=="off"?{...(sp.start?{start:sp.start}:{}),...(sp.end?{end:sp.end}:{})}:{};
+  switch(id){
+    case "noschool":return {kind:regular?"note":"note",note:"No School",...keep};
+    case "holiday":return {kind:"off",note:"Holiday"};
+    case "nopractice":return {kind:"off",note:"No practice"};
+    case "tryout":return {kind:regular?"note":"extra",note:"Tryouts",...keep};
+    case "meeting":return {kind:regular?"note":"note",note:regular?"Parent meeting after practice":"Meeting",...keep};
+    case "extra":return {kind:"extra",note:""};
+  }
+}
+$("#dayBody").addEventListener("change",e=>{
+  const c=e.target.closest("[data-mark]");if(!c)return;
+  const iso=dayIso,st0=SETTINGS,sp=(st0.special||[]).find(x=>x.date===iso);
+  const regular=(st0.practiceDays||[]).includes(dObj(iso).getDay())&&st0.seasonStart&&iso>=st0.seasonStart&&iso<=st0.seasonEnd&&!(st0.games||[]).some(g=>g.date===iso);
+  const label=MARKS.find(m=>m.id===c.dataset.mark).label;
+  if(!c.checked)change(st=>setSpecial(st,iso,null),`${label} cleared`);
+  else change(st=>setSpecial(st,iso,markValue(c.dataset.mark,regular,sp)),`Marked: ${label}`);
+});
+/* Rename a holiday (e.g. "Thanksgiving") right from its card. */
+$("#dayBody").addEventListener("input",e=>{if(e.target.id==="dpOffName")e.target.dataset.dirty="1";});
+$("#dayBody").addEventListener("focusout",e=>{
+  const t=e.target;if(t.id!=="dpOffName"||t.dataset.dirty!=="1")return;const v=t.value.trim();if(!v)return;
+  change(st=>{const x=st.special.find(s=>s.date===dayIso);if(x)x.note=v;},"Name saved");
+});
 const delBtn=(act,label)=>`<button class="btn danger day-del" type="button" data-act="${act}" data-label="${label}">${label}</button>`;
 function gameForm(g){
   return `<div class="day-game" data-orig="${esc(g.date||"")}"><label class="f">Opponent<input id="dgOpp" value="${esc(g.opponent||"")}" placeholder="e.g. Waynesville"></label>
