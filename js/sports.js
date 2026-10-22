@@ -5,7 +5,7 @@
 const SPORTS={
   basketball:{
     name:"Basketball", players:5, board:"Half-court drawing board",
-    cats:["Warm-up","Ball handling","Passing","Shooting","Finishing","Defense","Rebounding","Offense","Transition","Conditioning","Scrimmage","Other"],
+    cats:["Warm-up","Ball handling","Passing","Shooting","Finishing","Defense","Team Defense","Rebounding","Offense","Team Offense","Transition","Conditioning","Scrimmage","Other"],
     playTypes:["Half-court offense","Zone offense","Baseline inbound","Sideline inbound","Press break","Quick hitter","Defense","Special situation"],
     tools:{cut:"Cut",pass:"Pass",dribble:"Dribble",screen:"Screen",shot:"Shot"},target:{x:250,y:52.5},
     forms:{
