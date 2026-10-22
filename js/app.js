@@ -301,7 +301,45 @@ $("#copyText").addEventListener("click",async e=>{
   catch{const ta=document.createElement("textarea");ta.value=text;document.body.append(ta);ta.select();try{document.execCommand("copy");e.target.textContent="Copied";}catch{e.target.textContent="Copy failed";}ta.remove();}
   setTimeout(()=>e.target.textContent="Copy as text",1800);
 });
-document.querySelectorAll("[data-quick]").forEach(b=>b.addEventListener("click",()=>addBlock({drillId:null,name:b.dataset.quick,category:"",minutes:+b.dataset.min})));
+/* ---------- quick adds (the one-tap buttons above the drill list) ----------
+   Saved with the team, so the whole staff shares them. Each one is either a drill from the
+   library (it adds that drill) or just a name and minutes, like a water break. */
+const DEFAULT_QUICK=[{name:"Water break",minutes:3},{name:"Free throws",minutes:5},{name:"Running",minutes:10}];
+function quickAdds(){return Array.isArray(SETTINGS.quickAdds)?SETTINGS.quickAdds:DEFAULT_QUICK;}
+function quickDrill(q){return (q.drillId&&drills.find(d=>d.id===q.drillId))||drills.find(d=>d.name.toLowerCase()===String(q.name||"").toLowerCase())||null;}
+function renderQuick(){
+  const left=cur?totals().left:999;
+  $("#quickBar").innerHTML=quickAdds().map((q,i)=>`<button class="btn" type="button" data-qi="${i}"${left<=0?" disabled":""}>+ ${esc(q.name)}</button>`).join("");
+  $("#quickEdit").hidden=!PERM.schedule;
+}
+$("#quickBar").addEventListener("click",e=>{
+  const b=e.target.closest("[data-qi]");if(!b)return;const q=quickAdds()[+b.dataset.qi];if(!q)return;
+  const d=quickDrill(q);
+  addBlock(d?{drillId:d.id,name:d.name,category:catsOf(d)[0]||"",minutes:q.minutes||d.minutes||10}:{drillId:null,name:q.name,category:"",minutes:q.minutes||5});
+});
+let qeDraft=null;
+function renderQE(){
+  $("#qeList").innerHTML=qeDraft.length?qeDraft.map((q,i)=>`<div class="qe-row"><span class="qe-name">${esc(q.name)}${q.drillId?` <small>drill</small>`:""}</span>
+    <input type="number" min="1" max="90" value="${q.minutes}" data-qmin="${i}" aria-label="Minutes for ${esc(q.name)}"><span class="qe-unit">min</span>
+    <button class="icon" type="button" data-qup="${i}" aria-label="Move ${esc(q.name)} left"${i?"":" disabled"}>↑</button>
+    <button class="icon" type="button" data-qrm="${i}" aria-label="Remove ${esc(q.name)}">✕</button></div>`).join(""):`<p class="help">No quick adds. Add a drill or something else below.</p>`;
+  $("#qeDrill").innerHTML=`<option value="">Choose a drill…</option>`+[...drills].sort((a,b)=>a.name.localeCompare(b.name)).map(d=>`<option value="${d.id}">${esc(d.name)} (${d.minutes||10} min)</option>`).join("");
+}
+$("#quickEdit").addEventListener("click",()=>{qeDraft=JSON.parse(JSON.stringify(quickAdds()));renderQE();$("#quickEditor").hidden=false;$("#quickEdit").hidden=true;$("#qeMsg").textContent="";});
+$("#qeCancel").addEventListener("click",()=>{$("#quickEditor").hidden=true;renderQuick();});
+$("#qeDrill").addEventListener("change",e=>{const d=drills.find(x=>x.id===e.target.value);e.target.value="";if(!d)return;qeDraft.push({drillId:d.id,name:d.name,minutes:d.minutes||10});renderQE();});
+$("#qeAddCustom").addEventListener("click",()=>{const n=$("#qeName").value.trim();if(!n){$("#qeName").focus();return;}qeDraft.push({name:n,minutes:Math.max(1,+$("#qeMin").value||5)});$("#qeName").value="";renderQE();});
+$("#qeList").addEventListener("click",e=>{
+  const r=e.target.closest("[data-qrm]"),u=e.target.closest("[data-qup]");
+  if(r){qeDraft.splice(+r.dataset.qrm,1);renderQE();}
+  if(u){const i=+u.dataset.qup;[qeDraft[i-1],qeDraft[i]]=[qeDraft[i],qeDraft[i-1]];renderQE();}
+});
+$("#qeList").addEventListener("input",e=>{const m=e.target.closest("[data-qmin]");if(m)qeDraft[+m.dataset.qmin].minutes=Math.max(1,+m.value||1);});
+$("#qeSave").addEventListener("click",async()=>{
+  $("#qeMsg").textContent="Saving…";
+  try{await saveSettings({...(team.settings||{}),quickAdds:qeDraft});$("#quickEditor").hidden=true;renderQuick();flash("Quick adds saved for your staff.");}
+  catch(err){$("#qeMsg").textContent="Not saved: "+(err.message||"check your connection");}
+});
 
 /* ---------- printable black & white PDF ---------- */
 async function buildPdf(){
@@ -380,7 +418,7 @@ function renderPick(){
   const plist=(!pickCat||pickCat==="Plays")?[...plays].sort((a,b)=>a.name.localeCompare(b.name)).filter(p=>!q||(p.name+" "+p.type).toLowerCase().includes(q)):[];
   const left=cur?totals().left:999;
   const pbtn=(attr,name,m)=>left<=0?`<button disabled>Full</button>`:m>left?`<button class="trim" ${attr} aria-label="Add ${esc(name)} for ${left} minutes">Add ${left} min</button>`:`<button ${attr} aria-label="Add ${esc(name)}">Add</button>`;
-  document.querySelectorAll("[data-quick]").forEach(q=>q.disabled=left<=0);
+  if($("#quickEditor").hidden)renderQuick();
   $("#picklist").innerHTML=list.length?list.map(d=>{const m=d.minutes||10;
     const btn=left<=0?`<button disabled>Full</button>`:m>left?`<button class="trim" data-id="${d.id}" aria-label="Add ${esc(d.name)} for ${left} minutes">Add ${left} min</button>`:`<button data-id="${d.id}" aria-label="Add ${esc(d.name)}">Add</button>`;
     return `<div class="pick"><div><b>${esc(d.name)}</b><span>${esc(catsOf(d).join(" · "))} · ${m} min</span></div>${btn}</div>`;}).join("")

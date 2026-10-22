@@ -157,10 +157,14 @@
 
     <aside class="bench edit-only">
       <h2>Add to practice</h2>
-      <div class="quick">
-        <button class="btn" data-quick="Water break" data-min="3">+ Water break</button>
-        <button class="btn" data-quick="Free throws" data-min="5">+ Free throws</button>
-        <button class="btn" data-quick="Team talk" data-min="5">+ Team talk</button>
+      <div class="quick" id="quickBar"></div>
+      <button class="linkbtn" type="button" id="quickEdit">Edit quick adds</button>
+      <div class="quick-editor" id="quickEditor" hidden>
+        <div class="qe-list" id="qeList"></div>
+        <label class="f">Add a drill from your library<select id="qeDrill"></select></label>
+        <div class="qe-custom"><label class="f">Or something else<input id="qeName" placeholder="e.g. Stretch, Film"></label><label class="f">Min<input id="qeMin" type="number" min="1" max="60" value="5"></label><button class="btn" type="button" id="qeAddCustom">Add</button></div>
+        <div class="actions" style="margin:0"><button class="btn primary" type="button" id="qeSave">Save quick adds</button><button class="btn" type="button" id="qeCancel">Cancel</button></div>
+        <div class="msg" id="qeMsg"></div>
       </div>
       <input id="pickSearch" placeholder="Search drills">
       <div class="cats" id="pickCats"></div>

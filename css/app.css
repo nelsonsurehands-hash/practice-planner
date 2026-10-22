@@ -520,3 +520,11 @@ body.pb-full{overflow:hidden}
 .mark.tryout:has(input:checked){background:var(--cal-try-soft)}
 .mark.meeting:has(input:checked){background:var(--cal-meet-soft)}
 .mark.practice:has(input:checked){background:var(--cal-prac-soft)}
+.quick-editor{display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--bg)}
+.qe-list{display:flex;flex-direction:column;gap:6px}
+.qe-row{display:grid;grid-template-columns:minmax(0,1fr) 64px auto 32px 32px;gap:6px;align-items:center}
+.qe-name{font-weight:600;font-size:14px;overflow-wrap:anywhere}
+.qe-name small{font-weight:500;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-left:4px}
+.qe-row input{padding:5px 6px;font-size:14px}
+.qe-unit{font-size:12px;color:var(--muted)}
+.qe-custom{display:grid;grid-template-columns:minmax(0,1fr) 70px auto;gap:6px;align-items:end}
