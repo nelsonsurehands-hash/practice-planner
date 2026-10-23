@@ -11,13 +11,17 @@ const fullDay=iso=>dObj(iso).toLocaleDateString("en-US",{weekday:"long",month:"l
 const isTryout=n=>/tryout/i.test(n||""), isMeeting=n=>/meeting/i.test(n||"");
 const editable=()=>typeof PERM!=="undefined"&&PERM.schedule;
 
-/* Everything that happens on each date. */
+/* Everything that happens on each date. A date can carry several marks at once. */
 function buildDays(st){
   const days={};const get=iso=>days[iso]||(days[iso]={});
-  const practices=computePractices(st);
-  practices.forEach(([iso])=>{const sp=(st.special||[]).find(x=>x.date===iso);const t=practiceTimes(iso,st);get(iso).practice={...t,note:sp&&sp.kind!=="off"?sp.note||"":""};});
+  const practices=computePractices(st),by=specialsByDate(st);
+  practices.forEach(([iso])=>{const notes=specialNotes(by[iso]);get(iso).practice={...practiceTimes(iso,st),notes,note:notes.join(" · ")};});
   (st.games||[]).forEach(g=>{if(g.date)get(g.date).game=g;});
-  (st.special||[]).forEach(x=>{if(!x.date)return;if(x.kind==="off")get(x.date).off=x;else if(!get(x.date).practice)get(x.date).note=x;});
+  Object.entries(by).forEach(([d,l])=>{
+    const offs=l.filter(x=>x.kind==="off");
+    if(offs.length){const names=offs.map(x=>x.note).filter(Boolean);get(d).off={note:names.filter(n=>!/^no practice$/i.test(n)).join(" · ")||names.join(" · "),list:offs};}
+    const notes=specialNotes(l);if(notes.length&&!get(d).practice)get(d).tags=notes;
+  });
   return {days,practices};
 }
 function monthsToShow(st,days){
@@ -37,19 +41,21 @@ function cellHTML(iso,d){
   const today=iso===todayISO();
   if(!d)return `<button type="button" class="cal-cell${today?" today":""}" data-day="${iso}"><span class="d">${+iso.slice(8)}</span></button>`;
   let cls="",body="";
+  const tagsHTML=list=>list.filter(n=>!isTryout(n)&&!isMeeting(n)).map(n=>`<span class="tag holiday">${esc(n)}</span>`).join("")+
+    list.filter(isMeeting).map(n=>`<span class="ev meeting"><b>${esc(n.replace(/^practice\s*\+\s*/i,""))}</b></span>`).join("");
   if(d.game){
     const g=d.game;cls="game";
     body+=`<span class="tag ${g.home===false?"away":"home"}">${g.home===false?"Away":"Home"}</span><span class="ev"><b>${g.home===false?"at ":""}${esc(g.opponent||"Game")}</b><small>${ampm(g.time)}</small></span>`;
   }
   if(d.off&&d.off.note){const np=/^no practice$/i.test(d.off.note);cls=cls||(np?"nopr":"holiday");body+=np?`<span class="ev nopr"><b>No practice</b></span>`:`<span class="ev holiday"><b>${esc(d.off.note)}</b><small>No practice</small></span>`;}
   if(d.practice){
-    const p=d.practice,tr=isTryout(p.note);cls=cls||(tr?"tryout":"practice");
-    if(p.note&&!tr&&!isMeeting(p.note))body+=`<span class="tag holiday">${esc(p.note)}</span>`;
+    const p=d.practice,tr=p.notes.some(isTryout);cls=cls||(tr?"tryout":"practice");
+    body+=tagsHTML(p.notes.filter(n=>!isMeeting(n)));
     body+=`<span class="ev"><b>${tr?"Tryouts":"Practice"}</b><small>${span(p.start,p.end)}</small></span>`;
-    if(isMeeting(p.note))body+=`<span class="ev meeting"><b>${esc(p.note.replace(/^practice\s*\+\s*/i,""))}</b></span>`;
+    body+=tagsHTML(p.notes.filter(isMeeting));
     const pi=planInfo(iso);if(pi)body+=`<span class="plan-dot" title="Practice plan ready">Plan ${pi.used}/${pi.avail}</span>`;
   }
-  if(d.note&&!d.practice&&!d.off)body+=`<span class="ev"><b>${esc(d.note.note||"")}</b></span>`;
+  if(d.tags)body+=tagsHTML(d.tags);
   return `<button type="button" class="cal-cell ${cls}${today?" today":""}" data-day="${iso}"><span class="d">${+iso.slice(8)}</span>${body}</button>`;
 }
 function monthHTML(y,m,days){
@@ -75,7 +81,7 @@ function render(){
   $("#calEyebrow").textContent=[st.school&&st.mascot?st.school+" "+st.mascot:st.school||st.mascot,st.teamLabel].filter(Boolean).join(" · ");
   const fmtM=iso=>iso?`${MONTHS[+iso.slice(5,7)-1]} ${iso.slice(0,4)}`:"";
   $("#calSeason").innerHTML=st.seasonStart?`<b>${fmtM(st.seasonStart)} – ${fmtM(st.seasonEnd)}</b><small>${practices.length} practices · ${(st.games||[]).length} games</small>`:"";
-  $("#calAddGame").hidden=!editable();$("#calRange").hidden=!editable();
+  $("#calAddGame").hidden=!editable();
   if(!months.length){
     $("#calMonths").innerHTML=`<div class="empty">No schedule yet. Set your season dates and practice days in Settings, or tap + Game to add your first game.</div>`;
     $("#calCallout").hidden=true;$("#calGames").innerHTML="";$("#calFoot").textContent="";return;
@@ -97,141 +103,96 @@ function render(){
 window.onCalChange=()=>{if(!$("#view-cal").hidden)render();};
 
 /* ---------- day dialog ---------- */
-let dayIso=null;
-function openDay(iso){dayIso=iso;renderDay();const d=$("#dayDlg");if(!d.open)d.showModal();}
-function renderDay(){
-  const iso=dayIso,st=SETTINGS,{days}=buildDays(st),d=days[iso]||{},ed=editable();
-  const regular=(st.practiceDays||[]).includes(dObj(iso).getDay())&&st.seasonStart&&iso>=st.seasonStart&&iso<=st.seasonEnd;
-  const sp=(st.special||[]).find(x=>x.date===iso);
-  let h=`<h2 id="dayTitle">${fullDay(iso)}</h2>`;
-  if(ed){const cur=markOf(sp),list=MARKS.filter(m=>!m.only||m.only(regular,d));
-    h+=`<fieldset class="marks"><legend>Mark this day</legend>${list.map(m=>`<label class="mark ${m.cls}"><input type="checkbox" data-mark="${m.id}"${cur===m.id?" checked":""}><span>${m.label}</span></label>`).join("")}</fieldset>`;}
-  if(d.game){const g=d.game;
-    h+=`<div class="day-ev game"><b>${g.home===false?"at ":"vs "}${esc(g.opponent||"Game")}</b><span>${ampm(g.time)} · ${g.home===false?"Away":"Home"}</span>${ed?delBtn("delGame","Delete game"):""}</div>`;
-    if(ed)h+=`<details class="day-edit"><summary>Edit this game</summary>${gameForm(g)}</details>`;
-  }
-  if(d.practice){const p=d.practice,pi=planInfo(iso);
-    h+=`<div class="day-ev practice"><b>${isTryout(p.note)?"Tryouts":"Practice"}</b><span>${span(p.start,p.end)}${p.note?" · "+esc(p.note):""}</span>
-      <span>${pi?`Plan ready: ${pi.used} of ${pi.avail} minutes booked`:"No practice plan yet"}</span>${ed?delBtn("delPractice",isTryout(p.note)?"Delete tryouts":"Delete practice"):""}</div>
-      <button class="btn primary" type="button" data-go="plan">${pi?"Open practice plan":"Plan this practice"}</button>`;
-    if(ed)h+=`<details class="day-edit"><summary>Change time or note</summary>
-      <div class="grid2"><label class="f">Starts<input type="time" id="dpStart" value="${p.start}"></label><label class="f">Ends<input type="time" id="dpEnd" value="${p.end}"></label></div>
-      <label class="f">Note<input id="dpNote" value="${esc(p.note||"")}" placeholder="e.g. No School, Tryouts, Parent meeting after practice"></label>
-      <div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="savePractice">Save</button><button class="btn danger" type="button" data-act="cancelPractice">No practice this day</button></div></details>`;
-  }
-  if(d.off){
-    h+=d.off.note?`<div class="day-ev ${/^no practice$/i.test(d.off.note)?"nopr":"holiday"}"><b>${esc(d.off.note)}</b><span>No practice${regular?" (normally a practice day)":""}</span>${ed&&!/^no practice$/i.test(d.off.note)?`<label class="f">Name<input id="dpOffName" value="${esc(d.off.note)}" placeholder="e.g. Thanksgiving"></label>`:""}${ed?delBtn("restore",regular?"Delete day off (practice goes back on)":"Delete day off"):""}</div>`
-      :`<div class="day-ev"><b>Practice deleted</b><span>This is normally a practice day.</span>${ed?`<button class="btn" type="button" data-act="restore">Put practice back</button>`:""}</div>`;
-  }
-  if(d.note&&!d.practice&&!d.off)h+=`<div class="day-ev"><b>${esc(d.note.note||"Note")}</b>${ed?delBtn("restore","Delete note"):""}</div>`;
-  if(!d.game&&!d.practice&&!d.off&&!d.note)h+=`<p class="help">Nothing scheduled.</p>`;
-  if(ed&&!d.game)h+=`<details class="day-edit"><summary>Add a game this day</summary>${gameForm({date:iso,home:true,time:"17:30"})}</details>`;
-  if(ed&&!d.practice&&!d.off){const t=practiceTimes(iso,st);
-    h+=`<details class="day-edit"><summary>Add a practice this day</summary><div class="grid2"><label class="f">Starts<input type="time" id="dpStart" value="${t.start}"></label><label class="f">Ends<input type="time" id="dpEnd" value="${t.end}"></label></div>
-      <label class="f">Note<input id="dpNote" placeholder="Optional"></label><div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="savePractice">Add practice</button></div></details>
-      <details class="day-edit"><summary>Mark as a day off or holiday</summary><label class="f">Name<input id="dpOff" placeholder="e.g. Thanksgiving"></label><div class="actions" style="margin:0"><button class="btn" type="button" data-act="markOff">Save day off</button></div></details>`;}
-  h+=`<div class="msg" id="dayMsg"></div><div class="actions" style="margin:0">${ed?`<button class="btn" type="button" data-act="range">Mark several days from here…</button>`:""}<button class="btn" type="button" data-act="close">Close</button></div>`;
-  $("#dayBody").innerHTML=h;
-}
-/* Quick marks: one tap sets the day, colored like the legend. Tap again to clear it.
-   A day has one mark at a time, so picking a new one replaces the old. */
+let dayIso=null,lastMark=null;
+function openDay(iso){dayIso=iso;lastMark=null;renderDay();const d=$("#dayDlg");if(!d.open)d.showModal();}
+const entriesOn=(st,iso)=>(st.special||[]).filter(x=>x.date===iso);
+const isRegular=(st,iso)=>(st.practiceDays||[]).includes(dObj(iso).getDay())&&!!st.seasonStart&&iso>=st.seasonStart&&iso<=st.seasonEnd&&!(st.games||[]).some(g=>g.date===iso);
+/* Marks stack: check as many as apply. Unchecking removes only that mark. */
 const MARKS=[
   {id:"noschool",label:"No school",cls:"holiday",test:x=>/no school/i.test(x.note||"")},
-  {id:"holiday",label:"Holiday",cls:"holiday",test:x=>x.kind==="off"&&!/no school|^no practice$/i.test(x.note||"")},
+  {id:"holiday",label:"Holiday / break",cls:"holiday",test:x=>x.kind==="off"&&!/no school|^no practice$/i.test(x.note||"")},
   {id:"nopractice",label:"No practice",cls:"nopr",test:x=>x.kind==="off"&&(!x.note||/^no practice$/i.test(x.note))},
   {id:"tryout",label:"Tryouts",cls:"tryout",test:x=>/tryout/i.test(x.note||"")},
   {id:"meeting",label:"Meeting",cls:"meeting",test:x=>/meeting/i.test(x.note||"")},
   {id:"extra",label:"Extra practice",cls:"practice",test:x=>x.kind==="extra"&&!x.note,only:(reg,d)=>!reg&&!d.game},
 ];
-const markOf=sp=>{if(!sp)return null;const m=MARKS.find(m=>m.test(sp));return m?m.id:null;};
-function markValue(id,regular,sp){
-  const keep=sp&&sp.kind!=="off"?{...(sp.start?{start:sp.start}:{}),...(sp.end?{end:sp.end}:{})}:{};
+function markValue(id,regular){
   switch(id){
-    case "noschool":return {kind:regular?"note":"note",note:"No School",...keep};
+    case "noschool":return {kind:"note",note:"No School"};
     case "holiday":return {kind:"off",note:"Holiday"};
     case "nopractice":return {kind:"off",note:"No practice"};
-    case "tryout":return {kind:regular?"note":"extra",note:"Tryouts",...keep};
-    case "meeting":return {kind:regular?"note":"note",note:regular?"Parent meeting after practice":"Meeting",...keep};
+    case "tryout":return {kind:regular?"note":"extra",note:"Tryouts"};
+    case "meeting":return {kind:"note",note:regular?"Parent meeting after practice":"Meeting"};
     case "extra":return {kind:"extra",note:""};
   }
 }
-/* ---------- mark several days at once (a school break, a week of tryouts…) ---------- */
-const RANGE_MARKS=[
-  {id:"holiday",label:"Break / holiday (no practice)",cls:"holiday",times:false},
-  {id:"noschool",label:"No school (practice still on)",cls:"holiday",times:true},
-  {id:"nopractice",label:"No practice",cls:"nopr",times:false},
-  {id:"tryout",label:"Tryouts",cls:"tryout",times:true},
-  {id:"extra",label:"Extra practices",cls:"practice",times:true},
-];
-function rangeDays(){
-  const a=$("#rgFrom").value,b=$("#rgTo").value;if(!a||!b||b<a)return [];
-  const st=SETTINGS,games=new Set((st.games||[]).map(g=>g.date)),only=$("#rgPractice").checked,out=[];
-  for(let d=a,i=0;d<=b&&i<370;d=addDays(d,1),i++){
-    const reg=(st.practiceDays||[]).includes(dObj(d).getDay())&&!games.has(d);
-    if(only&&!reg&&rangeMark()!=="extra")continue;
-    out.push({d,reg});
+function renderDay(){
+  const iso=dayIso,st=SETTINGS,{days}=buildDays(st),d=days[iso]||{},ed=editable();
+  const regular=isRegular(st,iso),list=entriesOn(st,iso);
+  let h=`<h2 id="dayTitle">${fullDay(iso)}</h2>`;
+  if(ed){const marks=MARKS.filter(m=>!m.only||m.only(regular,d));
+    h+=`<fieldset class="marks"><legend>Mark this day <small>(check all that apply)</small></legend>${marks.map(m=>`<label class="mark ${m.cls}"><input type="checkbox" data-mark="${m.id}"${list.some(m.test)?" checked":""}><span>${m.label}</span></label>`).join("")}</fieldset>`;
+    const lm=lastMark&&MARKS.find(m=>m.id===lastMark&&list.some(m.test));
+    if(lm){const end=addDays(iso,4);
+      h+=`<div class="more-days ${lm.cls}"><b>Add “${esc((list.find(lm.test)||{}).note||lm.label)}” to more days</b>
+        <div class="md-row"><label class="f">Through<input type="date" id="mdTo" value="${end}" min="${addDays(iso,1)}"></label>
+        <button class="btn primary" type="button" data-act="mdAdd" data-mark="${lm.id}">Add to those days</button></div>
+        <label class="md-opt"><input type="checkbox" id="mdOnly" checked> Only days we'd normally practice (skip weekends and games)</label>
+        <p class="help" id="mdPreview"></p></div>`;}
   }
+  if(d.game){const g=d.game;
+    h+=`<div class="day-ev game"><b>${g.home===false?"at ":"vs "}${esc(g.opponent||"Game")}</b><span>${ampm(g.time)} · ${g.home===false?"Away":"Home"}</span>${ed?delBtn("delGame","Delete game"):""}</div>`;
+    if(ed)h+=`<details class="day-edit"><summary>Edit this game</summary>${gameForm(g)}</details>`;
+  }
+  const noteChips=()=>{const ns=list.map((x,i)=>({x,i})).filter(o=>o.x.kind!=="off"&&o.x.note);
+    return ns.length?`<div class="note-chips">${ns.map(o=>`<span class="nchip">${esc(o.x.note)}${ed?`<button type="button" class="icon" data-rmentry="${o.i}" aria-label="Remove ${esc(o.x.note)}">✕</button>`:""}</span>`).join("")}</div>`:"";};
+  if(d.practice){const p=d.practice,pi=planInfo(iso);
+    h+=`<div class="day-ev practice"><b>${p.notes.some(isTryout)?"Tryouts":"Practice"}</b><span>${span(p.start,p.end)}</span>${noteChips()}
+      <span>${pi?`Plan ready: ${pi.used} of ${pi.avail} minutes booked`:"No practice plan yet"}</span>${ed?delBtn("delPractice","Cancel this practice"):""}</div>
+      <button class="btn primary" type="button" data-go="plan">${pi?"Open practice plan":"Plan this practice"}</button>`;
+    if(ed)h+=`<details class="day-edit"><summary>Change time or add a note</summary>
+      <div class="grid2"><label class="f">Starts<input type="time" id="dpStart" value="${p.start}"></label><label class="f">Ends<input type="time" id="dpEnd" value="${p.end}"></label></div>
+      <label class="f">Add a note<input id="dpNote" placeholder="e.g. Bring white jerseys"></label>
+      <div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="savePractice">Save</button></div></details>`;
+  }
+  if(d.off){
+    const offs=list.map((x,i)=>({x,i})).filter(o=>o.x.kind==="off");
+    h+=`<div class="day-ev ${d.off.note&&!/^no practice$/i.test(d.off.note)?"holiday":"nopr"}"><b>${esc(d.off.note||"No practice")}</b><span>No practice${regular?" (normally a practice day)":""}</span>
+      ${ed?offs.filter(o=>!/^no practice$/i.test(o.x.note||"")).map(o=>`<label class="f">Name<input data-offname="${o.i}" value="${esc(o.x.note||"")}" placeholder="e.g. Thanksgiving, Winter Break"></label>`).join(""):""}
+      ${ed?delBtn("restore",regular?"Remove day off (practice goes back on)":"Remove day off"):""}</div>`;
+  }
+  if(d.tags&&!d.practice)h+=`<div class="day-ev"><b>Notes</b>${noteChips()}</div>`;
+  if(!d.game&&!d.practice&&!d.off&&!d.tags)h+=`<p class="help">Nothing scheduled.</p>`;
+  if(ed&&!d.game)h+=`<details class="day-edit"><summary>Add a game this day</summary>${gameForm({date:iso,home:true,time:"17:30"})}</details>`;
+  if(ed&&!d.practice&&!d.off){const t=practiceTimes(iso,st);
+    h+=`<details class="day-edit"><summary>Add a practice this day</summary><div class="grid2"><label class="f">Starts<input type="time" id="dpStart" value="${t.start}"></label><label class="f">Ends<input type="time" id="dpEnd" value="${t.end}"></label></div>
+      <label class="f">Add a note<input id="dpNote" placeholder="Optional"></label><div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="savePractice">Add practice</button></div></details>`;}
+  h+=`<div class="msg" id="dayMsg"></div><div class="actions" style="margin:0"><button class="btn" type="button" data-act="close">Close</button></div>`;
+  $("#dayBody").innerHTML=h;mdPreview();
+}
+/* "Add to more days": every day after this one through the chosen date gets the same mark
+   (with its name and times), added alongside whatever is already there. */
+function mdDays(){
+  const to=$("#mdTo")&&$("#mdTo").value,only=$("#mdOnly")&&$("#mdOnly").checked,st=SETTINGS,out=[];
+  if(!to||to<=dayIso)return out;
+  for(let d=addDays(dayIso,1),i=0;d<=to&&i<370;d=addDays(d,1),i++){if(only&&!isRegular(st,d))continue;out.push(d);}
   return out;
 }
-const rangeMark=()=>{const c=$("#rgMarks input:checked");return c?c.value:"holiday";};
-function rangePreview(){
-  const m=RANGE_MARKS.find(x=>x.id===rangeMark()),days=rangeDays();
-  $("#rgTimes").hidden=!m.times;$("#rgTimesHelp").hidden=!m.times;
-  $("#rgPractice").closest("label").hidden=m.id==="extra";
-  const a=$("#rgFrom").value,b=$("#rgTo").value;
-  $("#rgPreview").textContent=!a||!b?"Pick the first and last day.":b<a?"The last day needs to be on or after the first day.":
-    days.length?`${days.length} day${days.length>1?"s":""}: ${dLabel(days[0].d)}${days.length>1?" to "+dLabel(days[days.length-1].d):""}.`:"No days match. Untick “Only days we'd normally practice” to include every day.";
-}
-function openRange(from){
-  $("#rgMarks").innerHTML=`<legend>Mark</legend>`+RANGE_MARKS.map((m,i)=>`<label class="mark ${m.cls}"><input type="radio" name="rgMark" value="${m.id}"${i?"":" checked"}><span>${m.label}</span></label>`).join("");
-  $("#rgFrom").value=from||"";$("#rgTo").value=from||"";$("#rgName").value="";$("#rgStart").value="";$("#rgEnd").value="";$("#rgMsg").textContent="";
-  rangePreview();$("#rangeDlg").showModal();
-}
-$("#calRange").addEventListener("click",()=>openRange(todayISO()));
-["#rgFrom","#rgTo","#rgPractice"].forEach(q=>$(q).addEventListener("change",()=>{if(q==="#rgFrom"&&(!$("#rgTo").value||$("#rgTo").value<$("#rgFrom").value))$("#rgTo").value=$("#rgFrom").value;rangePreview();}));
-$("#rgMarks").addEventListener("change",rangePreview);
-$("#rgClose").addEventListener("click",()=>$("#rangeDlg").close());
-async function applyRange(fn,done){
-  const days=rangeDays();if(!days.length){msg($("#rgMsg"),"No days to change.","err");return;}
-  const st=JSON.parse(JSON.stringify(team.settings||{}));st.games=st.games||[];st.special=st.special||[];
-  days.forEach(x=>fn(st,x));msg($("#rgMsg"),"Saving…");
-  try{await saveSettings(st);render();msg($("#rgMsg"),done(days.length),"ok");}
-  catch(err){msg($("#rgMsg"),"Not saved: "+(err.message||"check your connection"),"err");}
-}
-$("#rgApply").addEventListener("click",()=>{
-  const id=rangeMark(),m=RANGE_MARKS.find(x=>x.id===id),name=$("#rgName").value.trim(),start=$("#rgStart").value,end=$("#rgEnd").value;
-  if(m.times&&start&&end&&end<=start){msg($("#rgMsg"),"The end time needs to be after the start time.","err");return;}
-  const times=m.times&&start&&end?{start,end}:{};
-  applyRange((st,x)=>{let v;
-    if(id==="holiday")v={kind:"off",note:name||"Break"};
-    else if(id==="nopractice")v={kind:"off",note:name||"No practice"};
-    else if(id==="noschool")v={kind:x.reg?"note":"note",note:name||"No School",...times};
-    else if(id==="tryout")v={kind:x.reg?"note":"extra",note:name||"Tryouts",...times};
-    else v={kind:x.reg?"note":"extra",note:name||"",...times};
-    if(id==="extra"&&x.reg&&!name&&!times.start)v=null;   // already a practice day: nothing to add
-    setSpecial(st,x.d,v);
-  },n=>`Marked ${n} day${n>1?"s":""}.`);
-});
-$("#rgClear").addEventListener("click",e=>{
-  const b=e.currentTarget;
-  if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to clear";setTimeout(()=>{b.dataset.armed="";b.textContent="Clear marks on these days";},3000);return;}
-  b.dataset.armed="";b.textContent="Clear marks on these days";
-  applyRange((st,x)=>setSpecial(st,x.d,null),n=>`Cleared marks on ${n} day${n>1?"s":""}. Practices are back to normal there.`);
-});
-
+function mdPreview(){const p=$("#mdPreview");if(!p)return;const l=mdDays();
+  p.textContent=l.length?`${l.length} more day${l.length>1?"s":""}: ${longDay(l[0])}${l.length>1?" to "+longDay(l[l.length-1]):""}.`:"Pick a later date.";}
 $("#dayBody").addEventListener("change",e=>{
-  const c=e.target.closest("[data-mark]");if(!c)return;
-  const iso=dayIso,st0=SETTINGS,sp=(st0.special||[]).find(x=>x.date===iso);
-  const regular=(st0.practiceDays||[]).includes(dObj(iso).getDay())&&st0.seasonStart&&iso>=st0.seasonStart&&iso<=st0.seasonEnd&&!(st0.games||[]).some(g=>g.date===iso);
-  const label=MARKS.find(m=>m.id===c.dataset.mark).label;
-  if(!c.checked)change(st=>setSpecial(st,iso,null),`${label} cleared`);
-  else change(st=>setSpecial(st,iso,markValue(c.dataset.mark,regular,sp)),`Marked: ${label}`);
+  if(e.target.id==="mdTo"||e.target.id==="mdOnly"){mdPreview();return;}
+  const c=e.target.closest("[data-mark]");if(!c||c.tagName!=="INPUT")return;
+  const iso=dayIso,m=MARKS.find(x=>x.id===c.dataset.mark),regular=isRegular(SETTINGS,iso);
+  if(!c.checked){lastMark=null;change(st=>{st.special=st.special.filter(x=>!(x.date===iso&&m.test(x)));},`${m.label} removed`);}
+  else{lastMark=m.id;change(st=>{if(!st.special.some(x=>x.date===iso&&m.test(x)))st.special.push({date:iso,...markValue(m.id,regular)});},`Marked: ${m.label}`);}
 });
-/* Rename a holiday (e.g. "Thanksgiving") right from its card. */
-$("#dayBody").addEventListener("input",e=>{if(e.target.id==="dpOffName")e.target.dataset.dirty="1";});
+/* Rename a holiday or break (e.g. "Thanksgiving") right from its card. */
+$("#dayBody").addEventListener("input",e=>{if(e.target.dataset.offname!==undefined)e.target.dataset.dirty="1";});
 $("#dayBody").addEventListener("focusout",e=>{
-  const t=e.target;if(t.id!=="dpOffName"||t.dataset.dirty!=="1")return;const v=t.value.trim();if(!v)return;
-  change(st=>{const x=st.special.find(s=>s.date===dayIso);if(x)x.note=v;},"Name saved");
+  const t=e.target;if(t.dataset.offname===undefined||t.dataset.dirty!=="1")return;const v=t.value.trim();if(!v)return;
+  const target=entriesOn(SETTINGS,dayIso)[+t.dataset.offname];
+  change(st=>{const x=st.special.find(s=>s.date===dayIso&&s.kind==="off"&&s.note===(target&&target.note));if(x)x.note=v;},"Name saved");
 });
 const delBtn=(act,label)=>`<button class="btn danger day-del" type="button" data-act="${act}" data-label="${label}">${label}</button>`;
 function gameForm(g){
@@ -246,30 +207,49 @@ async function change(fn,done){
   try{await saveSettings(st);render();renderDay();msg($("#dayMsg"),done||"Saved","ok");}
   catch(err){msg($("#dayMsg"),"Not saved: "+(err.message||"check your connection"),"err");}
 }
-const setSpecial=(st,iso,x)=>{st.special=st.special.filter(s=>s.date!==iso);if(x)st.special.push({date:iso,...x});};
 $("#dayBody").addEventListener("click",e=>{
-  const b=e.target.closest("[data-act],[data-go]");if(!b)return;const iso=dayIso,st0=SETTINGS;
+  const b=e.target.closest("[data-act],[data-go],[data-rmentry]");if(!b)return;const iso=dayIso,st0=SETTINGS;
   if(b.dataset.go==="plan"){
     $("#dayDlg").close();setTab("plan");
     const sel=$("#planDate");if(![...sel.options].some(o=>o.value===iso))buildDateSelect();
     sel.value=iso;loadPlan(iso);if(window.onViewChange)window.onViewChange();window.scrollTo(0,0);return;
   }
+  if(b.dataset.rmentry!==undefined){const x=entriesOn(st0,iso)[+b.dataset.rmentry];if(!x)return;
+    change(st=>{const i=st.special.findIndex(s=>s.date===iso&&s.kind===x.kind&&s.note===x.note);if(i>=0){
+      const s=st.special[i];if(s.start||s.end){s.note="";}else st.special.splice(i,1);}},"Removed");return;}
   const a=b.dataset.act;
   if(a==="close"){$("#dayDlg").close();return;}
-  if(a==="range"){$("#dayDlg").close();openRange(dayIso);return;}
-  if(b.classList.contains("day-del")&&b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to delete";setTimeout(()=>{b.dataset.armed="";b.textContent=b.dataset.label;},3000);return;}
-  const regular=(st0.practiceDays||[]).includes(dObj(iso).getDay())&&st0.seasonStart&&iso>=st0.seasonStart&&iso<=st0.seasonEnd&&!(st0.games||[]).some(g=>g.date===iso);
+  if(b.classList.contains("day-del")&&b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to confirm";setTimeout(()=>{b.dataset.armed="";b.textContent=b.dataset.label;},3000);return;}
+  const regular=isRegular(st0,iso);
+  if(a==="mdAdd"){
+    const m=MARKS.find(x=>x.id===b.dataset.mark),src=entriesOn(st0,iso).find(m.test),days=mdDays();
+    if(!days.length){msg($("#dayMsg"),"Pick a later date.","err");return;}
+    let added=0;
+    change(st=>{days.forEach(d=>{if(st.special.some(x=>x.date===d&&m.test(x)))return;
+      const v=src?{...src,date:d}:{date:d,...markValue(m.id,isRegular(st,d))};
+      if(m.id==="tryout"&&!isRegular(st,d))v.kind="extra";
+      st.special.push(v);added++;});},`Added to ${days.length} more day${days.length>1?"s":""}. Anything already on those days stays.`);
+    return;
+  }
   if(a==="savePractice"){
     const start=$("#dpStart").value,end=$("#dpEnd").value,note=$("#dpNote").value.trim();
     if(start&&end&&end<=start){msg($("#dayMsg"),"The end time needs to be after the start time.","err");return;}
     const wk=[0,6].includes(dObj(iso).getDay()),ds=wk?st0.weekendStart:st0.weekdayStart,de=wk?st0.weekendEnd:st0.weekdayEnd;
-    const times=start===ds&&end===de?{}:{start,end};
-    change(st=>setSpecial(st,iso,regular?(note||times.start?{kind:"note",note,...times}:null):{kind:"extra",note,...times}),"Practice saved");
+    const custom=!(start===ds&&end===de);
+    change(st=>{
+      const mine=st.special.filter(x=>x.date===iso&&x.kind!=="off");
+      mine.forEach(x=>{delete x.start;delete x.end;});
+      if(!regular&&!st.special.some(x=>x.date===iso&&x.kind==="extra"))st.special.push({date:iso,kind:"extra",note:""});
+      if(custom){const host=st.special.find(x=>x.date===iso&&x.kind==="extra")||st.special.find(x=>x.date===iso&&x.kind==="note"&&!x.note);
+        if(host)Object.assign(host,{start,end});else st.special.push({date:iso,kind:"note",note:"",start,end});}
+      st.special=st.special.filter(x=>!(x.date===iso&&x.kind==="note"&&!x.note&&!x.start));
+      if(note)st.special.push({date:iso,kind:"note",note});
+    },"Practice saved");
   }
-  if(a==="cancelPractice")change(st=>setSpecial(st,iso,{kind:"off",note:$("#dpNote")?$("#dpNote").value.trim():""}),"Marked as no practice");
-  if(a==="markOff")change(st=>setSpecial(st,iso,{kind:"off",note:$("#dpOff").value.trim()}),"Day off saved");
-  if(a==="restore")change(st=>setSpecial(st,iso,null),"Deleted");
-  if(a==="delPractice")change(st=>setSpecial(st,iso,regular?{kind:"off",note:""}:null),"Practice deleted");
+  if(a==="restore")change(st=>{st.special=st.special.filter(x=>!(x.date===iso&&x.kind==="off"));},"Day off removed");
+  if(a==="delPractice")change(st=>{
+    if(regular){if(!st.special.some(x=>x.date===iso&&x.kind==="off"))st.special.push({date:iso,kind:"off",note:"No practice"});}
+    else st.special=st.special.filter(x=>!(x.date===iso&&x.kind==="extra"));},"Practice cancelled");
   if(a==="saveGame"){
     const box=b.closest(".day-game"),orig=box.dataset.orig,date=$("#dgDate").value,opp=$("#dgOpp").value.trim();
     if(!date||!opp){msg($("#dayMsg"),"Add the opponent and date.","err");return;}

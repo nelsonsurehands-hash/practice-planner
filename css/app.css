@@ -533,3 +533,19 @@ body.pb-full{overflow:hidden}
 #rgMarks .mark{border-radius:8px}
 .mark-opt{display:flex;gap:8px;align-items:center;font-size:14px}
 .mark-opt input{width:auto}
+.marks legend small{text-transform:none;letter-spacing:0;font-weight:500}
+.more-days{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:8px;border-left:5px solid var(--line);background:var(--sunk)}
+.more-days.holiday{border-color:var(--cal-hol);background:var(--cal-hol-soft)}
+.more-days.nopr{border-color:var(--muted)}
+.more-days.tryout{border-color:var(--cal-try);background:var(--cal-try-soft)}
+.more-days.meeting{border-color:var(--cal-meet);background:var(--cal-meet-soft)}
+.more-days.practice{border-color:var(--cal-prac);background:var(--cal-prac-soft)}
+.more-days b{font-size:14px}
+.md-row{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+.md-row .f{flex:1 1 150px}
+.md-opt{display:flex;gap:8px;align-items:center;font-size:13.5px}
+.md-opt input{width:auto}
+.more-days .help{margin:0}
+.note-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
+.nchip{display:inline-flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:2px 4px 2px 10px;font-size:13px;color:var(--ink)}
+.nchip .icon{width:24px;height:24px;font-size:12px}

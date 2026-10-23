@@ -21,21 +21,26 @@ const DEFAULT_SETTINGS={sport:"basketball",school:"",mascot:"",teamLabel:"",colo
   seasonStart:"",seasonEnd:"",practiceDays:[1,2,3,4,5],games:[],special:[]};
 const isoOf=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 function addDays(iso,n){const d=dObj(iso);d.setDate(d.getDate()+n);return isoOf(d);}
+/* Special days can stack: a date may have several entries (e.g. "No School" + "Parent meeting",
+   or a break on top of a note). A day off on a date always wins over practice. */
+function specialsByDate(st){const m={};(st.special||[]).forEach(x=>{if(x.date)(m[x.date]=m[x.date]||[]).push(x);});return m;}
+const specialNotes=list=>(list||[]).filter(x=>x.kind!=="off").map(x=>x.note).filter(Boolean);
 function computePractices(st){
   const games={};(st.games||[]).forEach(g=>{if(g.date)games[g.date]=g;});
-  const special={};(st.special||[]).forEach(x=>{if(x.date)special[x.date]=x;});
+  const special=specialsByDate(st);
   const days=new Set(st.practiceDays||[]), out=new Map();
   const noteFor=(iso,base)=>{const g=games[addDays(iso,1)];const before=g?`Before ${g.opponent||"game"} (${DOW[dObj(g.date).getDay()]})`:"";return [base,before].filter(Boolean).join(" · ");};
+  const isOff=l=>(l||[]).some(x=>x.kind==="off"),isExtra=l=>(l||[]).some(x=>x.kind==="extra");
   if(st.seasonStart&&st.seasonEnd&&st.seasonStart<=st.seasonEnd){
     for(let iso=st.seasonStart,guard=0;iso<=st.seasonEnd&&guard<400;iso=addDays(iso,1),guard++){
-      const sp=special[iso];
+      const l=special[iso];
       let on=days.has(dObj(iso).getDay())&&!games[iso];
-      if(sp&&sp.kind==="off")on=false;
-      if(sp&&sp.kind==="extra")on=true;
-      if(on)out.set(iso,noteFor(iso,sp&&sp.kind!=="off"?sp.note||"":""));
+      if(isExtra(l))on=true;
+      if(isOff(l))on=false;
+      if(on)out.set(iso,noteFor(iso,specialNotes(l).join(" · ")));
     }
   }
-  Object.values(special).forEach(x=>{if(x.kind==="extra"&&!out.has(x.date))out.set(x.date,noteFor(x.date,x.note||""));});
+  Object.entries(special).forEach(([d,l])=>{if(isExtra(l)&&!isOff(l)&&!out.has(d))out.set(d,noteFor(d,specialNotes(l).join(" · ")));});
   return [...out.entries()].sort((a,b)=>a[0]<b[0]?-1:1);
 }
 function teamTitle(){return [SETTINGS.school,SETTINGS.mascot].filter(Boolean).join(" ")||"Team";}
@@ -102,7 +107,7 @@ let pickCat="", saveTimer=null;
 
 /* Practice times for a day: a special day's own times (e.g. no-school days start earlier), else weekday/weekend times. */
 function practiceTimes(date,st){
-  st=st||SETTINGS;const sp=(st.special||[]).find(x=>x.date===date);
+  st=st||SETTINGS;const sp=(st.special||[]).find(x=>x.date===date&&x.kind!=="off"&&(x.start||x.end));
   const wk=[0,6].includes(dObj(date).getDay());
   return {start:(sp&&sp.start)||(wk?st.weekendStart:st.weekdayStart)||"16:00",end:(sp&&sp.end)||(wk?st.weekendEnd:st.weekdayEnd)||"18:00"};
 }
