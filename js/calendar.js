@@ -99,12 +99,37 @@ function render(){
     $("#calCallout").innerHTML=need?`<span class="mark">${before>=need?"✓":"!"}</span><span><b>Each player needs ${need} practices</b> before the first game (${where}). ${before} practice${before===1?" is":"s are"} scheduled before then${before>=need?", so this calendar meets the requirement.":`. That's ${need-before} short.`}</span>`
       :`<span class="mark">${before}</span><span><b>${before} practice${before===1?"":"s"}</b> before the first game (${where}). Set a required number in Settings → Season to have it checked.</span>`;
   }else $("#calCallout").hidden=true;
-  $("#calMonths").innerHTML=months.map(([y,m])=>monthHTML(y,m,days)).join("");
+  /* Month view: one month at a time with ‹ › (or swipe). Full season: every month stacked. */
+  const keys=months.map(([y,m])=>y+"-"+m);
+  if(!calMonth||!keys.includes(calMonth)){const t=todayISO(),tk=+t.slice(0,4)+"-"+(+t.slice(5,7)-1);calMonth=keys.includes(tk)?tk:keys[0];}
+  const idx=keys.indexOf(calMonth),one=calView==="month";
+  document.querySelectorAll("[data-calview]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.calview===calView));
+  $("#calNav").hidden=!one;
+  $("#calNavLabel").textContent=one?`${MONTHS[months[idx][1]]} ${months[idx][0]}`:"";
+  $("#calPrev").disabled=idx<=0;$("#calNext").disabled=idx>=keys.length-1;
+  $("#calMonths").classList.toggle("one-month",one);
+  $("#calMonths").innerHTML=(one?[months[idx]]:months).map(([y,m])=>monthHTML(y,m,days)).join("");
   $("#calGames").innerHTML=games.length?`<caption>Game list</caption><thead><tr><th>Date</th><th>Opponent</th><th>Time</th><th>Location</th></tr></thead><tbody>`+
     games.map(g=>`<tr data-day="${g.date}"><td>${longDay(g.date)}</td><td class="opp">${esc(g.opponent||"")}</td><td>${ampm(g.time)}</td><td>${g.home===false?"Away":"Home"}</td></tr>`).join("")+`</tbody>`:"";
   $("#calFoot").textContent=`Practices ${span(st.weekdayStart,st.weekdayEnd)} weekdays${st.weekendStart?`, ${span(st.weekendStart,st.weekendEnd)} weekends`:""}. Change the season, practice days and times in Settings.`;
 }
 window.onCalChange=()=>{if(!$("#view-cal").hidden)render();};
+let calView="month",calMonth=null;
+try{calView=localStorage.getItem("cpp:calView")||"month";}catch{}
+document.querySelector(".cal-viewbar .seg").addEventListener("click",e=>{const b=e.target.closest("[data-calview]");if(!b)return;
+  calView=b.dataset.calview;try{localStorage.setItem("cpp:calView",calView);}catch{}render();});
+function stepMonth(dir){const [y,m]=calMonth.split("-").map(Number);const d=new Date(y,m+dir,1);const k=d.getFullYear()+"-"+d.getMonth();
+  const before=calMonth;calMonth=k;render();if(calMonth===before)return;
+  const el=$("#calMonths .cal-month");if(el){el.classList.add(dir>0?"slide-l":"slide-r");}}
+$("#calPrev").addEventListener("click",()=>stepMonth(-1));
+$("#calNext").addEventListener("click",()=>stepMonth(1));
+/* swipe left/right on the month to change it */
+let calSx=null,calSy=null;
+$("#calMonths").addEventListener("touchstart",e=>{if(calView!=="month")return;calSx=e.touches[0].clientX;calSy=e.touches[0].clientY;},{passive:true});
+$("#calMonths").addEventListener("touchend",e=>{if(calSx===null)return;const dx=e.changedTouches[0].clientX-calSx,dy=e.changedTouches[0].clientY-calSy;calSx=null;
+  if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5){const b=dx<0?$("#calNext"):$("#calPrev");if(!b.disabled)stepMonth(dx<0?1:-1);}},{passive:true});
+document.addEventListener("keydown",e=>{if($("#view-cal").hidden||calView!=="month"||document.querySelector("dialog[open]")||/INPUT|SELECT|TEXTAREA/.test((document.activeElement||{}).tagName||""))return;
+  if(e.key==="ArrowLeft"&&!$("#calPrev").disabled)stepMonth(-1);if(e.key==="ArrowRight"&&!$("#calNext").disabled)stepMonth(1);});
 
 /* ---------- day dialog ---------- */
 let dayIso=null,lastMark=null;
@@ -277,7 +302,9 @@ $("#calMonths").addEventListener("click",e=>{const c=e.target.closest("[data-day
 $("#calGames").addEventListener("click",e=>{const r=e.target.closest("[data-day]");if(r)openDay(r.dataset.day);});
 $("#calAddGame").addEventListener("click",()=>{openDay(todayISO()>=(SETTINGS.seasonStart||"")?todayISO():SETTINGS.seasonStart);const det=$("#dayBody").querySelector("details.day-edit:has(.day-game)");if(det)det.open=true;});
 $("#calToday").addEventListener("click",()=>{
-  const t=todayISO(),el=document.getElementById(`cal-${+t.slice(0,4)}-${+t.slice(5,7)}`)||$("#calMonths .cal-month");
+  const t=todayISO();
+  if(calView==="month"){calMonth=+t.slice(0,4)+"-"+(+t.slice(5,7)-1);render();$("#calNav").scrollIntoView({behavior:"smooth",block:"start"});return;}
+  const el=document.getElementById(`cal-${+t.slice(0,4)}-${+t.slice(5,7)}`)||$("#calMonths .cal-month");
   if(el)el.scrollIntoView({behavior:"smooth",block:"start"});
 });
 
