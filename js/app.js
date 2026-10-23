@@ -987,7 +987,7 @@ function enterFull(){
     <div class="fs-row fs-scroll" id="fsTools"></div><div class="fs-row fs-scroll" id="fsSteps"></div><div class="fs-row fs-scroll" id="fsPlay"></div>`;
   card.insertBefore(bar,card.firstChild);
   const head=bar.querySelector(".fs-head");
-  fsMove($("#pSave"),head);fsMove($("#pStatus"),head);
+  fsMove($("#pSave"),head);fsMove($("#pStatus"),head);fsMove($("#pHelp"),head);
   fsMove($("#ptools"),$("#fsTools"));fsMove(document.querySelector("#view-plays .toolbar.edit-only:not(#ptools)"),$("#fsTools"));
   fsMove($("#pSteps").parentNode,$("#fsSteps"));
   fsMove(document.querySelector("#view-plays .player"),$("#fsPlay"));fsMove($("#pLines"),$("#fsPlay"));
