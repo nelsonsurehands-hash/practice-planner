@@ -348,6 +348,7 @@ function readForm(){
   draft.sport=$("#sSport").value;
   draft.school=$("#sSchool").value.trim();draft.mascot=$("#sMascot").value.trim();draft.teamLabel=$("#sLabel").value.trim();draft.color=$("#sColor").value;
   draft.color2=$("#sUseC2").checked?$("#sColor2").value:"";
+  {const r=document.querySelector('input[name="sIcon"]:checked');if(r)draft.appIcon=r.value;}
   draft.weekdayStart=$("#sWdS").value;draft.weekdayEnd=$("#sWdE").value;draft.weekendStart=$("#sWeS").value;draft.weekendEnd=$("#sWeE").value;
   draft.seasonStart=$("#sStart").value;draft.seasonEnd=$("#sEnd").value;
   draft.minPractices=+$("#sMinPr").value||0;
@@ -394,7 +395,7 @@ window.onSettingsTab=function(){
   draft.games=draft.games||[];draft.special=draft.special||[];
   $("#sSport").value=draft.sport||"basketball";$("#sSportHelp").hidden=true;
   $("#sSchool").value=draft.school||"";$("#sMascot").value=draft.mascot||"";$("#sLabel").value=draft.teamLabel||"";$("#sColor").value=draft.color||"#5b2a86";
-  $("#sColor2").value=draft.color2||"#f2b705";$("#sUseC2").checked=!!draft.color2;renderLogoEdit();
+  $("#sColor2").value=draft.color2||"#f2b705";$("#sUseC2").checked=!!draft.color2;renderLogoEdit();renderIconPick();
   $("#sWdS").value=draft.weekdayStart||"";$("#sWdE").value=draft.weekdayEnd||"";$("#sWeS").value=draft.weekendStart||"";$("#sWeE").value=draft.weekendEnd||"";
   $("#sStart").value=draft.seasonStart||"";$("#sEnd").value=draft.seasonEnd||"";$("#sMinPr").value=draft.minPractices||"";
   document.querySelectorAll("#sDays input").forEach(x=>x.checked=(draft.practiceDays||[]).includes(+x.value));
@@ -403,6 +404,16 @@ window.onSettingsTab=function(){
   document.querySelectorAll("#view-settings .st-edit .acc-body :is(input,select,button)").forEach(el=>el.disabled=!PERM.schedule);
   accSummaries();
 };
+/* App icon choices, previewed in the colors and logo currently on the form. */
+function renderIconPick(){
+  const st={...draft,color:$("#sColor").value,color2:$("#sUseC2").checked?$("#sColor2").value:""};
+  $("#sIconColors").src=iconCanvas(st,96,{mode:"colors",round:true});
+  const logoOpt=document.querySelector('input[name="sIcon"][value="logo"]');logoOpt.disabled=!draft.logo;
+  logoOpt.closest("label").title=draft.logo?"":"Upload a team logo first";
+  if(draft.logo){const im=new Image();im.onload=()=>{$("#sIconLogo").src=iconCanvas(st,96,{mode:"logo",img:im,round:true});};im.src=draft.logo;}
+  else $("#sIconLogo").src=iconCanvas({...st},96,{mode:"colors",round:true});
+  const cur=draft.appIcon||appIconMode(st),r=document.querySelector(`input[name="sIcon"][value="${cur==="logo"&&!draft.logo?"colors":cur}"]`);if(r)r.checked=true;
+}
 function renderLogoEdit(){
   $("#sLogoPrev").innerHTML=draft.logo?`<img src="${draft.logo}" alt="Team logo">`:"No logo";
   $("#sLogoRm").hidden=!draft.logo;
@@ -419,13 +430,15 @@ function shrinkImage(file,max){
 $("#sLogo").addEventListener("change",async e=>{
   const f=e.target.files[0];e.target.value="";if(!f)return;
   try{let out=await shrinkImage(f,256);if(out.length>150000)out=await shrinkImage(f,160);
-    draft.logo=out;renderLogoEdit();$("#sStatus").textContent="Unsaved changes";}
+    draft.logo=out;renderLogoEdit();renderIconPick();$("#sStatus").textContent="Unsaved changes";}
   catch{$("#sStatus").textContent="That file couldn't be read as an image. Try a PNG or JPG.";}
 });
-$("#sLogoRm").addEventListener("click",()=>{draft.logo="";renderLogoEdit();$("#sStatus").textContent="Unsaved changes";});
+$("#sLogoRm").addEventListener("click",()=>{draft.logo="";if(draft.appIcon==="logo")draft.appIcon="colors";renderLogoEdit();renderIconPick();$("#sStatus").textContent="Unsaved changes";});
 const settingsView=$("#view-settings");
 $("#sSport").addEventListener("change",()=>{$("#sSportHelp").hidden=$("#sSport").value===((team.settings||{}).sport||"basketball");});
 settingsView.addEventListener("input",e=>{
+  if(e.target.name==="sIcon")draft.appIcon=e.target.value;
+  if(["sColor","sColor2","sUseC2"].includes(e.target.id))renderIconPick();
   const row=e.target.closest(".row");
   if(row){const list=row.classList.contains("game")?draft.games:draft.special,item=list[+row.dataset.i],f=e.target.dataset.f;
     item[f]=f==="home"?e.target.value==="1":e.target.value;}

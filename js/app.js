@@ -54,7 +54,63 @@ function applyBrand(st){
   else{root.style.removeProperty("--team2");root.classList.remove("has-c2");}
   const img=document.getElementById("brandLogo");
   if(img){if(st.logo){img.src=st.logo;img.hidden=false;}else{img.removeAttribute("src");img.hidden=true;}}
-  const fav=document.querySelector('link[rel="icon"]');if(fav)fav.href=st.logo||"icons/icon-192.png";
+  applyAppIcon(st);
+}
+/* ---------- app icon in the team's look ----------
+   "colors": the court icon redrawn in the team color (second color for the ball)
+   "logo":   the team logo on the team color
+   "classic": the original purple icon
+   Phones take the icon when the app is added to the home screen, so a coach who changes it
+   re-adds the app once to see the new icon. */
+function appIconMode(st){return st.appIcon||(st.color&&st.color.toLowerCase()!=="#5b2a86"?"colors":"classic");}
+function drawCourtIcon(ctx,N,o){
+  const pad=N*(o.pad||88)/512,k=(N-2*pad)/336,P=(x,y)=>[pad+x*k,pad+y*k],w=14*k;
+  ctx.fillStyle=o.bg;
+  if(o.round){const r=N*.22;ctx.beginPath();ctx.moveTo(r,0);ctx.arcTo(N,0,N,N,r);ctx.arcTo(N,N,0,N,r);ctx.arcTo(0,N,0,0,r);ctx.arcTo(0,0,N,0,r);ctx.closePath();ctx.fill();}
+  else ctx.fillRect(0,0,N,N);
+  ctx.strokeStyle=o.line;ctx.lineWidth=w;ctx.lineCap="butt";
+  const rect=(x0,y0,x1,y1)=>{const a=P(x0,y0),b=P(x1,y1);ctx.strokeRect(a[0],a[1],b[0]-a[0],b[1]-a[1]);};
+  const circ=(cx,cy,r,lw)=>{const c=P(cx,cy);ctx.lineWidth=lw||w;ctx.beginPath();ctx.arc(c[0],c[1],r*k,0,Math.PI*2);ctx.stroke();ctx.lineWidth=w;};
+  const line=(x0,y0,x1,y1)=>{const a=P(x0,y0),b=P(x1,y1);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();};
+  rect(0,0,336,336);rect(112,0,224,105);circ(168,105,40);
+  const bx=168,by=40,xL=30,xR=306,yc=58,R=Math.hypot(bx-xL,yc-by),a0=Math.atan2(yc-by,xR-bx);
+  line(xL,0,xL,yc);line(xR,0,xR,yc);
+  const c=P(bx,by);ctx.beginPath();ctx.arc(c[0],c[1],R*k,a0,Math.PI-a0);ctx.stroke();
+  line(138,22,198,22);circ(168,40,12,10*k);
+  const bc=P(242,268);ctx.fillStyle=o.ball;ctx.beginPath();ctx.arc(bc[0],bc[1],38*k,0,Math.PI*2);ctx.fill();
+}
+function iconCanvas(st,N,opts){
+  const c=document.createElement("canvas");c.width=c.height=N;const x=c.getContext("2d");
+  const team=st.color||"#5b2a86",ink=contrastInk(team);
+  if(opts.mode==="logo"&&opts.img){
+    x.fillStyle=team;if(opts.round){const r=N*.22;x.beginPath();x.moveTo(r,0);x.arcTo(N,0,N,N,r);x.arcTo(N,N,0,N,r);x.arcTo(0,N,0,0,r);x.arcTo(0,0,N,0,r);x.closePath();x.fill();}else x.fillRect(0,0,N,N);
+    const im=opts.img,box=N*(opts.safe?.62:.78),s=Math.min(box/im.naturalWidth,box/im.naturalHeight),w=im.naturalWidth*s,h=im.naturalHeight*s;
+    x.drawImage(im,(N-w)/2,(N-h)/2,w,h);
+  }else drawCourtIcon(x,N,{bg:team,line:ink==="#ffffff"?"#ffffff":"#17141c",ball:st.color2||"#f0884a",round:opts.round,pad:opts.safe?120:(opts.round?88:60)});
+  return c.toDataURL("image/png");
+}
+let _iconKey=null,_manifestURL=null;
+function applyAppIcon(st){
+  const mode=appIconMode(st),key=[mode,st.color,st.color2,mode==="logo"?(st.logo||"").length+":"+(st.logo||"").slice(-40):""].join("|");
+  if(key===_iconKey)return;_iconKey=key;
+  const setLinks=(fav,touch,icons)=>{
+    const f=document.querySelector('link[rel="icon"]');if(f)f.href=fav;
+    const t=document.querySelector('link[rel="apple-touch-icon"]');if(t)t.href=touch;
+    const name=[st.mascot||st.school].filter(Boolean)[0]||"Practice Planner";
+    const tm=document.querySelector('meta[name="apple-mobile-web-app-title"]');if(tm)tm.content=name;
+    const base=location.href.replace(/[#?].*$/,"").replace(/[^/]*$/,"");
+    const man={name:`${name} Practice Planner`,short_name:name.slice(0,12),start_url:base,scope:base,display:"standalone",background_color:"#f3f2f6",theme_color:st.color||"#5b2a86",icons};
+    try{if(_manifestURL)URL.revokeObjectURL(_manifestURL);_manifestURL=URL.createObjectURL(new Blob([JSON.stringify(man)],{type:"application/manifest+json"}));
+      const ml=document.querySelector('link[rel="manifest"]');if(ml)ml.href=_manifestURL;}catch{}
+  };
+  if(mode==="classic"){setLinks(st.logo||"icons/icon-192.png","icons/apple-touch-icon.png",[{src:location.href.replace(/[^/]*$/,"")+"icons/icon-192.png",sizes:"192x192",type:"image/png"},{src:location.href.replace(/[^/]*$/,"")+"icons/icon-512.png",sizes:"512x512",type:"image/png"}]);return;}
+  const go=img=>{
+    const m=img?"logo":"colors";
+    const i192=iconCanvas(st,192,{mode:m,img,round:true}),i512=iconCanvas(st,512,{mode:m,img,round:true}),
+      touch=iconCanvas(st,180,{mode:m,img,round:false}),mask=iconCanvas(st,512,{mode:m,img,round:false,safe:true});
+    setLinks(st.logo&&m!=="logo"?st.logo:i192,touch,[{src:i192,sizes:"192x192",type:"image/png"},{src:i512,sizes:"512x512",type:"image/png"},{src:mask,sizes:"512x512",type:"image/png",purpose:"maskable"}]);
+  };
+  if(mode==="logo"&&st.logo){const im=new Image();im.onload=()=>go(im);im.onerror=()=>go(null);im.src=st.logo;}else go(null);
 }
 /* A grayscale PNG of the logo for the black-and-white printouts (cached per logo). */
 let _grayLogo={src:null,url:null,w:0,h:0};
