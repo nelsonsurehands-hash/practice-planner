@@ -528,3 +528,8 @@ body.pb-full{overflow:hidden}
 .qe-row input{padding:5px 6px;font-size:14px}
 .qe-unit{font-size:12px;color:var(--muted)}
 .qe-custom{display:grid;grid-template-columns:minmax(0,1fr) 70px auto;gap:6px;align-items:end}
+#rangeDlg{width:min(480px,calc(100vw - 32px))}
+#rgMarks{flex-direction:column;align-items:stretch}
+#rgMarks .mark{border-radius:8px}
+.mark-opt{display:flex;gap:8px;align-items:center;font-size:14px}
+.mark-opt input{width:auto}

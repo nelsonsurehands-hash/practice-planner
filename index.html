@@ -272,6 +272,7 @@
     <button class="btn" type="button" id="calToday">Jump to today</button>
     <button class="btn" type="button" id="calIcs">Export calendar</button>
     <button class="btn edit-only" type="button" id="calAddGame">+ Game</button>
+    <button class="btn edit-only" type="button" id="calRange">Mark several days</button>
     <span class="help" id="calHint">Tap a day to see it, open its practice plan, or change it.</span>
   </div>
   <div class="cal-callout" id="calCallout" hidden></div>
@@ -381,6 +382,22 @@
     </div>
     <div class="msg" id="expMsg" aria-live="polite"></div>
     <div class="actions" style="margin:0"><button class="btn" type="button" id="expClose">Close</button></div>
+  </div>
+</dialog>
+
+<dialog id="rangeDlg" aria-labelledby="rangeTitle">
+  <div class="dlg">
+    <h2 id="rangeTitle">Mark several days</h2>
+    <p class="help">For a school break, a stretch of tryouts, or any run of days. Every day from the first date to the last gets the same mark.</p>
+    <div class="grid2"><label class="f">From<input type="date" id="rgFrom"></label><label class="f">Through<input type="date" id="rgTo"></label></div>
+    <fieldset class="marks" id="rgMarks"><legend>Mark</legend></fieldset>
+    <label class="f">Name (shows on the calendar)<input id="rgName" placeholder="e.g. Winter Break, Thanksgiving Break"></label>
+    <div class="grid2" id="rgTimes"><label class="f">Practice starts<input type="time" id="rgStart"></label><label class="f">Practice ends<input type="time" id="rgEnd"></label></div>
+    <p class="help" id="rgTimesHelp">Leave the times blank to keep each day's usual practice time.</p>
+    <label class="mark-opt"><input type="checkbox" id="rgPractice" checked> Only days we'd normally practice (skips weekends and game days)</label>
+    <p class="help" id="rgPreview" aria-live="polite"></p>
+    <div class="actions" style="margin:0"><button class="btn primary" type="button" id="rgApply">Apply</button><button class="btn danger" type="button" id="rgClear">Clear marks on these days</button><button class="btn" type="button" id="rgClose">Close</button></div>
+    <div class="msg" id="rgMsg"></div>
   </div>
 </dialog>
 

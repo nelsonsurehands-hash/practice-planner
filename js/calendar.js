@@ -57,7 +57,10 @@ function monthHTML(y,m,days){
   const isoD=dd=>`${y}-${String(m+1).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;
   let pr=0,gm=0;const offs=[];
   for(let dd=1;dd<=n;dd++){const d=days[isoD(dd)];if(!d)continue;if(d.practice)pr++;if(d.game)gm++;if(d.off&&d.off.note)offs.push([dd,d.off.note]);}
-  const offTxt=offs.length?` · No practice ${offs.map(([dd,t])=>`${MONTHS[m].slice(0,3)} ${dd}${t?" ("+esc(t)+")":""}`).join(", ")}`:"";
+  /* group a run of days with the same name (a break) into one "Dec 21–31 (Winter Break)" */
+  const runs=[];offs.forEach(([dd,t])=>{const r=runs[runs.length-1];if(r&&r.t===t)r.b=dd;else runs.push({a:dd,b:dd,t});});
+  const mo=MONTHS[m].slice(0,3);
+  const offTxt=runs.length?` · No practice ${runs.map(r=>`${mo} ${r.a}${r.b>r.a?"–"+r.b:""}${r.t?" ("+esc(r.t)+")":""}`).join(", ")}`:"";
   let cells="";for(let i=0;i<pad;i++)cells+=`<div class="cal-cell pad"></div>`;
   for(let dd=1;dd<=n;dd++){const iso=isoD(dd);cells+=cellHTML(iso,days[iso]);}
   const tail=(7-((pad+n)%7))%7;for(let i=0;i<tail;i++)cells+=`<div class="cal-cell pad"></div>`;
@@ -72,7 +75,7 @@ function render(){
   $("#calEyebrow").textContent=[st.school&&st.mascot?st.school+" "+st.mascot:st.school||st.mascot,st.teamLabel].filter(Boolean).join(" · ");
   const fmtM=iso=>iso?`${MONTHS[+iso.slice(5,7)-1]} ${iso.slice(0,4)}`:"";
   $("#calSeason").innerHTML=st.seasonStart?`<b>${fmtM(st.seasonStart)} – ${fmtM(st.seasonEnd)}</b><small>${practices.length} practices · ${(st.games||[]).length} games</small>`:"";
-  $("#calAddGame").hidden=!editable();
+  $("#calAddGame").hidden=!editable();$("#calRange").hidden=!editable();
   if(!months.length){
     $("#calMonths").innerHTML=`<div class="empty">No schedule yet. Set your season dates and practice days in Settings, or tap + Game to add your first game.</div>`;
     $("#calCallout").hidden=true;$("#calGames").innerHTML="";$("#calFoot").textContent="";return;
@@ -127,7 +130,7 @@ function renderDay(){
     h+=`<details class="day-edit"><summary>Add a practice this day</summary><div class="grid2"><label class="f">Starts<input type="time" id="dpStart" value="${t.start}"></label><label class="f">Ends<input type="time" id="dpEnd" value="${t.end}"></label></div>
       <label class="f">Note<input id="dpNote" placeholder="Optional"></label><div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="savePractice">Add practice</button></div></details>
       <details class="day-edit"><summary>Mark as a day off or holiday</summary><label class="f">Name<input id="dpOff" placeholder="e.g. Thanksgiving"></label><div class="actions" style="margin:0"><button class="btn" type="button" data-act="markOff">Save day off</button></div></details>`;}
-  h+=`<div class="msg" id="dayMsg"></div><div class="actions" style="margin:0"><button class="btn" type="button" data-act="close">Close</button></div>`;
+  h+=`<div class="msg" id="dayMsg"></div><div class="actions" style="margin:0">${ed?`<button class="btn" type="button" data-act="range">Mark several days from here…</button>`:""}<button class="btn" type="button" data-act="close">Close</button></div>`;
   $("#dayBody").innerHTML=h;
 }
 /* Quick marks: one tap sets the day, colored like the legend. Tap again to clear it.
@@ -152,6 +155,70 @@ function markValue(id,regular,sp){
     case "extra":return {kind:"extra",note:""};
   }
 }
+/* ---------- mark several days at once (a school break, a week of tryouts…) ---------- */
+const RANGE_MARKS=[
+  {id:"holiday",label:"Break / holiday (no practice)",cls:"holiday",times:false},
+  {id:"noschool",label:"No school (practice still on)",cls:"holiday",times:true},
+  {id:"nopractice",label:"No practice",cls:"nopr",times:false},
+  {id:"tryout",label:"Tryouts",cls:"tryout",times:true},
+  {id:"extra",label:"Extra practices",cls:"practice",times:true},
+];
+function rangeDays(){
+  const a=$("#rgFrom").value,b=$("#rgTo").value;if(!a||!b||b<a)return [];
+  const st=SETTINGS,games=new Set((st.games||[]).map(g=>g.date)),only=$("#rgPractice").checked,out=[];
+  for(let d=a,i=0;d<=b&&i<370;d=addDays(d,1),i++){
+    const reg=(st.practiceDays||[]).includes(dObj(d).getDay())&&!games.has(d);
+    if(only&&!reg&&rangeMark()!=="extra")continue;
+    out.push({d,reg});
+  }
+  return out;
+}
+const rangeMark=()=>{const c=$("#rgMarks input:checked");return c?c.value:"holiday";};
+function rangePreview(){
+  const m=RANGE_MARKS.find(x=>x.id===rangeMark()),days=rangeDays();
+  $("#rgTimes").hidden=!m.times;$("#rgTimesHelp").hidden=!m.times;
+  $("#rgPractice").closest("label").hidden=m.id==="extra";
+  const a=$("#rgFrom").value,b=$("#rgTo").value;
+  $("#rgPreview").textContent=!a||!b?"Pick the first and last day.":b<a?"The last day needs to be on or after the first day.":
+    days.length?`${days.length} day${days.length>1?"s":""}: ${dLabel(days[0].d)}${days.length>1?" to "+dLabel(days[days.length-1].d):""}.`:"No days match. Untick “Only days we'd normally practice” to include every day.";
+}
+function openRange(from){
+  $("#rgMarks").innerHTML=`<legend>Mark</legend>`+RANGE_MARKS.map((m,i)=>`<label class="mark ${m.cls}"><input type="radio" name="rgMark" value="${m.id}"${i?"":" checked"}><span>${m.label}</span></label>`).join("");
+  $("#rgFrom").value=from||"";$("#rgTo").value=from||"";$("#rgName").value="";$("#rgStart").value="";$("#rgEnd").value="";$("#rgMsg").textContent="";
+  rangePreview();$("#rangeDlg").showModal();
+}
+$("#calRange").addEventListener("click",()=>openRange(todayISO()));
+["#rgFrom","#rgTo","#rgPractice"].forEach(q=>$(q).addEventListener("change",()=>{if(q==="#rgFrom"&&(!$("#rgTo").value||$("#rgTo").value<$("#rgFrom").value))$("#rgTo").value=$("#rgFrom").value;rangePreview();}));
+$("#rgMarks").addEventListener("change",rangePreview);
+$("#rgClose").addEventListener("click",()=>$("#rangeDlg").close());
+async function applyRange(fn,done){
+  const days=rangeDays();if(!days.length){msg($("#rgMsg"),"No days to change.","err");return;}
+  const st=JSON.parse(JSON.stringify(team.settings||{}));st.games=st.games||[];st.special=st.special||[];
+  days.forEach(x=>fn(st,x));msg($("#rgMsg"),"Saving…");
+  try{await saveSettings(st);render();msg($("#rgMsg"),done(days.length),"ok");}
+  catch(err){msg($("#rgMsg"),"Not saved: "+(err.message||"check your connection"),"err");}
+}
+$("#rgApply").addEventListener("click",()=>{
+  const id=rangeMark(),m=RANGE_MARKS.find(x=>x.id===id),name=$("#rgName").value.trim(),start=$("#rgStart").value,end=$("#rgEnd").value;
+  if(m.times&&start&&end&&end<=start){msg($("#rgMsg"),"The end time needs to be after the start time.","err");return;}
+  const times=m.times&&start&&end?{start,end}:{};
+  applyRange((st,x)=>{let v;
+    if(id==="holiday")v={kind:"off",note:name||"Break"};
+    else if(id==="nopractice")v={kind:"off",note:name||"No practice"};
+    else if(id==="noschool")v={kind:x.reg?"note":"note",note:name||"No School",...times};
+    else if(id==="tryout")v={kind:x.reg?"note":"extra",note:name||"Tryouts",...times};
+    else v={kind:x.reg?"note":"extra",note:name||"",...times};
+    if(id==="extra"&&x.reg&&!name&&!times.start)v=null;   // already a practice day: nothing to add
+    setSpecial(st,x.d,v);
+  },n=>`Marked ${n} day${n>1?"s":""}.`);
+});
+$("#rgClear").addEventListener("click",e=>{
+  const b=e.currentTarget;
+  if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to clear";setTimeout(()=>{b.dataset.armed="";b.textContent="Clear marks on these days";},3000);return;}
+  b.dataset.armed="";b.textContent="Clear marks on these days";
+  applyRange((st,x)=>setSpecial(st,x.d,null),n=>`Cleared marks on ${n} day${n>1?"s":""}. Practices are back to normal there.`);
+});
+
 $("#dayBody").addEventListener("change",e=>{
   const c=e.target.closest("[data-mark]");if(!c)return;
   const iso=dayIso,st0=SETTINGS,sp=(st0.special||[]).find(x=>x.date===iso);
@@ -189,6 +256,7 @@ $("#dayBody").addEventListener("click",e=>{
   }
   const a=b.dataset.act;
   if(a==="close"){$("#dayDlg").close();return;}
+  if(a==="range"){$("#dayDlg").close();openRange(dayIso);return;}
   if(b.classList.contains("day-del")&&b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to delete";setTimeout(()=>{b.dataset.armed="";b.textContent=b.dataset.label;},3000);return;}
   const regular=(st0.practiceDays||[]).includes(dObj(iso).getDay())&&st0.seasonStart&&iso>=st0.seasonStart&&iso<=st0.seasonEnd&&!(st0.games||[]).some(g=>g.date===iso);
   if(a==="savePractice"){
