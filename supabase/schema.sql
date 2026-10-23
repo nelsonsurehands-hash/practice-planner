@@ -408,9 +408,10 @@ revoke all on function public.set_member_perms(uuid, uuid, jsonb) from public, a
 
 alter table public.team_members add column if not exists perms jsonb;
 
--- Allow the new kinds of saved items: players (roster) and trips (bus lists).
+-- Allow the new kinds of saved items: players (roster), trips (bus lists),
+-- scouts (scouting reports, one per opponent) and gameplans (one per game).
 alter table public.items drop constraint if exists items_kind_check;
-alter table public.items add constraint items_kind_check check (kind in ('drills','plans','plays','players','trips'));
+alter table public.items add constraint items_kind_check check (kind in ('drills','plans','plays','players','trips','scouts','gameplans'));
 
 create or replace function public.can_edit(t uuid, area text) returns boolean
 language sql stable security definer set search_path = public as $$

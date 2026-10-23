@@ -165,7 +165,7 @@ The app doesn't store any player information. If you add rosters or attendance l
 - **Sign-in:** Google sign-in (Supabase → Authentication → Providers → Google, plus one line in `boot.js`).
 - **Billing:** subscriptions through Stripe, if you want to charge other coaches.
 
-## Team tools (roster, bus lists, game-day food sign-ups)
+## Team tools (roster, gameplans, scouting reports, bus lists, game-day food sign-ups)
 
 The Team tab needs one database update. In Supabase → SQL Editor → New query, paste
 `supabase/team-tools.sql` and tap Run. It is safe to run more than once. Parents open the food

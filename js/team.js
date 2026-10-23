@@ -27,7 +27,7 @@ function showPane(p){
   render();
   if(pane==="food"&&food&&!$("#view-team").hidden)loadFood();   // pick up new sign-ups
 }
-window.goTeam=(p,opts)=>{if(opts&&opts.date)busDate=opts.date;setTab("team");showPane(p);};
+window.goTeam=(p,opts)=>{if(opts&&opts.date){if(p==="bus")busDate=opts.date;else if(window.TM)TM.date=opts.date;}setTab("team");showPane(p);};
 window.onTeamTab=()=>showPane(pane);
 $(".tm-nav").addEventListener("click",e=>{const b=e.target.closest("[data-tm]");if(b)showPane(b.dataset.tm);});
 document.addEventListener("click",e=>{const b=e.target.closest("[data-goteam]");if(b)window.goTeam(b.dataset.goteam);});
@@ -39,12 +39,21 @@ function render(){
   if(pane==="staff")renderStaff();
   if(pane==="bus")renderBus();
   if(pane==="food")renderFood();
+  if(TM.panes[pane])TM.panes[pane]();
 }
+/* If the team opened before this file finished loading (demo mode opens instantly), catch up. */
+setTimeout(()=>{if(typeof store!=="undefined"&&store&&openedFor!==store)window.onTeamOpen();},0);
+/* Shared with js/gameplan.js (Gameplan and Scouting report sections). */
+const TM=window.TM={panes:{},opened:[],date:null,get roster(){return ROSTER;},get pane(){return pane;},can,
+  put:(k,id,b)=>put(k,id,b),dbHelp:DB_HELP,isDbMissing,pname,hm,longDay,slug:s=>slug(s),pdfDoc:()=>pdfDoc(),pdfHead:(d,t,s)=>pdfHead(d,t,s),
+  needsDb:()=>needsDb,render:()=>render()};
 
 /* ---------- data for the open team ---------- */
+let openedFor=null;
 window.onTeamOpen=function(){
+  openedFor=store;
   unsubs.forEach(u=>{try{u()}catch{}});unsubs=[];ROSTER=[];TRIPS={};busDate=null;rosterEdit=null;food=null;needsDb="";
-  unsubs.push(store.collection("players").onSnapshot(s=>{ROSTER=s.docs.map(d=>({id:d.id,...d.data()})).sort(byNum);if(["roster","bus"].includes(pane))render();},()=>{}));
+  unsubs.push(store.collection("players").onSnapshot(s=>{ROSTER=s.docs.map(d=>({id:d.id,...d.data()})).sort(byNum);if(["roster","bus","game"].includes(pane))render();},()=>{}));
   /* Bus lists: redraw only for changes from someone else, so typing here isn't interrupted. */
   unsubs.push(store.collection("trips").onSnapshot(s=>{
     const next=Object.fromEntries(s.docs.map(d=>[d.id,d.data()]));
@@ -53,6 +62,7 @@ window.onTeamOpen=function(){
     TRIPS=next;
     if(changed&&pane==="bus"&&!(document.activeElement&&document.activeElement.closest("#tm-bus input")))render();
   },()=>{}));
+  TM.opened.forEach(f=>{try{f()}catch(e){console.error(e)}});
   render();
 };
 async function put(kind,id,body){

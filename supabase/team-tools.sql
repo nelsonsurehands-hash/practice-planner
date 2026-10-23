@@ -1,15 +1,17 @@
 -- Coach Practice Planner: team tools (added Oct 2026).
 --   * Roster: players and parent contacts (kind 'players'), hidden from view-only members.
 --   * Bus lists for away games (kind 'trips').
+--   * Scouting reports (kind 'scouts') and gameplans (kind 'gameplans'): editable by whoever can edit practice plans.
 --   * Game-day food sign-up sheets parents open from a link, with no account.
 -- Run once in Supabase → SQL Editor → New query → paste → Run. Safe to run again.
 -- It includes the roles and permissions setup, so it works whether or not roles.sql was run.
 
 alter table public.team_members add column if not exists perms jsonb;
 
--- Allow the new kinds of saved items: players (roster) and trips (bus lists).
+-- Allow the new kinds of saved items: players (roster), trips (bus lists),
+-- scouts (scouting reports, one per opponent) and gameplans (one per game).
 alter table public.items drop constraint if exists items_kind_check;
-alter table public.items add constraint items_kind_check check (kind in ('drills','plans','plays','players','trips'));
+alter table public.items add constraint items_kind_check check (kind in ('drills','plans','plays','players','trips','scouts','gameplans'));
 
 create or replace function public.can_edit(t uuid, area text) returns boolean
 language sql stable security definer set search_path = public as $$

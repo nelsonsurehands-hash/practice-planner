@@ -175,7 +175,7 @@ function renderDay(){
   }
   if(d.game){const g=d.game;
     h+=`<div class="day-ev game"><b>${g.home===false?"at ":"vs "}${esc(g.opponent||"Game")}</b><span>${ampm(g.time)} · ${g.home===false?"Away":"Home"}</span>${ed?delBtn("delGame","Delete game"):""}</div>`;
-    if(g.home===false)h+=`<div class="actions day-bus"><button class="btn" type="button" data-act="busList">Bus list for this game</button></div>`;
+    h+=`<div class="actions day-bus"><button class="btn" type="button" data-act="gamePlan">Gameplan</button><button class="btn" type="button" data-act="scoutRep">Scouting report</button>${g.home===false?`<button class="btn" type="button" data-act="busList">Bus list</button>`:""}</div>`;
     if(ed)h+=`<details class="day-edit"><summary>Edit this game</summary>${gameForm(g)}</details>`;
   }
   const bus=list.find(x=>x.bus!==undefined||isBus(x.note));
@@ -257,6 +257,7 @@ $("#dayBody").addEventListener("click",e=>{
       const s=st.special[i];if(s.start||s.end){s.note="";}else st.special.splice(i,1);}},"Removed");return;}
   const a=b.dataset.act;
   if(a==="close"){$("#dayDlg").close();return;}
+  if(a==="gamePlan"||a==="scoutRep"){$("#dayDlg").close();window.goTeam&&window.goTeam(a==="gamePlan"?"game":"scout",{date:dayIso});return;}
   if(a==="busList"){$("#dayDlg").close();window.goTeam&&window.goTeam("bus",{date:dayIso});return;}
   if(b.classList.contains("day-del")&&b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to confirm";setTimeout(()=>{b.dataset.armed="";b.textContent=b.dataset.label;},3000);return;}
   const regular=isRegular(st0,iso);
