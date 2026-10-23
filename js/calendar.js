@@ -8,7 +8,7 @@ const ampm=t=>{if(!t)return "";const [h,m]=t.split(":").map(Number);return `${((
 const span=(a,b)=>{const A=ampm(a),B=ampm(b);return A.slice(-2)===B.slice(-2)?`${A.slice(0,-3)} – ${B}`:`${A} – ${B}`;};
 const longDay=iso=>dObj(iso).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
 const fullDay=iso=>dObj(iso).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
-const isTryout=n=>/tryout/i.test(n||""), isMeeting=n=>/meeting/i.test(n||"");
+const isTryout=n=>/tryout/i.test(n||""), isMeeting=n=>/meeting/i.test(n||""), isBus=n=>/^bus\b/i.test(n||"");
 const editable=()=>typeof PERM!=="undefined"&&PERM.schedule;
 
 /* Everything that happens on each date. A date can carry several marks at once. */
@@ -41,21 +41,25 @@ function cellHTML(iso,d){
   const today=iso===todayISO();
   if(!d)return `<button type="button" class="cal-cell${today?" today":""}" data-day="${iso}"><span class="d">${+iso.slice(8)}</span></button>`;
   let cls="",body="";
-  const tagsHTML=list=>list.filter(n=>!isTryout(n)&&!isMeeting(n)).map(n=>`<span class="tag holiday">${esc(n)}</span>`).join("")+
-    list.filter(isMeeting).map(n=>`<span class="ev meeting"><b>${esc(n.replace(/^practice\s*\+\s*/i,""))}</b></span>`).join("");
+  /* order: games and practices first, then team events (meetings, bus), then school labels like No School */
+  const evHTML=list=>list.filter(isMeeting).map(n=>`<span class="ev meeting"><b>${esc(n.replace(/^practice\s*\+\s*/i,""))}</b></span>`).join("")+
+    list.filter(isBus).map(n=>`<span class="ev bus"><b>${esc(n)}</b></span>`).join("");
+  const tagsHTML=list=>list.filter(n=>!isTryout(n)&&!isMeeting(n)&&!isBus(n)).map(n=>`<span class="tag holiday">${esc(n)}</span>`).join("");
   if(d.game){
     const g=d.game;cls="game";
     body+=`<span class="tag ${g.home===false?"away":"home"}">${g.home===false?"Away":"Home"}</span><span class="ev"><b>${g.home===false?"at ":""}${esc(g.opponent||"Game")}</b><small>${ampm(g.time)}</small></span>`;
   }
-  if(d.off&&d.off.note){const np=/^no practice$/i.test(d.off.note);cls=cls||(np?"nopr":"holiday");body+=np?`<span class="ev nopr"><b>No practice</b></span>`:`<span class="ev holiday"><b>${esc(d.off.note)}</b><small>No practice</small></span>`;}
+  let after="";
+  if(d.off&&d.off.note){const np=/^no practice$/i.test(d.off.note);cls=cls||(np?"nopr":"holiday");after+=np?`<span class="ev nopr"><b>No practice</b></span>`:`<span class="ev holiday"><b>${esc(d.off.note)}</b><small>No practice</small></span>`;}
   if(d.practice){
     const p=d.practice,tr=p.notes.some(isTryout);cls=cls||(tr?"tryout":"practice");
-    body+=tagsHTML(p.notes.filter(n=>!isMeeting(n)));
     body+=`<span class="ev"><b>${tr?"Tryouts":"Practice"}</b><small>${span(p.start,p.end)}</small></span>`;
-    body+=tagsHTML(p.notes.filter(isMeeting));
+    body+=evHTML(p.notes);
     const pi=planInfo(iso);if(pi)body+=`<span class="plan-dot" title="Practice plan ready">Plan ${pi.used}/${pi.avail}</span>`;
+    after+=tagsHTML(p.notes);
   }
-  if(d.tags)body+=tagsHTML(d.tags);
+  if(d.tags){body+=evHTML(d.tags);after+=tagsHTML(d.tags);}
+  body+=after;
   return `<button type="button" class="cal-cell ${cls}${today?" today":""}" data-day="${iso}"><span class="d">${+iso.slice(8)}</span>${body}</button>`;
 }
 function monthHTML(y,m,days){
@@ -114,6 +118,7 @@ const MARKS=[
   {id:"nopractice",label:"No practice",cls:"nopr",test:x=>x.kind==="off"&&(!x.note||/^no practice$/i.test(x.note))},
   {id:"tryout",label:"Tryouts",cls:"tryout",test:x=>/tryout/i.test(x.note||"")},
   {id:"meeting",label:"Meeting",cls:"meeting",test:x=>/meeting/i.test(x.note||"")},
+  {id:"bus",label:"Bus departure",cls:"bus",test:x=>x.bus!==undefined||/^bus\b/i.test(x.note||"")},
   {id:"extra",label:"Extra practice",cls:"practice",test:x=>x.kind==="extra"&&!x.note,only:(reg,d)=>!reg&&!d.game},
 ];
 function markValue(id,regular){
@@ -124,8 +129,11 @@ function markValue(id,regular){
     case "tryout":return {kind:regular?"note":"extra",note:"Tryouts"};
     case "meeting":return {kind:"note",note:regular?"Parent meeting after practice":"Meeting"};
     case "extra":return {kind:"extra",note:""};
+    case "bus":{const t=busDefault(dayIso);return {kind:"note",note:"Bus departs "+ampm(t),bus:t};}
   }
 }
+/* Bus time: 90 minutes before that day's game, or 3:00 PM if there's no game. */
+function busDefault(iso){const g=(SETTINGS.games||[]).find(x=>x.date===iso);if(!g||!g.time)return "15:00";const m=Math.max(0,toMin(g.time)-90);return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");}
 function renderDay(){
   const iso=dayIso,st=SETTINGS,{days}=buildDays(st),d=days[iso]||{},ed=editable();
   const regular=isRegular(st,iso),list=entriesOn(st,iso);
@@ -144,7 +152,9 @@ function renderDay(){
     h+=`<div class="day-ev game"><b>${g.home===false?"at ":"vs "}${esc(g.opponent||"Game")}</b><span>${ampm(g.time)} · ${g.home===false?"Away":"Home"}</span>${ed?delBtn("delGame","Delete game"):""}</div>`;
     if(ed)h+=`<details class="day-edit"><summary>Edit this game</summary>${gameForm(g)}</details>`;
   }
-  const noteChips=()=>{const ns=list.map((x,i)=>({x,i})).filter(o=>o.x.kind!=="off"&&o.x.note);
+  const bus=list.find(x=>x.bus!==undefined||isBus(x.note));
+  if(bus)h+=`<div class="day-ev bus"><b>Bus departs</b>${ed?`<label class="f">Leaves at<input type="time" id="dpBus" value="${esc(bus.bus||"")}"></label>`:`<span>${esc(bus.note)}</span>`}</div>`;
+  const noteChips=()=>{const ns=list.map((x,i)=>({x,i})).filter(o=>o.x.kind!=="off"&&o.x.note&&!isBus(o.x.note));
     return ns.length?`<div class="note-chips">${ns.map(o=>`<span class="nchip">${esc(o.x.note)}${ed?`<button type="button" class="icon" data-rmentry="${o.i}" aria-label="Remove ${esc(o.x.note)}">✕</button>`:""}</span>`).join("")}</div>`:"";};
   if(d.practice){const p=d.practice,pi=planInfo(iso);
     h+=`<div class="day-ev practice"><b>${p.notes.some(isTryout)?"Tryouts":"Practice"}</b><span>${span(p.start,p.end)}</span>${noteChips()}
@@ -161,7 +171,7 @@ function renderDay(){
       ${ed?offs.filter(o=>!/^no practice$/i.test(o.x.note||"")).map(o=>`<label class="f">Name<input data-offname="${o.i}" value="${esc(o.x.note||"")}" placeholder="e.g. Thanksgiving, Winter Break"></label>`).join(""):""}
       ${ed?delBtn("restore",regular?"Remove day off (practice goes back on)":"Remove day off"):""}</div>`;
   }
-  if(d.tags&&!d.practice)h+=`<div class="day-ev"><b>Notes</b>${noteChips()}</div>`;
+  if(d.tags&&!d.practice&&d.tags.some(n=>!isBus(n)))h+=`<div class="day-ev"><b>Notes</b>${noteChips()}</div>`;
   if(!d.game&&!d.practice&&!d.off&&!d.tags)h+=`<p class="help">Nothing scheduled.</p>`;
   if(ed&&!d.game)h+=`<details class="day-edit"><summary>Add a game this day</summary>${gameForm({date:iso,home:true,time:"17:30"})}</details>`;
   if(ed&&!d.practice&&!d.off){const t=practiceTimes(iso,st);
@@ -182,6 +192,8 @@ function mdPreview(){const p=$("#mdPreview");if(!p)return;const l=mdDays();
   p.textContent=l.length?`${l.length} more day${l.length>1?"s":""}: ${longDay(l[0])}${l.length>1?" to "+longDay(l[l.length-1]):""}.`:"Pick a later date.";}
 $("#dayBody").addEventListener("change",e=>{
   if(e.target.id==="mdTo"||e.target.id==="mdOnly"){mdPreview();return;}
+  if(e.target.id==="dpBus"){const t=e.target.value;if(!t)return;
+    change(st=>{const x=st.special.find(s=>s.date===dayIso&&(s.bus!==undefined||isBus(s.note)));if(x){x.bus=t;x.note="Bus departs "+ampm(t);}},"Bus time saved");return;}
   const c=e.target.closest("[data-mark]");if(!c||c.tagName!=="INPUT")return;
   const iso=dayIso,m=MARKS.find(x=>x.id===c.dataset.mark),regular=isRegular(SETTINGS,iso);
   if(!c.checked){lastMark=null;change(st=>{st.special=st.special.filter(x=>!(x.date===iso&&m.test(x)));},`${m.label} removed`);}

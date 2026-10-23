@@ -555,3 +555,12 @@ body.pb-full{overflow:hidden}
 .icon-pick label:has(input:disabled){opacity:.5;cursor:not-allowed}
 .icon-pick input{position:absolute;opacity:0;pointer-events:none}
 .icon-pick img{width:64px;height:64px;border-radius:14px}
+:root{--cal-bus:#2f5d8a;--cal-bus-soft:#e2ebf5}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--cal-bus:#8fb6e0;--cal-bus-soft:#1b2a3a}}
+:root[data-theme="dark"]{--cal-bus:#8fb6e0;--cal-bus-soft:#1b2a3a}
+.sw.bus{background:var(--cal-bus-soft);border-color:var(--cal-bus)}
+.cal-cell .ev.bus b{color:var(--cal-bus)}
+.day-ev.bus{border-color:var(--cal-bus);background:var(--cal-bus-soft)}
+.mark.bus{border-color:var(--cal-bus)}.mark.bus input{accent-color:var(--cal-bus)}
+.mark.bus:has(input:checked){background:var(--cal-bus-soft)}
+.more-days.bus{border-color:var(--cal-bus);background:var(--cal-bus-soft)}
