@@ -395,3 +395,178 @@ create policy "editors delete playbooks" on public.playbooks for delete to authe
 grant execute on function public.can_edit(uuid, text), public.item_area(text), public.set_member_perms(uuid, uuid, jsonb),
   public.set_member(uuid, uuid, text, text), public.remove_member(uuid, uuid), public.new_join_code(uuid, text) to authenticated;
 revoke all on function public.set_member_perms(uuid, uuid, jsonb) from public, anon;
+
+-- ---------------------------------------------------------------------------
+-- Team tools: roster, bus lists, game-day food sign-ups (same as team-tools.sql)
+-- ---------------------------------------------------------------------------
+-- Coach Practice Planner: team tools (added Oct 2026).
+--   * Roster: players and parent contacts (kind 'players'), hidden from view-only members.
+--   * Bus lists for away games (kind 'trips').
+--   * Game-day food sign-up sheets parents open from a link, with no account.
+-- Run once in Supabase → SQL Editor → New query → paste → Run. Safe to run again.
+-- It includes the roles and permissions setup, so it works whether or not roles.sql was run.
+
+alter table public.team_members add column if not exists perms jsonb;
+
+-- Allow the new kinds of saved items: players (roster) and trips (bus lists).
+alter table public.items drop constraint if exists items_kind_check;
+alter table public.items add constraint items_kind_check check (kind in ('drills','plans','plays','players','trips'));
+
+create or replace function public.can_edit(t uuid, area text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce((
+    select case when m.role = 'owner' then true
+                else coalesce((m.perms ->> area)::boolean, m.role = 'coach' and area <> 'staff') end
+      from team_members m where m.team_id = t and m.user_id = auth.uid()), false);
+$$;
+
+-- Which permission area each kind of saved item belongs to.
+create or replace function public.item_area(k text) returns text
+language sql immutable as $$
+  select case k when 'plays' then 'plays' when 'drills' then 'drills'
+                when 'players' then 'schedule' when 'trips' then 'schedule' else 'plans' end;
+$$;
+
+-- Read access: everyone on the team, except that parent phone numbers and emails in the roster
+-- are only visible to coaches and to people allowed to edit the calendar and team.
+drop policy if exists "members read items" on public.items;
+create policy "members read items" on public.items for select to authenticated
+  using (is_member(team_id) and (kind <> 'players' or member_role(team_id) <> 'viewer' or can_edit(team_id, 'schedule')));
+
+drop policy if exists "editors write items" on public.items;
+drop policy if exists "editors update items" on public.items;
+drop policy if exists "editors delete items" on public.items;
+create policy "editors write items"  on public.items for insert to authenticated with check (can_edit(team_id, item_area(kind)));
+create policy "editors update items" on public.items for update to authenticated using (can_edit(team_id, item_area(kind))) with check (can_edit(team_id, item_area(kind)));
+create policy "editors delete items" on public.items for delete to authenticated using (can_edit(team_id, item_area(kind)));
+
+drop policy if exists "editors update team" on public.teams;
+drop policy if exists "schedule editors update team" on public.teams;
+create policy "schedule editors update team" on public.teams for update to authenticated
+  using (can_edit(id, 'schedule')) with check (can_edit(id, 'schedule'));
+
+-- ---------------------------------------------------------------------------
+-- Game-day food sign-ups
+-- ---------------------------------------------------------------------------
+create table if not exists public.signup_boards (
+  id          text primary key,                    -- random id in the parents' link
+  team_id     uuid not null references public.teams(id) on delete cascade,
+  title       text not null default 'Game-day food',
+  note        text not null default '',
+  games       text not null default 'all' check (games in ('all','home','away')),
+  slots       jsonb not null default '[{"name":"Snacks","count":2},{"name":"Drinks","count":1}]'::jsonb,
+  skip        text[] not null default '{}',        -- game dates with no sign-ups
+  active      boolean not null default true,
+  created_by  uuid references auth.users(id) on delete set null default auth.uid(),
+  created_at  timestamptz not null default now()
+);
+create table if not exists public.signup_entries (
+  id          uuid primary key default gen_random_uuid(),
+  board_id    text not null references public.signup_boards(id) on delete cascade,
+  team_id     uuid not null references public.teams(id) on delete cascade,
+  game_date   date not null,
+  slot        text not null,
+  name        text not null,
+  contact     text not null default '',
+  player      text not null default '',
+  item        text not null default '',
+  token       uuid not null default gen_random_uuid(),   -- lets the parent cancel from their phone
+  created_at  timestamptz not null default now()
+);
+create index if not exists signup_entries_board on public.signup_entries(board_id, game_date);
+
+alter table public.signup_boards enable row level security;
+alter table public.signup_entries enable row level security;
+drop policy if exists "members read boards" on public.signup_boards;
+drop policy if exists "editors add boards" on public.signup_boards;
+drop policy if exists "editors change boards" on public.signup_boards;
+drop policy if exists "editors delete boards" on public.signup_boards;
+create policy "members read boards"   on public.signup_boards for select to authenticated using (is_member(team_id));
+create policy "editors add boards"    on public.signup_boards for insert to authenticated with check (can_edit(team_id, 'schedule') and length(id) >= 10);
+create policy "editors change boards" on public.signup_boards for update to authenticated using (can_edit(team_id, 'schedule')) with check (can_edit(team_id, 'schedule'));
+create policy "editors delete boards" on public.signup_boards for delete to authenticated using (can_edit(team_id, 'schedule'));
+drop policy if exists "staff read signups" on public.signup_entries;
+drop policy if exists "editors remove signups" on public.signup_entries;
+create policy "staff read signups"     on public.signup_entries for select to authenticated
+  using (is_member(team_id) and (member_role(team_id) <> 'viewer' or can_edit(team_id, 'schedule')));
+create policy "editors remove signups" on public.signup_entries for delete to authenticated using (can_edit(team_id, 'schedule'));
+-- Parents add and cancel only through the functions below.
+
+-- What the parents' page shows: team name and colors, the upcoming games, the open spots,
+-- and who has signed up (first name and last initial, and what they're bringing). No contact info.
+create or replace function public.get_signup(p_id text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare b signup_boards; t teams;
+begin
+  select * into b from signup_boards where id = p_id and active;
+  if b.id is null then return null; end if;
+  select * into t from teams where id = b.team_id;
+  return jsonb_build_object(
+    'title', b.title, 'note', b.note, 'slots', b.slots,
+    'team', jsonb_build_object('name', t.name, 'color', t.settings->>'color', 'color2', t.settings->>'color2',
+                               'logo', t.settings->>'logo', 'school', t.settings->>'school',
+                               'mascot', t.settings->>'mascot', 'teamLabel', t.settings->>'teamLabel'),
+    'games', coalesce((
+      select jsonb_agg(jsonb_build_object('date', g->>'date', 'opponent', g->>'opponent', 'time', g->>'time',
+                                          'home', coalesce((g->>'home')::boolean, true))
+                       order by g->>'date')
+        from jsonb_array_elements(coalesce(t.settings->'games', '[]'::jsonb)) g
+       where (g->>'date') >= to_char(current_date - 1, 'YYYY-MM-DD')
+         and not ((g->>'date') = any(b.skip))
+         and (b.games = 'all' or (b.games = 'home') = coalesce((g->>'home')::boolean, true))), '[]'::jsonb),
+    'entries', coalesce((
+      select jsonb_agg(jsonb_build_object('id', e.id, 'date', to_char(e.game_date, 'YYYY-MM-DD'), 'slot', e.slot,
+                                          'name', regexp_replace(trim(e.name), '^(\S+).*\s(\S)\S*$', '\1 \2.'),
+                                          'item', e.item) order by e.created_at)
+        from signup_entries e where e.board_id = b.id and e.game_date >= current_date - 1), '[]'::jsonb));
+end $$;
+
+create or replace function public.add_signup(p_id text, p_date text, p_slot text, p_name text,
+                                             p_contact text default '', p_player text default '', p_item text default '')
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare b signup_boards; t teams; cap int; taken int; e signup_entries; nm text := trim(coalesce(p_name, ''));
+begin
+  select * into b from signup_boards where id = p_id and active for update;   -- one sign-up at a time per sheet
+  if b.id is null then raise exception 'This sign-up sheet is closed.'; end if;
+  if length(nm) < 2 then raise exception 'Please enter your name.'; end if;
+  if length(trim(coalesce(p_contact, ''))) < 5 then raise exception 'Please enter a phone number or email so the coach can reach you.'; end if;
+  select * into t from teams where id = b.team_id;
+  if not exists (select 1 from jsonb_array_elements(coalesce(t.settings->'games', '[]'::jsonb)) g
+                  where g->>'date' = p_date and p_date >= to_char(current_date - 1, 'YYYY-MM-DD')
+                    and not (p_date = any(b.skip))
+                    and (b.games = 'all' or (b.games = 'home') = coalesce((g->>'home')::boolean, true))) then
+    raise exception 'That game is no longer on the sign-up sheet.'; end if;
+  select (s->>'count')::int into cap from jsonb_array_elements(b.slots) s where s->>'name' = p_slot limit 1;
+  if cap is null then raise exception 'That item is no longer on the sign-up sheet.'; end if;
+  select count(*) into taken from signup_entries where board_id = b.id and game_date = p_date::date and slot = p_slot;
+  if taken >= cap then raise exception 'Someone just took the last spot for that. Pick another one.'; end if;
+  insert into signup_entries (board_id, team_id, game_date, slot, name, contact, player, item)
+  values (b.id, b.team_id, p_date::date, p_slot, left(nm, 60), left(trim(coalesce(p_contact, '')), 80),
+          left(trim(coalesce(p_player, '')), 60), left(trim(coalesce(p_item, '')), 120))
+  returning * into e;
+  return jsonb_build_object('id', e.id, 'token', e.token);
+end $$;
+
+create or replace function public.cancel_signup(p_entry uuid, p_token uuid) returns boolean
+language plpgsql security definer set search_path = public as $$
+begin
+  delete from signup_entries where id = p_entry and token = p_token;
+  return found;
+end $$;
+
+revoke all on function public.get_signup(text), public.add_signup(text, text, text, text, text, text, text),
+  public.cancel_signup(uuid, uuid) from public;
+grant execute on function public.get_signup(text), public.add_signup(text, text, text, text, text, text, text),
+  public.cancel_signup(uuid, uuid) to anon, authenticated;
+grant select, insert, update, delete on public.signup_boards to authenticated;
+grant select, delete on public.signup_entries to authenticated;
+grant execute on function public.can_edit(uuid, text), public.item_area(text) to authenticated;
+
+-- Live updates for new sign-ups on the coach's screen
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'signup_entries') then
+    alter publication supabase_realtime add table public.signup_entries;
+  end if;
+exception when undefined_object then null;
+end $$;

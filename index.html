@@ -75,6 +75,17 @@
       <label class="f">Team color<input id="suColor" type="color" value="#5b2a86"></label>
       <label class="f" id="suStarterWrap" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:14px;font-weight:500;color:var(--ink)"><input type="checkbox" id="suStarter" checked style="width:auto"> <span id="suStarterText">Add starter drills</span></label>
     </div>
+    <fieldset class="catpick" id="suCopyBox" hidden><legend>Start from one of your teams</legend>
+      <label class="f">Copy from<select id="suCopyFrom"><option value="">Nothing, start fresh</option></select></label>
+      <div class="exp-pick" id="suCopyWhat" hidden>
+        <label><input type="checkbox" id="suCpDrills" checked> Drill library</label>
+        <label><input type="checkbox" id="suCpPlays" checked> Plays <small id="suCpPlaysNote"></small></label>
+        <label><input type="checkbox" id="suCpSched" checked> Practice days and times, season dates</label>
+        <label><input type="checkbox" id="suCpLook" checked> Logo, second color and quick adds</label>
+        <label><input type="checkbox" id="suCpRoster"> Roster (players and parents)</label>
+      </div>
+      <p class="help" id="suCopyHelp" hidden>Games, practice plans and calendar marks are not copied.</p>
+    </fieldset>
     <p class="help" style="font-size:13px">You can add games, days off, weekend times and more in Settings later.</p>
     <div class="actions" style="margin-top:0"><button class="btn primary" type="submit">Create team</button><button class="btn demo-only" type="button" id="suSample">Explore with sample team</button><button class="btn" type="button" id="suBack" hidden>Back to planner</button></div>
     <div class="msg" id="setupMsg"></div>
@@ -113,6 +124,7 @@
     <button id="tab-plays" role="tab" aria-selected="false" data-tab="plays">Plays <span id="playCount"></span></button>
     <button id="tab-lib" role="tab" aria-selected="false" data-tab="lib">Drill Library <span id="drillCount"></span></button>
     <button id="tab-cal" role="tab" aria-selected="false" data-tab="cal">Calendar</button>
+    <button id="tab-team" role="tab" aria-selected="false" data-tab="team">Team</button>
     <button id="tab-settings" role="tab" aria-selected="false" data-tab="settings">Settings</button>
   </div>
   </div>
@@ -284,9 +296,27 @@
   <p class="help cal-foot" id="calFoot"></p>
 </section>
 
+<section id="view-team" class="view" hidden>
+  <div class="cal-head">
+    <div><div class="eyebrow" id="tmEyebrow"></div><h2 class="cal-title">Team management</h2></div>
+  </div>
+  <nav class="tm-nav" role="tablist" aria-label="Team sections">
+    <button type="button" role="tab" data-tm="teams" aria-selected="true">My teams</button>
+    <button type="button" role="tab" data-tm="roster" aria-selected="false">Roster</button>
+    <button type="button" role="tab" data-tm="staff" aria-selected="false">Staff</button>
+    <button type="button" role="tab" data-tm="bus" aria-selected="false">Bus list</button>
+    <button type="button" role="tab" data-tm="food" aria-selected="false">Game-day food</button>
+  </nav>
+  <div class="tm-pane" id="tm-teams"></div>
+  <div class="tm-pane" id="tm-roster" hidden></div>
+  <div class="tm-pane" id="tm-staff" hidden><div class="tm-card"><h3 class="tm-h">Coaching staff</h3><div id="staffPanel"><div id="staffBody"></div></div></div></div>
+  <div class="tm-pane" id="tm-bus" hidden></div>
+  <div class="tm-pane" id="tm-food" hidden></div>
+</section>
+
 <section id="view-settings" class="view" hidden>
   <nav class="set-nav" aria-label="Settings sections">
-    <button type="button" data-acc="team">Team</button><button type="button" data-acc="schedule">Schedule</button><button type="button" data-acc="games">Games</button><button type="button" data-acc="special">Special days</button><button type="button" data-acc="staff">Staff</button><button type="button" data-acc="data">Backup</button><button type="button" data-acc="account">Account</button>
+    <button type="button" data-acc="team">Team</button><button type="button" data-acc="schedule">Schedule</button><button type="button" data-acc="games">Games</button><button type="button" data-acc="special">Special days</button><button type="button" data-acc="data">Backup</button><button type="button" data-acc="account">Account</button>
   </nav>
   <div class="set-save edit-only"><button class="btn primary" id="sSave">Save settings</button><span class="saved" id="sStatus" style="margin-left:0"></span></div>
   <div class="settings acc-list">
@@ -356,10 +386,7 @@
       <div class="edit-only"><button class="btn" id="sAddSpecial">+ Add special day</button></div>
       </div>
     </details>
-    <details class="acc" id="acc-staff">
-      <summary><span class="acc-t">Coaching staff</span><span class="acc-s" id="accSub-staff"></span></summary>
-      <div class="acc-body" id="staffPanel"><div id="staffBody"></div></div>
-    </details>
+    <p class="help set-moved">Your teams, roster, coaching staff, bus lists and parent sign-ups are on the <button type="button" class="linkbtn" data-goteam="teams">Team</button> tab.</p>
     <details class="acc" id="acc-data">
       <summary><span class="acc-t">Backup &amp; import</span><span class="acc-s" id="accSub-data">Download or load a backup</span></summary>
       <div class="acc-body">
@@ -441,6 +468,7 @@
 <script src="js/app.js"></script>
 <script src="js/boot.js"></script>
 <script src="js/calendar.js"></script>
+<script src="js/team.js"></script>
 <script src="js/update.js"></script>
 </body>
 </html>

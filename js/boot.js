@@ -144,22 +144,24 @@ async function openTeam(t){
   $("#viewOnlyBar").hidden=!READONLY;
   renderSwitcher();
   if(!$("#view-settings").hidden)window.onSettingsTab();
+  if(window.onTeamOpen)window.onTeamOpen();
   startPresence();
 }
 
 /* ---------- team switcher (header) ---------- */
 function renderSwitcher(){
   $("#swName").textContent=team.name;
-  $("#swMeta").textContent=`${sportName(team)} · ${roleName(team.role)}`;
+  $("#swMeta").textContent=`${(team.settings||{}).teamLabel?team.settings.teamLabel+" · ":""}${sportName(team)} · ${roleName(team.role)}`;
   $("#swMenu").innerHTML=`<div class="sw-head">Your teams</div>`+
     teams.map(t=>`<button class="sw-item${t.id===team.id?" on":""}" data-team="${t.id}" role="menuitem">
       ${(t.settings||{}).logo?`<img class="sw-logo" src="${esc(t.settings.logo)}" alt="">`:`<span class="sw-dot" style="background:${esc((t.settings||{}).color||"#5b2a86")}${(t.settings||{}).color2?`;box-shadow:inset -6px 0 0 ${esc(t.settings.color2)}`:""}"></span>`}
-      <span><b>${esc(t.name)}</b><small>${esc(sportName(t))} · ${esc(roleName(t.role))}</small></span></button>`).join("")+
-    `<div class="sw-actions"><button class="btn" id="swNew">+ New team</button>${HOSTED?`<button class="btn" id="swJoin">Join a staff</button>`:""}</div>`;
+      <span><b>${esc(t.name)}</b><small>${(t.settings||{}).teamLabel?esc(t.settings.teamLabel)+" · ":""}${esc(sportName(t))} · ${esc(roleName(t.role))}</small></span></button>`).join("")+
+    `<div class="sw-actions"><button class="btn" id="swManage">Manage teams</button><button class="btn" id="swNew">+ New team</button>${HOSTED?`<button class="btn" id="swJoin">Join a staff</button>`:""}</div>`;
 }
 $("#swMenu").addEventListener("click",e=>{
   const b=e.target.closest("[data-team]");
   if(b){const t=teams.find(x=>x.id===b.dataset.team);$("#teamSw").open=false;if(t&&t.id!==team.id){openTeam(t);setTab("plan");}return;}
+  if(e.target.id==="swManage"){$("#teamSw").open=false;window.goTeam&&window.goTeam("teams");return;}
   if(e.target.id==="swNew"||e.target.id==="swJoin"){$("#teamSw").open=false;showSetup(true,e.target.id==="swJoin");}
 });
 document.addEventListener("click",e=>{const d=$("#teamSw");if(d.open&&!d.contains(e.target))d.open=false;});
@@ -243,7 +245,7 @@ $("#oauthBox").addEventListener("click",async e=>{
 function showSetup(canGoBack,focusJoin){
   $("#suBack").hidden=!canGoBack;msg($("#setupMsg"),"");msg($("#joinMsg"),"");
   const nm=team&&team.myName||"";$("#suName").value=nm;$("#joinName").value=nm;
-  updateStarterLabel();
+  updateStarterLabel();fillCopyFrom();
   show("screen-setup");
   if(focusJoin)$("#joinCode").focus();
 }
@@ -251,7 +253,37 @@ function updateStarterLabel(){
   const n=(STARTERS[$("#suSport").value]||[]).length;
   $("#suStarterWrap").hidden=!n;$("#suStarterText").textContent=`Add ${n} starter drills`;
 }
-$("#suSport").addEventListener("change",updateStarterLabel);
+$("#suSport").addEventListener("change",()=>{updateStarterLabel();copyNote();});
+/* New team from an existing one: same school, colors and schedule, with its drills and plays. */
+function fillCopyFrom(){
+  const box=$("#suCopyBox"),sel=$("#suCopyFrom");
+  box.hidden=!teams.length;
+  sel.innerHTML=`<option value="">Nothing, start fresh</option>`+teams.map(t=>`<option value="${t.id}">${esc(t.name)}${(t.settings||{}).teamLabel?" · "+esc(t.settings.teamLabel):""}</option>`).join("");
+  sel.value="";copyNote();
+}
+function copyNote(){
+  const src=teams.find(t=>t.id===$("#suCopyFrom").value);
+  $("#suCopyWhat").hidden=$("#suCopyHelp").hidden=!src;
+  if(!src)return;
+  const same=((src.settings||{}).sport||"basketball")===$("#suSport").value;
+  $("#suCpPlays").disabled=!same;if(!same)$("#suCpPlays").checked=false;
+  $("#suCpPlaysNote").textContent=same?"":"(different sport, so plays can't be copied)";
+}
+$("#suCopyFrom").addEventListener("change",()=>{
+  const src=teams.find(t=>t.id===$("#suCopyFrom").value);
+  if(src){const st=src.settings||{};
+    $("#suSport").value=st.sport||"basketball";$("#suSchool").value=st.school||"";$("#suMascot").value=st.mascot||"";
+    $("#suLabel").value="";$("#suColor").value=st.color||"#5b2a86";
+    $("#suStart").value=st.seasonStart||"";$("#suEnd").value=st.seasonEnd||"";
+    $("#suWdS").value=st.weekdayStart||"";$("#suWdE").value=st.weekdayEnd||"";
+    $("#suStarter").checked=false;$("#suLabel").focus();}
+  updateStarterLabel();copyNote();
+});
+async function readItems(teamId,kind){
+  if(!HOSTED){try{const m=JSON.parse(localStorage.getItem(`cpp:${teamId}:${kind}`)||"{}");return Object.entries(m);}catch{return [];}}
+  const {data,error}=await sb.from("items").select("id,data").eq("team_id",teamId).eq("kind",kind).limit(5000);
+  if(error)throw error;return (data||[]).map(r=>[r.id,r.data]);
+}
 $("#suBack").addEventListener("click",()=>{show("app");});
 $("#setupForm").addEventListener("submit",async e=>{
   e.preventDefault();
@@ -260,6 +292,15 @@ $("#setupForm").addEventListener("submit",async e=>{
     school:$("#suSchool").value.trim(),mascot:$("#suMascot").value.trim(),teamLabel:$("#suLabel").value.trim(),
     color:$("#suColor").value,seasonStart:$("#suStart").value,seasonEnd:$("#suEnd").value,
     weekdayStart:$("#suWdS").value||"16:00",weekdayEnd:$("#suWdE").value||"18:00"};
+  const src=teams.find(x=>x.id===$("#suCopyFrom").value)||null,sst=src&&src.settings||{};
+  if(src&&$("#suCpSched").checked){
+    ["practiceDays","weekendStart","weekendEnd","minPractices"].forEach(k=>{if(sst[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(sst[k]));});
+    if(!settings.seasonStart)settings.seasonStart=sst.seasonStart||"";if(!settings.seasonEnd)settings.seasonEnd=sst.seasonEnd||"";
+  }
+  if(src&&$("#suCpLook").checked)["logo","color2","quickAdds","appIcon"].forEach(k=>{if(sst[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(sst[k]));});
+  const copyKinds=src?[["drills","#suCpDrills"],["plays","#suCpPlays"],["players","#suCpRoster"]].filter(([k,q])=>$(q).checked&&!$(q).disabled).map(([k])=>k):[];
+  let copied={};
+  for(const k of copyKinds){try{copied[k]=await readItems(src.id,k);}catch{copied[k]=[];}}
   const name=[settings.school,settings.mascot,settings.teamLabel&&!settings.mascot?settings.teamLabel:""].filter(Boolean).join(" ")||"My team";
   let t;
   if(HOSTED){
@@ -275,7 +316,9 @@ $("#setupForm").addEventListener("submit",async e=>{
   const addStarters=$("#suStarter").checked;
   $("#setupForm").reset();updateStarterLabel();
   await openTeam(t);setTab("plan");
-  if(addStarters&&STARTERS[sport]&&STARTERS[sport].length){try{await store.bulkSet("drills",startersFor(sport));}catch{}}
+  if(addStarters&&!copied.drills&&STARTERS[sport]&&STARTERS[sport].length){try{await store.bulkSet("drills",startersFor(sport));}catch{}}
+  for(const k of Object.keys(copied)){if(copied[k].length){try{await store.bulkSet(k,copied[k].map(([id,d])=>[id,{...d,copiedFrom:src.name}]));}catch(err){showNotice("Some "+k+" couldn't be copied: "+(err.message||err));}}}
+  if(src)showNotice(`${t.name} is ready${Object.keys(copied).length?`, with ${Object.entries(copied).map(([k,v])=>`${v.length} ${({drills:"drills",plays:"plays",players:"players"})[k]}`).join(", ")} copied from ${src.name}`:""}.`);
 });
 $("#suSample").addEventListener("click",async e=>{
   const b=e.currentTarget;b.disabled=true;b.textContent="Loading sample…";
@@ -304,7 +347,7 @@ $("#joinForm").addEventListener("submit",async e=>{
 /* ---------- who else is here (live) ---------- */
 let presenceTimer=null;
 function viewState(){
-  const tab=["plan","lib","plays","settings"].find(t=>!$("#view-"+t).hidden)||"plan";
+  const tab=["plan","lib","plays","cal","team","settings"].find(t=>!$("#view-"+t).hidden)||"plan";
   return {name:ME.name,tab,date:cur?cur.date:null};
 }
 function startPresence(){
@@ -313,7 +356,7 @@ function startPresence(){
   store.onPresence(list=>{
     const others=list.filter(p=>p.user!==user.id);
     if(!others.length){$("#presenceBar").hidden=true;return;}
-    const where=p=>p.tab==="plan"&&p.date?`planning ${dLabel(p.date)}`:p.tab==="plays"?"in Plays":p.tab==="lib"?"in Drills":"in Settings";
+    const where=p=>p.tab==="plan"&&p.date?`planning ${dLabel(p.date)}`:p.tab==="plays"?"in Plays":p.tab==="lib"?"in Drills":p.tab==="cal"?"in Calendar":p.tab==="team"?"in Team":"in Settings";
     $("#presenceBar").innerHTML=`<span class="live" aria-hidden="true"></span> Also here: `+others.map(p=>`<b>${esc(p.name)}</b> <span>${where(p)}</span>`).join(", ");
     $("#presenceBar").hidden=false;
   });

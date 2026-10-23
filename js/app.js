@@ -1094,6 +1094,7 @@ function setTab(t){
   if(window.onViewChange)window.onViewChange();
   if(t==="settings"&&window.onSettingsTab)window.onSettingsTab();
   if(t==="cal"&&window.onCalChange)window.onCalChange();
+  if(t==="team"&&window.onTeamTab)window.onTeamTab();
   try{localStorage.setItem("tab",t)}catch{}
 }
 try{const t=localStorage.getItem("tab");if(t)setTab(t)}catch{}
