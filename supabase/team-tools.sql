@@ -3,6 +3,7 @@
 --   * Bus lists for away games (kind 'trips').
 --   * Scouting reports (kind 'scouts') and gameplans (kind 'gameplans'): editable by whoever can edit practice plans.
 --   * Game-day food sign-up sheets parents open from a link, with no account.
+--   * Add from a photo: a usage count for the monthly cap (table ai_usage).
 -- Run once in Supabase → SQL Editor → New query → paste → Run. Safe to run again.
 -- It includes the roles and permissions setup, so it works whether or not roles.sql was run.
 
@@ -173,3 +174,21 @@ begin
   end if;
 exception when undefined_object then null;
 end $$;
+
+-- ---------------------------------------------------------------------------
+-- Add from a photo (roster, schedule, plays): one row per photo read, for the monthly cap.
+-- Written only by the photo-import server function; coaches can see their team's count.
+-- ---------------------------------------------------------------------------
+create table if not exists public.ai_usage (
+  id         bigserial primary key,
+  team_id    uuid not null references public.teams(id) on delete cascade,
+  user_id    uuid references auth.users(id) on delete set null,
+  kind       text not null,
+  photos     integer not null default 1,
+  created_at timestamptz not null default now()
+);
+create index if not exists ai_usage_team_month on public.ai_usage(team_id, created_at);
+alter table public.ai_usage enable row level security;
+drop policy if exists "members read ai usage" on public.ai_usage;
+create policy "members read ai usage" on public.ai_usage for select to authenticated using (is_member(team_id));
+grant select on public.ai_usage to authenticated;

@@ -217,7 +217,7 @@
 <section id="view-plays" class="view" hidden>
   <div class="plays-wrap">
     <div class="board-card">
-      <div class="board-head"><h2 id="pEditTitle">New play</h2><div class="bh-btns"><button class="btn primary" type="button" id="pFull" title="Open the play builder full screen">⤢ Full screen</button><button class="btn narrow-only" type="button" id="pToLib">All plays ›</button></div></div>
+      <div class="board-head"><h2 id="pEditTitle">New play</h2><div class="bh-btns"><button class="btn primary" type="button" id="pFull" title="Open the play builder full screen">⤢ Full screen</button><button class="btn edit-only" type="button" data-photo="play">📷 From a photo</button><button class="btn narrow-only" type="button" id="pToLib">All plays ›</button></div></div>
       <div class="pmeta">
         <label class="f f-name">Play name<input id="pName" placeholder="e.g. Horns flare"></label>
         <label class="f">Type<select id="pType"></select></label>
@@ -268,7 +268,7 @@
       </div>
     </div>
     <aside class="playlib">
-      <div class="board-head"><h2>Play Library</h2><button class="btn narrow-only edit-only" type="button" id="pNewTop">+ New play</button></div>
+      <div class="board-head"><h2>Play Library</h2><div class="bh-btns"><button class="btn edit-only" type="button" data-photo="play">📷 From a photo</button><button class="btn narrow-only edit-only" type="button" id="pNewTop">+ New play</button></div></div>
       <button class="btn primary edit-share" id="shareBook">Share with players</button>
       <input id="plSearch" placeholder="Search plays">
       <div id="plList" style="display:flex;flex-direction:column;gap:8px"></div>
@@ -314,6 +314,7 @@
     <button class="btn" type="button" id="calToday">Today</button>
     <button class="btn" type="button" id="calIcs">Export calendar</button>
     <button class="btn edit-only" type="button" id="calAddGame">+ Game</button>
+    <button class="btn edit-only" type="button" data-photo="schedule">📷 Add from a photo</button>
     <span class="help" id="calHint">Tap a day to see it, open its practice plan, or change it.</span>
   </div>
   <div class="cal-callout" id="calCallout" hidden></div>
@@ -505,6 +506,7 @@
 <script src="js/team.js"></script>
 <script src="js/gameplan.js"></script>
 <script src="js/playhelp.js"></script>
+<script src="js/photoai.js"></script>
 <script src="js/update.js"></script>
 </body>
 </html>
