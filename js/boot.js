@@ -754,32 +754,110 @@ $("#shareExisting").addEventListener("click",async e=>{
 $("#shareClose").addEventListener("click",e=>{e.preventDefault();$("#shareDlg").close();});
 
 /* ---------- backups ---------- */
-$("#sExport").addEventListener("click",()=>{
-  const data={format:"practice-planner-backup",version:1,exportedAt:new Date().toISOString(),team:team.name,settings:team.settings,
-    drills:drills.map(d=>({...d})),plays:plays.map(p=>({...p})),plans:Object.values(plans)};
-  const slug=(team.name||"team").toLowerCase().replace(/[^a-z0-9]+/g,"-");
-  saveFile(`${slug}-backup-${todayISO()}.json`,JSON.stringify(data,null,1));
+/* ---------- export and import ----------
+   Export: pick what goes in the file (plays, drill library, practice plans, calendar, roster, or
+   everything). A plays-only file is how you send plays to another coach: they import it on their team.
+   Import: shows what's in the file and lets you pick which parts to bring in. Nothing is deleted. */
+const CAL_KEYS=["games","special","seasonStart","seasonEnd","practiceDays","weekdayStart","weekdayEnd","weekendStart","weekendEnd","minPractices"];
+const sendable=()=>plays.filter(p=>!p.draft).sort((a,b)=>a.name.localeCompare(b.name));
+function exportPanel(){
+  const st=team.settings||{},ps=sendable(),ng=(st.games||[]).length,nd=(st.special||[]).length,nr=(window.TM&&TM.roster.length)||0;
+  const row=(id,label,sub,on,dis)=>`<label class="ex-row"><input type="checkbox" id="${id}"${on?" checked":""}${dis?" disabled":""}><span><b>${label}</b><small>${sub}</small></span></label>`;
+  $("#exportBox").innerHTML=`<div class="ex-panel">
+    <div class="ex-quick"><span>Quick pick:</span><button class="gp-tag" type="button" data-expreset="plays">Plays for another coach</button><button class="gp-tag" type="button" data-expreset="all">Full backup</button></div>
+    ${row("exPlays","Plays",`${ps.length} play${ps.length===1?"":"s"}${plays.length>ps.length?" (drafts left out)":""}`,true,!ps.length)}
+    ${ps.length?`<details class="ex-pick" id="exPlayPick"><summary>Choose which plays (<span id="exPlayCount">all ${ps.length}</span>)</summary>
+      <div class="actions" style="margin:6px 0"><button class="btn" type="button" data-exall="1">All</button><button class="btn" type="button" data-exall="0">None</button></div>
+      <div class="ex-plays">${ps.map(p=>`<label><input type="checkbox" data-explay="${esc(p.id)}" checked> ${esc(p.name)} <small>${esc(p.type||"")}</small></label>`).join("")}</div></details>`:""}
+    ${row("exDrills","Drill library",`${drills.length} drill${drills.length===1?"":"s"}`,true,!drills.length)}
+    ${row("exPlans","Practice plans",`${Object.keys(plans).length} plan${Object.keys(plans).length===1?"":"s"}`,true,!Object.keys(plans).length)}
+    ${row("exCal","Calendar",`${ng} game${ng===1?"":"s"}, ${nd} marked day${nd===1?"":"s"}, season dates and practice times`,true,!(ng||nd||st.seasonStart))}
+    ${row("exLook","Team name, colors and logo","So a full backup can rebuild the team",true)}
+    ${row("exRoster","Roster",`${nr} player${nr===1?"":"s"}. Has parent phone numbers and emails: leave this off when sending to other coaches`,false,!nr)}
+    <div class="actions" style="margin:6px 0 0"><button class="btn primary" type="button" id="exGo">Download file</button>${navigator.canShare?`<button class="btn" type="button" id="exShare">Send…</button>`:""}<button class="btn" type="button" id="exCancel">Close</button></div>
+    <div class="msg" id="exMsg"></div></div>`;
+}
+function exportPreset(k){
+  const on=(id,v)=>{const el=$("#"+id);if(el&&!el.disabled)el.checked=v;};
+  if(k==="plays"){on("exPlays",true);["exDrills","exPlans","exCal","exLook","exRoster"].forEach(id=>on(id,false));}
+  else{["exPlays","exDrills","exPlans","exCal","exLook"].forEach(id=>on(id,true));on("exRoster",false);document.querySelectorAll("[data-explay]").forEach(x=>x.checked=true);}
+  exCount();
+}
+function exCount(){const all=document.querySelectorAll("[data-explay]"),on=document.querySelectorAll("[data-explay]:checked");const c=$("#exPlayCount");if(c)c.textContent=on.length===all.length?`all ${all.length}`:`${on.length} of ${all.length}`;}
+async function buildExport(){
+  const want=id=>{const el=$("#"+id);return !!(el&&el.checked&&!el.disabled);},st=team.settings||{},contents=[];
+  const data={format:"practice-planner-backup",version:2,exportedAt:new Date().toISOString(),team:team.name,teamLabel:st.teamLabel||"",sport:st.sport||"basketball",exportedBy:ME.name,contents};
+  if(want("exPlays")){const ids=new Set([...document.querySelectorAll("[data-explay]:checked")].map(x=>x.dataset.explay));
+    data.plays=sendable().filter(p=>!document.querySelector("[data-explay]")||ids.has(p.id)).map(p=>{const o={...p};delete o.draftCopy;return o;});if(data.plays.length)contents.push("plays");}
+  if(want("exDrills")){data.drills=drills.map(d=>({...d}));contents.push("drills");}
+  if(want("exPlans")){data.plans=Object.values(plans);contents.push("plans");}
+  const settings={};
+  if(want("exCal")){CAL_KEYS.forEach(k=>{if(st[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(st[k]));});contents.push("calendar");}
+  if(want("exLook")){["sport","school","mascot","teamLabel","color","color2","logo","appIcon","quickAdds"].forEach(k=>{if(st[k]!==undefined)settings[k]=st[k];});contents.push("team");}
+  if(Object.keys(settings).length)data.settings=settings;
+  if(want("exRoster")){data.players=(await readItems(team.id,"players")).map(([id,d])=>({id,...d}));contents.push("roster");}
+  const slug=s=>(s||"team").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+  const what=contents.length===1?contents[0]:contents.length>=4?"backup":contents.join("-");
+  return {data,name:`${slug([team.name,st.teamLabel].filter(Boolean).join(" "))}-${what}-${todayISO()}.json`,contents};
+}
+$("#sExport").addEventListener("click",()=>{if($("#exportBox").innerHTML){$("#exportBox").innerHTML="";return;}exportPanel();});
+$("#exportBox").addEventListener("change",e=>{if(e.target.closest("[data-explay]"))exCount();});
+$("#exportBox").addEventListener("click",async e=>{
+  const pr=e.target.closest("[data-expreset]");if(pr){exportPreset(pr.dataset.expreset);return;}
+  const al=e.target.closest("[data-exall]");if(al){document.querySelectorAll("[data-explay]").forEach(x=>x.checked=al.dataset.exall==="1");exCount();return;}
+  if(e.target.id==="exCancel"){$("#exportBox").innerHTML="";return;}
+  if(e.target.id!=="exGo"&&e.target.id!=="exShare")return;
+  const {data,name,contents}=await buildExport();
+  if(!contents.length){msg($("#exMsg"),"Pick at least one thing to export.","err");return;}
+  const text=JSON.stringify(data,null,1),n=data.plays?data.plays.length:0;
+  const done=contents.length===1&&contents[0]==="plays"?`${n} play${n===1?"":"s"} ready. The other coach opens Settings → Export & import → Import a file on their team.`:"File ready.";
+  if(e.target.id==="exShare"){
+    const file=new File([text],name,{type:"application/json"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name,text:contents.includes("plays")?`Plays from ${team.name}. Import them in the Practice Planner: Settings → Export & import → Import a file.`:""});msg($("#exMsg"),done,"ok");}catch{}return;}
+  }
+  await saveFile(name,text);msg($("#exMsg"),done,"ok");
 });
 $("#sImport").addEventListener("change",async e=>{
   const f=e.target.files[0];e.target.value="";if(!f)return;
   const box=$("#importBox");let data;
-  try{data=JSON.parse(await f.text());}catch{box.innerHTML=`<p class="msg err">That file isn't a planner backup.</p>`;return;}
-  if(data.format!=="practice-planner-backup"){box.innerHTML=`<p class="msg err">That file isn't a planner backup.</p>`;return;}
-  const n={drills:(data.drills||[]).length,plays:(data.plays||[]).length,plans:(data.plans||[]).length};
-  box.innerHTML=`<p class="help">This backup has <b>${n.drills}</b> drills, <b>${n.plays}</b> plays and <b>${n.plans}</b> practice plans. Items with the same ID or practice date will be replaced; everything else stays.</p>
-    ${data.settings?`<label class="f" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:14px;font-weight:500;color:var(--ink)"><input type="checkbox" id="impSettings" style="width:auto"> Also use this backup's team settings (sport, name, colors, season, games)</label>`:""}
-    <div class="actions" style="margin-top:0"><button class="btn primary" id="impGo">Import</button><button class="btn" id="impCancel">Cancel</button></div><div class="msg" id="impMsg"></div>`;
+  try{data=JSON.parse(await f.text());}catch{box.innerHTML=`<p class="msg err">That file isn't from the practice planner.</p>`;return;}
+  if(data.format!=="practice-planner-backup"){box.innerHTML=`<p class="msg err">That file isn't from the practice planner.</p>`;return;}
+  const n={drills:(data.drills||[]).length,plays:(data.plays||[]).length,plans:(data.plans||[]).length,players:(data.players||[]).length};
+  const ss=data.settings||{},calN=(ss.games||[]).length+(ss.special||[]).length,full=!data.contents||data.contents.includes("team");
+  const sportOff=n.plays&&data.sport&&data.sport!==((team.settings||{}).sport||"basketball");
+  const row=(id,label,sub,on)=>`<label class="ex-row"><input type="checkbox" id="${id}"${on?" checked":""}><span><b>${label}</b><small>${sub}</small></span></label>`;
+  box.innerHTML=`<div class="ex-panel"><p class="help" style="margin:0">From <b>${esc([data.team,data.teamLabel].filter(Boolean).join(" · ")||"another team")}</b>${data.exportedBy?` (exported by ${esc(data.exportedBy)})`:""}. Pick what to bring into <b>${esc(team.name)}</b>. Nothing you have is deleted; items with the same name or practice date are updated.</p>
+    ${n.plays?row("impPlays","Plays",`${n.plays} play${n.plays===1?"":"s"}: ${esc(data.plays.slice(0,4).map(p=>p.name).join(", "))}${n.plays>4?"…":""}${sportOff?`. Drawn for ${esc(data.sport)}, so they'll sit on your court`:""}`,true):""}
+    ${n.drills?row("impDrills","Drill library",`${n.drills} drills`,true):""}
+    ${n.plans?row("impPlans","Practice plans",`${n.plans} plans`,true):""}
+    ${calN&&!full?row("impCal","Calendar",`Add ${(ss.games||[]).length} games and ${(ss.special||[]).length} marked days to your calendar`,false):""}
+    ${n.players?row("impRoster","Roster",`${n.players} players with parent contacts`,false):""}
+    ${data.settings&&full?`<label class="f" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:14px;font-weight:500;color:var(--ink)"><input type="checkbox" id="impSettings" style="width:auto"> Also use this file's team settings (sport, name, colors, season, games). This replaces yours.</label>`:""}
+    <div class="actions" style="margin:4px 0 0"><button class="btn primary" id="impGo">Import</button><button class="btn" id="impCancel">Cancel</button></div><div class="msg" id="impMsg"></div></div>`;
   $("#impCancel").addEventListener("click",()=>box.innerHTML="");
   $("#impGo").addEventListener("click",async ev=>{
+    const on=id=>{const el=$("#"+id);return !!(el&&el.checked);};
     ev.target.disabled=true;msg($("#impMsg"),"Importing…");
     try{
-      const strip=o=>{const {id,...rest}=o;return rest;};
-      if(n.drills)await store.bulkSet("drills",data.drills.map(d=>[d.id,strip(d)]));
-      if(n.plays)await store.bulkSet("plays",data.plays.map(p=>[p.id,strip(p)]));
-      if(n.plans)await store.bulkSet("plans",data.plans.filter(p=>p.date).map(p=>[p.date,p]));
-      const useSettings=data.settings&&$("#impSettings")&&$("#impSettings").checked;
-      if(useSettings){await saveSettings({...DEFAULT_SETTINGS,...(team.settings||{}),...data.settings});window.onSettingsTab();}
-      box.innerHTML=`<p class="msg ok" id="impMsg">Imported ${n.drills} drills, ${n.plays} plays and ${n.plans} plans${useSettings?", plus the team settings":""}.</p>`;
+      const strip=o=>{const {id,...rest}=o;return rest;},done=[];
+      const from=data.team&&data.team!==team.name?data.team:"";
+      if(n.drills&&on("impDrills")){await store.bulkSet("drills",data.drills.map(d=>[d.id,strip(d)]));done.push(`${n.drills} drills`);}
+      if(n.plays&&on("impPlays")){
+        /* Another team's play with the same name as one of yours gets a new ID, so yours isn't overwritten. */
+        const mine=new Map(plays.map(p=>[p.id,p]));
+        await store.bulkSet("plays",data.plays.map(p=>{const clash=from&&mine.has(p.id)&&mine.get(p.id).name!==p.name;const body=strip(p);delete body.draftCopy;if(from)body.sharedFrom=from;return [clash?p.id+"-"+uid():p.id,body];}));
+        done.push(`${n.plays} plays`);}
+      if(n.plans&&on("impPlans")){await store.bulkSet("plans",data.plans.filter(p=>p.date).map(p=>[p.date,p]));done.push(`${n.plans} plans`);}
+      if(n.players&&on("impRoster")){await store.bulkSet("players",data.players.map(p=>[p.id||"p-"+uid(),strip(p)]));done.push(`${n.players} players`);}
+      if(on("impCal")){
+        const st=JSON.parse(JSON.stringify({...DEFAULT_SETTINGS,...(team.settings||{})}));st.games=st.games||[];st.special=st.special||[];
+        (ss.games||[]).forEach(g=>{if(!g.date)return;st.games=st.games.filter(x=>x.date!==g.date);st.games.push(g);});
+        (ss.special||[]).forEach(x=>{if(x.date&&!st.special.some(y=>y.date===x.date&&y.kind===x.kind&&(y.note||"")===(x.note||"")))st.special.push(x);});
+        ["seasonStart","seasonEnd"].forEach(k=>{if(!st[k]&&ss[k])st[k]=ss[k];});
+        await saveSettings(st);done.push("the calendar");}
+      const useSettings=data.settings&&on("impSettings");
+      if(useSettings){await saveSettings({...DEFAULT_SETTINGS,...(team.settings||{}),...data.settings});window.onSettingsTab();done.push("the team settings");}
+      box.innerHTML=`<p class="msg ok" id="impMsg">${done.length?"Imported "+done.join(", ").replace(/, ([^,]*)$/," and $1")+".":"Nothing was picked to import."}</p>`;
     }catch(err){msg($("#impMsg"),"Import stopped: "+(err.message||"check your connection"),"err");ev.target.disabled=false;}
   });
 });

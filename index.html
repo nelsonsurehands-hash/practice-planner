@@ -351,7 +351,7 @@
 
 <section id="view-settings" class="view" hidden>
   <nav class="set-nav" aria-label="Settings sections">
-    <button type="button" data-acc="team">Team</button><button type="button" data-acc="schedule">Schedule</button><button type="button" data-acc="games">Games</button><button type="button" data-acc="special">Special days</button><button type="button" data-acc="data">Backup</button><button type="button" data-acc="account">Account</button>
+    <button type="button" data-acc="team">Team</button><button type="button" data-acc="schedule">Schedule</button><button type="button" data-acc="games">Games</button><button type="button" data-acc="special">Special days</button><button type="button" data-acc="data">Export</button><button type="button" data-acc="account">Account</button>
   </nav>
   <div class="set-save edit-only"><button class="btn primary" id="sSave">Save settings</button><span class="saved" id="sStatus" style="margin-left:0"></span></div>
   <div class="settings acc-list">
@@ -423,11 +423,12 @@
     </details>
     <p class="help set-moved">Your teams, roster, coaching staff, bus lists and parent sign-ups are on the <button type="button" class="linkbtn" data-goteam="teams">Team</button> tab.</p>
     <details class="acc" id="acc-data">
-      <summary><span class="acc-t">Backup &amp; import</span><span class="acc-s" id="accSub-data">Download or load a backup</span></summary>
+      <summary><span class="acc-t">Export &amp; import</span><span class="acc-s" id="accSub-data">Export plays, drills, calendar or a full backup</span></summary>
       <div class="acc-body">
-      <p class="help">Download a backup of your drills, plays and practice plans, or load one in. A backup from the Claude practice planner works here too.</p>
-      <div class="actions" style="margin-top:0"><button class="btn" id="sExport">Download backup</button>
-        <label class="btn edit-only" style="cursor:pointer">Import backup<input type="file" id="sImport" accept=".json,application/json" hidden></label></div>
+      <p class="help">Export all of your team's data as a backup, or just the parts you pick, like your plays to send to another coach. Import loads a file from this app (a backup from the Claude practice planner works too).</p>
+      <div class="actions" style="margin-top:0"><button class="btn" id="sExport">Export…</button>
+        <label class="btn edit-only" style="cursor:pointer">Import a file<input type="file" id="sImport" accept=".json,application/json" hidden></label></div>
+      <div id="exportBox"></div>
       <div id="importBox"></div>
       </div>
     </details>

@@ -835,3 +835,15 @@ body.pb-full{overflow:hidden}
 .ai-add button{width:100%;height:100%;border:2px dashed var(--line);background:none;border-radius:10px;font-size:28px;color:var(--accent);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 .ai-add button span{font-size:13px;font-weight:600}
 .ai-add{border-style:none!important;background:none!important}
+/* export / import pickers */
+.ex-panel{border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:12px;display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.ex-row{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px;align-items:start;cursor:pointer}
+.ex-row input{width:22px;height:22px;margin:2px 0 0;accent-color:var(--accent)}
+.ex-row input:disabled+span{opacity:.5}
+.ex-row b{display:block;font-size:15px}.ex-row small{display:block;font-size:12.5px;color:var(--muted)}
+.ex-quick{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+.ex-pick{margin-left:36px}.ex-pick summary{cursor:pointer;font-size:13.5px;font-weight:600;color:var(--accent)}
+.ex-plays{display:flex;flex-direction:column;gap:4px;max-height:240px;overflow:auto;font-size:14px}
+.ex-plays small{color:var(--muted)}
+.ex-plays label{display:flex;flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:14px;font-weight:500;color:var(--ink);padding:3px 0}
+.ex-plays input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--accent)}
