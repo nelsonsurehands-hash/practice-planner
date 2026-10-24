@@ -820,3 +820,9 @@ body.pb-full{overflow:hidden}
 .play-locked #view-plays .board-head [data-photo]{display:none!important}
 .play-locked #pFull:not(.fs-on){background:var(--surface);color:var(--ink);border-color:var(--line)}
 .play-locked #view-plays .pmeta .f-name{display:none}
+.fd-items{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:14px;margin:10px 0 0}
+.fd-item{background:var(--accent-soft);border-radius:20px;padding:3px 10px;font-weight:600}
+.fd-item small{font-weight:500;color:var(--muted)}
+.fd-presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 8px;font-size:13px;color:var(--muted)}
+.fd-presets .gp-tag{min-height:32px;padding:4px 10px;font-size:13px}
+.fd-edit>summary{display:inline-block;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px}

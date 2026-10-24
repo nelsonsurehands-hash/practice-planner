@@ -440,6 +440,7 @@ function printBus(t){
 
 /* ---------- game-day food sign-ups ---------- */
 const FOOD_SLOTS=[{name:"Post-game snacks",count:2},{name:"Drinks / water",count:1}];
+const FOOD_PRESETS=[["Pre-game meal",1],["Post-game snacks",2],["Drinks / water",1],["Gatorade / sports drinks",1],["Fruit",1],["Ice / cooler",1],["Paper plates & napkins",1],["Dessert",1]];
 const signupURL=id=>new URL("signup.html?s="+encodeURIComponent(id)+(HOSTED?"":"&demo=1"),location.href).href;
 const randId=()=>{const a=new Uint8Array(12);crypto.getRandomValues(a);return Array.from(a,b=>"abcdefghijkmnpqrstuvwxyz23456789"[b%32]).join("");};
 /* Same storage calls whether the sheet lives in Supabase or (demo mode) in this browser. */
@@ -476,7 +477,9 @@ function boardForm(b){
     <label class="f">Sign-up title<input name="title" value="${esc(b.title)}" required></label>
     <fieldset class="catpick"><legend>Which games</legend><div class="exp-pick">${[["all","All games"],["home","Home games only"],["away","Away games only"]].map(([v,l])=>`<label><input type="radio" name="games" value="${v}"${b.games===v?" checked":""}> ${l}</label>`).join("")}</div></fieldset>
     <fieldset class="catpick"><legend>What parents sign up for, at each game</legend><div id="fdSlots">${slotRows(b.slots)}</div>
-      <button class="btn" type="button" id="fdAddSlot">+ Add an item</button></fieldset>
+      <div class="fd-presets"><span>Quick add:</span>${FOOD_PRESETS.map(([n,c])=>`<button type="button" class="gp-tag" data-fdpreset="${esc(n)}" data-count="${c}">+ ${esc(n)}</button>`).join("")}</div>
+      <button class="btn" type="button" id="fdAddSlot">+ Add your own item</button>
+      <p class="help" style="margin:4px 0 0">Each item shows at every game. Spots is how many parents can sign up for that item at one game.</p></fieldset>
     <label class="f">Note to parents<textarea name="note" rows="3" placeholder="e.g. Please bring enough for ${Math.max(ROSTER.length,12)} players and coaches. Drop it off with Coach before tip-off.">${esc(b.note||"")}</textarea></label>
     <div class="actions" style="margin:0"><button class="btn primary" type="submit">${food&&food.board?"Save changes":"Create the parent link"}</button></div>
   </form>`;
@@ -505,7 +508,8 @@ function renderFood(){
     <div class="fd-url"><input readonly value="${esc(url)}" id="fdUrl" aria-label="Parent sign-up link"><button class="btn primary" type="button" data-fdact="copy">Copy link</button>${navigator.share?`<button class="btn" type="button" data-fdact="share">Send…</button>`:""}<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Open</a></div>
     <div class="actions" style="margin:8px 0 0"><button class="btn" type="button" data-fdact="msg">Copy a message for parents</button></div>`:
     `<p class="help" style="margin-top:0">Parents who open the link see that sign-ups are closed. Sign-ups so far are kept.</p>`}
-    ${ed?`<details class="fd-edit"><summary>Change what parents sign up for</summary>${boardForm(b)}</details>
+    <div class="fd-items"><b>Parents can sign up for:</b> ${(b.slots||[]).map(x=>`<span class="fd-item">${esc(x.name)} <small>${x.count} spot${x.count===1?"":"s"}</small></span>`).join("")}</div>
+    ${ed?`<details class="fd-edit" id="fdEdit"><summary>${(b.slots||[]).length<2?"Add more items for parents":"Add or change items"}</summary>${boardForm(b)}</details>
     <div class="actions" style="margin:8px 0 0"><button class="btn${b.active?" danger":""}" type="button" data-fdact="toggle">${b.active?"Turn off the link":"Turn the link back on"}</button></div>`:""}
     <div class="msg" id="fdMsg"></div></div>
     ${up.length?up.map(gameCard).join(""):`<div class="tm-card"><p class="help">No upcoming ${b.games==="all"?"":b.games+" "}games on the calendar.</p></div>`}
@@ -526,6 +530,13 @@ $("#tm-food").addEventListener("submit",async e=>{
   }catch(err){btn.disabled=false;if(isDbMissing(err)){food.err="db";renderFood();}else msg($("#fdMsg"),err.message,"err");}
 });
 $("#tm-food").addEventListener("click",async e=>{
+  const pr=e.target.closest("[data-fdpreset]");
+  if(pr){const have=[...document.querySelectorAll("#fdSlots [data-slotname]")].map(i=>i.value.trim().toLowerCase());
+    if(have.includes(pr.dataset.fdpreset.toLowerCase())){msg($("#fdMsg"),pr.dataset.fdpreset+" is already on the list.","err");return;}
+    const blank=[...document.querySelectorAll("#fdSlots .fd-slot")].find(r=>!r.querySelector("[data-slotname]").value.trim());
+    if(blank){blank.querySelector("[data-slotname]").value=pr.dataset.fdpreset;blank.querySelector("[data-slotcount]").value=pr.dataset.count;}
+    else $("#fdSlots").insertAdjacentHTML("beforeend",slotRows([{name:pr.dataset.fdpreset,count:+pr.dataset.count}]));
+    pr.setAttribute("aria-pressed","true");return;}
   if(e.target.id==="fdAddSlot"){$("#fdSlots").insertAdjacentHTML("beforeend",slotRows([{name:"",count:1}]));$("#fdSlots .fd-slot:last-child input").focus();return;}
   if(e.target.closest("[data-fdrm]")){const r=e.target.closest(".fd-slot");if(document.querySelectorAll("#fdSlots .fd-slot").length>1)r.remove();return;}
   const x=e.target.closest("[data-fdx]");
