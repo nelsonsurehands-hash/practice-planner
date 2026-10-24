@@ -86,7 +86,7 @@ function quick(){
   <div class="hm-more"><button type="button" class="btn" data-hm="sched">🚌 Game &amp; bus schedule</button><button type="button" class="btn" data-hm="roster">Roster</button><button type="button" class="btn" data-hm="food">Food sign-ups</button><button type="button" class="btn" data-hm="parentlink">🔗 Parent calendar link</button></div>`;
 }
 function render(){
-  const box=document.getElementById("homeBody");if(!box||document.getElementById("view-home").hidden||typeof SETTINGS==="undefined")return;
+  const box=document.getElementById("homeBody");if(!box||document.getElementById("view-home").hidden||typeof SETTINGS==="undefined"||typeof team==="undefined"||!team)return;
   const days=SchedCore.days(SETTINGS);
   document.getElementById("hmEyebrow").textContent=typeof team!=="undefined"&&team?[team.name,(team.settings||{}).teamLabel].filter(Boolean).join(" · "):"";
   const h=new Date().getHours();document.getElementById("hmHello").textContent=h<12?"Good morning":h<17?"Good afternoon":"Good evening";
@@ -118,5 +118,7 @@ document.getElementById("view-home").addEventListener("click",e=>{
 const prevCal=window.onCalChange;window.onCalChange=function(){if(prevCal)prevCal.apply(this,arguments);render();};
 if(T().opened)T().opened.push(()=>setTimeout(render,0));
 setInterval(render,60*1000);
+/* First open (or a slow connection): keep trying until the team has loaded, so Home is never left empty. */
+let tries=0;const boot=setInterval(()=>{tries++;if(typeof team!=="undefined"&&team&&typeof SETTINGS!=="undefined"){render();if(document.querySelector("#homeBody .hm-grid")||tries>60)clearInterval(boot);}else if(tries>120)clearInterval(boot);},250);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")render();});
 })();
