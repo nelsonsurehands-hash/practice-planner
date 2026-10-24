@@ -1112,6 +1112,7 @@ async function saveFile(name,data){
 /* ---------- tabs ---------- */
 document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
 function setTab(t){
+  document.body.classList.remove("live-mode");
   if(t!=="plays"&&!$("#view-plays").hidden&&window.guardPlay&&!guardPlay(()=>setTab(t)))return;
   if(typeof FS!=="undefined"&&FS.on&&t!=="plays")exitFull();
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));

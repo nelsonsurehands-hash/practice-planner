@@ -5,6 +5,7 @@
    run (from the team's playbook), notes, and the result afterwards. Both save as you type and print. */
 (function(){
 const SCOUTS={}, PLANS={};
+window.TM.plans=PLANS;   // read by js/stats.js (starters, saving the final score)
 let gpDate=null, scKey=null, timer=null, pendingKind=null, pendingId=null, newOpp=false;
 const T=()=>window.TM;
 const keyOf=o=>String(o||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"opponent";
@@ -178,7 +179,7 @@ function renderGame(){
     <h4 class="gp-h">After the game</h4>
     <div class="gp-score"><label class="f">Us<input type="number" min="0" inputmode="numeric" data-p="result.us" value="${esc(r.us??"")}"${D}></label><span>–</span><label class="f">${esc(g.opponent||"Them")}<input type="number" min="0" inputmode="numeric" data-p="result.them" value="${esc(r.them??"")}"${D}></label><b class="gp-wl" id="gpWL">${resultOf(gpDate)}</b></div>
     <label class="f">What worked, what to practice<textarea data-p="result.notes" rows="2"${D}>${esc(r.notes||"")}</textarea></label>
-    <div class="actions" style="margin:14px 0 0"><button class="btn primary" type="button" data-gpprint>Print gameplan</button><span class="saved" id="gpSaved">${PLANS[gpDate]&&PLANS[gpDate].updatedBy?`Last edit by ${esc(PLANS[gpDate].updatedBy)}`:""}</span></div>
+    <div class="actions" style="margin:14px 0 0"><button class="btn primary" type="button" data-gpprint>Print gameplan</button><button class="btn" type="button" data-gptrack="${gpDate}">📊 Track this game</button><span class="saved" id="gpSaved">${PLANS[gpDate]&&PLANS[gpDate].updatedBy?`Last edit by ${esc(PLANS[gpDate].updatedBy)}`:""}</span></div>
   </div>`;
 }
 T().panes.game=renderGame;
@@ -196,6 +197,7 @@ $("#tm-game").addEventListener("click",e=>{
   if(e.target.closest("[data-gpscout]")){flush();const g=games().find(x=>x.date===gpDate);scKey=keyOf(g&&g.opponent);window.goTeam("scout");return;}
   const o=e.target.closest("[data-gpopen]");if(o){flush();setTab("plays");const b=document.querySelector(`#plList [data-open="${CSS.escape(o.dataset.gpopen)}"]`);if(b)b.click();return;}
   if(e.target.closest("[data-gpprint]")){flush();printGame();return;}
+  const tr=e.target.closest("[data-gptrack]");if(tr){flush();window.StatsTrack&&window.StatsTrack(tr.dataset.gptrack);return;}
   if(!can())return;
   const p=planFor(gpDate);
   if(e.target.closest("[data-gpkey]")){p.keys.push("");save("gameplans",gpDate,p,true);renderGame();return;}

@@ -10,9 +10,9 @@
 alter table public.team_members add column if not exists perms jsonb;
 
 -- Allow the new kinds of saved items: players (roster), trips (bus lists),
--- scouts (scouting reports, one per opponent) and gameplans (one per game).
+-- scouts (scouting reports, one per opponent), gameplans (one per game) and gamestats (live stats per game).
 alter table public.items drop constraint if exists items_kind_check;
-alter table public.items add constraint items_kind_check check (kind in ('drills','plans','plays','players','trips','scouts','gameplans'));
+alter table public.items add constraint items_kind_check check (kind in ('drills','plans','plays','players','trips','scouts','gameplans','gamestats'));
 
 create or replace function public.can_edit(t uuid, area text) returns boolean
 language sql stable security definer set search_path = public as $$
