@@ -4,6 +4,7 @@
    Food sign-up sheets live in their own tables (supabase/team-tools.sql); in demo mode they're
    kept in this browser so the parents' page can be previewed on this device. */
 (function(){
+let rsSel=null;   // roster multi-select: a Set of player ids while selecting
 let pane="teams", ROSTER=[], TRIPS={}, unsubs=[], busDate=null, tripTimer=null, needsDb="", rosterEdit=null, food=null;
 try{pane=localStorage.getItem("cpp:tmPane")||"teams";}catch{}
 const can=()=>!!(typeof PERM!=="undefined"&&PERM.schedule);
@@ -245,14 +246,16 @@ function renderRoster(){
   if(HOSTED&&!can()&&!["owner","coach"].includes(team.role)){box.innerHTML=`<div class="tm-card"><h3 class="tm-h">Roster</h3><p class="help">The roster has parent phone numbers and emails, so only coaches can see it.</p></div>`;return;}
   const ed=can(),emails=[...new Set(ROSTER.map(p=>p.email).filter(Boolean))];
   box.innerHTML=(needsDb==="players"?DB_HELP:"")+`<div class="tm-card"><h3 class="tm-h">Roster <small>${ROSTER.length} player${ROSTER.length===1?"":"s"}</small></h3>
-    ${ed?`<div class="actions" style="margin:0 0 10px"><button class="btn primary" type="button" data-rsact="add">+ Add player</button><button class="btn" type="button" data-rsact="paste">Paste a list</button><button class="btn" type="button" data-photo="roster">📷 From a photo</button>${ROSTER.length?`<button class="btn" type="button" data-rsact="print">Print roster</button>`:""}${emails.length?`<button class="btn" type="button" data-rsact="emails">Copy parent emails</button>`:""}</div>`:""}
+    ${ed?`<div class="actions" style="margin:0 0 10px"><button class="btn primary" type="button" data-rsact="add">+ Add player</button><button class="btn" type="button" data-rsact="paste">Paste a list</button><button class="btn" type="button" data-photo="roster">📷 From a photo</button>${ROSTER.length?`<button class="btn" type="button" data-rsact="print">Print roster</button><button class="btn" type="button" data-rsact="select">Select players</button>`:""}${emails.length?`<button class="btn" type="button" data-rsact="emails">Copy parent emails</button>`:""}</div>`:""}
+    ${rsSel&&ed?`<div class="rs-selbar"><span><b>${rsSel.size}</b> selected</span><button class="btn" type="button" data-rsact="selall">${rsSel.size===ROSTER.length?"Select none":"Select all"}</button>
+      <button class="btn danger" type="button" data-rsact="delsel"${rsSel.size?"":" disabled"}>Remove ${rsSel.size||""} from roster</button><button class="btn" type="button" data-rsact="selcancel">Done</button></div>`:""}
     <div id="rsNew">${rosterEdit==="new"?playerForm():rosterEdit==="paste"?pasteForm():""}</div>
     ${ROSTER.length?`<ul class="rs-list">${ROSTER.map(p=>rosterEdit===p.id?`<li class="rs-row editing">${playerForm(p)}</li>`:
-      `<li class="rs-row"><span class="rs-num">${esc(p.number||"–")}</span><div class="rs-who"><b>${esc(p.name||"")}</b>${p.pos?` <span class="rs-pos">${esc(p.pos)}</span>`:""}
+      `<li class="rs-row${rsSel?" selecting":""}${rsSel&&rsSel.has(p.id)?" sel":""}"${rsSel?` data-rspick="${esc(p.id)}"`:""}>${rsSel?`<label class="rs-chk"><input type="checkbox" data-rspick="${esc(p.id)}"${rsSel.has(p.id)?" checked":""} aria-label="Select ${esc(p.name||"player")}"></label>`:""}<span class="rs-num">${esc(p.number||"–")}</span><div class="rs-who"><b>${esc(p.name||"")}</b>${p.pos?` <span class="rs-pos">${esc(p.pos)}</span>`:""}
         <small>${[p.parent,p.phone?`<a href="tel:${esc(tel(p.phone))}">${esc(p.phone)}</a>`:"",p.email?`<a href="mailto:${esc(p.email)}">${esc(p.email)}</a>`:""].filter(Boolean).join(" · ")||"No parent contact yet"}</small>
         ${p.parent2||p.phone2?`<small>${esc(p.parent2||"")}${p.phone2?` · <a href="tel:${esc(tel(p.phone2))}">${esc(p.phone2)}</a>`:""}</small>`:""}
         ${p.notes?`<small class="rs-note">${esc(p.notes)}</small>`:""}</div>
-        ${ed?`<button class="btn" type="button" data-rsact="edit" data-pid="${esc(p.id)}">Edit</button>`:""}</li>`).join("")}</ul>`:
+        ${ed&&!rsSel?`<span class="rs-acts"><button class="btn" type="button" data-rsact="edit" data-pid="${esc(p.id)}">Edit</button><button class="icon rs-del" type="button" data-rsact="del" data-pid="${esc(p.id)}" aria-label="Remove ${esc(p.name||"player")}" title="Remove from roster">🗑</button></span>`:""}</li>`).join("")}</ul>`:
       `<p class="help">No players yet. Add them one at a time, or paste a list from a spreadsheet or your notes. The roster is used for bus lists, and parents can pick their player on the food sign-up.</p>`}
     <div class="msg" id="rsMsg"></div></div>`;
 }
@@ -272,14 +275,26 @@ function parseList(text){
   }).filter(Boolean);
 }
 $("#tm-roster").addEventListener("click",async e=>{
+  const pk=!e.target.closest("a,[data-rsact]")&&e.target.closest("[data-rspick]");
+  if(pk&&rsSel){const id=pk.dataset.rspick;if(e.target.matches("input[type=checkbox]")){if(e.target.checked)rsSel.add(id);else rsSel.delete(id);}else{if(rsSel.has(id))rsSel.delete(id);else rsSel.add(id);}renderRoster();return;}
   const b=e.target.closest("[data-rsact]");if(!b)return;
   const a=b.dataset.rsact;
   if(a==="add"){rosterEdit="new";renderRoster();$("#rsNew [name=name]").focus();}
   if(a==="paste"){rosterEdit="paste";renderRoster();$("#rsPaste textarea").focus();}
   if(a==="edit"){rosterEdit=b.dataset.pid;renderRoster();}
   if(a==="cancel"){rosterEdit=null;renderRoster();}
+  if(a==="select"){rsSel=new Set();rosterEdit=null;renderRoster();return;}
+  if(a==="selcancel"){rsSel=null;renderRoster();return;}
+  if(a==="selall"){rsSel=rsSel.size===ROSTER.length?new Set():new Set(ROSTER.map(p=>p.id));renderRoster();return;}
+  if(a==="delsel"){
+    if(!rsSel||!rsSel.size)return;
+    if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent=`Tap again to remove ${rsSel.size} player${rsSel.size===1?"":"s"}`;return;}
+    b.disabled=true;let n=0;
+    for(const id of [...rsSel]){try{await store.collection("players").doc(id).delete();n++;}catch(err){msg($("#rsMsg"),"Stopped: "+err.message,"err");break;}}
+    rsSel=null;renderRoster();if(n)msg($("#rsMsg"),`Removed ${n} player${n===1?"":"s"} from the roster.`,"ok");return;
+  }
   if(a==="del"){
-    if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to remove";return;}
+    if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent=b.classList.contains("rs-del")?"Remove?":"Tap again to remove";b.classList.add("armed");return;}
     try{await store.collection("players").doc(b.dataset.pid).delete();rosterEdit=null;}catch(err){msg($("#rsMsg"),err.message,"err");}
   }
   if(a==="emails"){const list=[...new Set(ROSTER.map(p=>p.email).filter(Boolean))].join(", ");
