@@ -480,6 +480,8 @@ function boardForm(b){
       <div class="fd-presets"><span>Quick add:</span>${FOOD_PRESETS.map(([n,c])=>`<button type="button" class="gp-tag" data-fdpreset="${esc(n)}" data-count="${c}">+ ${esc(n)}</button>`).join("")}</div>
       <button class="btn" type="button" id="fdAddSlot">+ Add your own item</button>
       <p class="help" style="margin:4px 0 0">Each item shows at every game. Spots is how many parents can sign up for that item at one game.</p></fieldset>
+    <label class="f fd-hometime">Home games: food delivered by<input type="time" name="homeTime" value="${esc(((b.dropoff||{}).home)||"16:00")}"></label>
+    <p class="help" style="margin:-4px 0 0">Away games each get their own time, set next to the game below.</p>
     <label class="f">Note to parents<textarea name="note" rows="3" placeholder="e.g. Please bring enough for ${Math.max(ROSTER.length,12)} players and coaches. Drop it off with Coach before tip-off.">${esc(b.note||"")}</textarea></label>
     <div class="actions" style="margin:0"><button class="btn primary" type="submit">${food&&food.board?"Save changes":"Create the parent link"}</button></div>
   </form>`;
@@ -496,9 +498,13 @@ function renderFood(){
   const url=signupURL(b.id),today=todayISO(),games=foodGames(b),up=games.filter(g=>g.date>=today),past=games.filter(g=>g.date<today);
   const by={};food.entries.forEach(e=>{const k=(e.game_date||"").slice(0,10)+"|"+e.slot;(by[k]=by[k]||[]).push(e);});
   const open=g=>(b.slots||[]).reduce((n,s)=>n+Math.max(0,s.count-(by[g.date+"|"+s.name]||[]).length),0);
-  const gameCard=g=>{const skip=(b.skip||[]).includes(g.date);
+  const gameCard=g=>{const skip=(b.skip||[]).includes(g.date),d=dropFor(b,g),bus=g.home===false?busTimeFor(g.date):"";
+    const drop=skip?"":ed?`<div class="fd-drop"><label>Food delivered by <input type="time" data-fddrop="${g.date}" value="${esc(d.time)}"></label>
+        ${g.home!==false&&!d.custom?`<small>home game time</small>`:""}${g.home===false&&!d.time?`<small class="warn">Not set yet: parents see “time coming soon”</small>`:""}
+        ${bus&&bus!==d.time?`<button type="button" class="linkbtn" data-fdbus="${g.date}" data-time="${bus}">Use bus time (${hm(bus)})</button>`:""}</div>`:
+      `<div class="fd-drop">${d.time?`Food delivered by <b>${hm(d.time)}</b>`:"Delivery time not set yet"}</div>`;
     return `<article class="fd-game${skip?" skip":""}"><header><b>${esc(longDay(g.date))}</b> <span>${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")}${g.time?" · "+hm(g.time):""}</span>
-      <span class="fd-open">${skip?"No sign-ups":open(g)?`${open(g)} open`:"All filled"}</span></header>
+      <span class="fd-open">${skip?"No sign-ups":open(g)?`${open(g)} open`:"All filled"}</span></header>${drop}
       ${skip?"":(b.slots||[]).map(s=>{const list=by[g.date+"|"+s.name]||[];
         return `<div class="fd-srow"><div class="fd-sname">${esc(s.name)} <small>${list.length} of ${s.count}</small></div><ul>${list.map(e=>`<li><b>${esc(e.name)}</b>${e.player?` <span>(${esc(e.player)})</span>`:""}${e.item?` · ${esc(e.item)}`:""}<small>${/@/.test(e.contact)?`<a href="mailto:${esc(e.contact)}">${esc(e.contact)}</a>`:`<a href="tel:${esc(tel(e.contact))}">${esc(e.contact)}</a>`}</small>${ed?`<button class="icon" type="button" data-fdx="${esc(e.id)}" aria-label="Remove ${esc(e.name)}">✕</button>`:""}</li>`).join("")}${list.length<s.count?`<li class="fd-empty">${s.count-list.length} open</li>`:""}</ul></div>`;}).join("")}
       ${ed?`<button class="linkbtn fd-skip" type="button" data-fdskip="${g.date}">${skip?"Turn sign-ups back on for this game":"No food needed for this game"}</button>`:""}</article>`;};
@@ -515,10 +521,21 @@ function renderFood(){
     ${up.length?up.map(gameCard).join(""):`<div class="tm-card"><p class="help">No upcoming ${b.games==="all"?"":b.games+" "}games on the calendar.</p></div>`}
     ${past.length?`<details class="fd-past"><summary>Past games (${past.length})</summary>${past.map(gameCard).join("")}</details>`:""}`;
 }
+/* Delivery time for a game: its own time if set, otherwise the home-game time (home games only). */
+function dropFor(b,g){const d=b.dropoff||{},own=(d.games||{})[g.date];if(own)return {time:own,custom:true};return {time:g.home===false?"":(d.home||"16:00"),custom:false};}
+const busTimeFor=iso=>(TRIPS[iso]&&TRIPS[iso].depart)||((SETTINGS.special||[]).find(x=>x.date===iso&&x.bus)||{}).bus||"";
+async function setDrop(date,time){
+  const b=food.board,d=JSON.parse(JSON.stringify(b.dropoff||{home:"16:00"}));d.games=d.games||{};
+  const g=(SETTINGS.games||[]).find(x=>x.date===date)||{};
+  if(!time||(g.home!==false&&time===(d.home||"16:00")))delete d.games[date];else d.games[date]=time;
+  try{await FoodAPI.update(b.id,{dropoff:d});b.dropoff=d;renderFood();msg($("#fdMsg"),`Delivery time saved for ${longDay(date)}. Parents see it right away.`,"ok");}
+  catch(err){msg($("#fdMsg"),isDbMissing(err)?"Delivery times need the latest database update (team-tools.sql).":err.message,"err");}
+}
 function readBoardForm(f){
   const slots=[...f.querySelectorAll(".fd-slot")].map(r=>({name:r.querySelector("[data-slotname]").value.trim(),count:Math.max(1,Math.min(20,+r.querySelector("[data-slotcount]").value||1))})).filter(s=>s.name);
   const names=new Set();const uniq=slots.filter(s=>!names.has(s.name.toLowerCase())&&names.add(s.name.toLowerCase()));
-  return {title:f.title.value.trim()||"Game-day food",games:(f.querySelector("[name=games]:checked")||{}).value||"all",note:f.note.value.trim(),slots:uniq};
+  const home=(f.homeTime&&f.homeTime.value)||"16:00";
+  return {dropoff:{...((food&&food.board&&food.board.dropoff)||{}),games:{...(((food&&food.board&&food.board.dropoff)||{}).games||{})},home},title:f.title.value.trim()||"Game-day food",games:(f.querySelector("[name=games]:checked")||{}).value||"all",note:f.note.value.trim(),slots:uniq};
 }
 $("#tm-food").addEventListener("submit",async e=>{
   e.preventDefault();const f=e.target;if(f.id!=="fdForm")return;
@@ -529,7 +546,9 @@ $("#tm-food").addEventListener("submit",async e=>{
     await loadFood();msg($("#fdMsg"),food.board&&food.board.title===v.title?"Saved. Parents see the change right away.":"Link ready. Copy it and send it to parents.","ok");
   }catch(err){btn.disabled=false;if(isDbMissing(err)){food.err="db";renderFood();}else msg($("#fdMsg"),err.message,"err");}
 });
+$("#tm-food").addEventListener("change",e=>{const t=e.target.closest("[data-fddrop]");if(t&&can())setDrop(t.dataset.fddrop,t.value);});
 $("#tm-food").addEventListener("click",async e=>{
+  const bt=e.target.closest("[data-fdbus]");if(bt&&can()){setDrop(bt.dataset.fdbus,bt.dataset.time);return;}
   const pr=e.target.closest("[data-fdpreset]");
   if(pr){const have=[...document.querySelectorAll("#fdSlots [data-slotname]")].map(i=>i.value.trim().toLowerCase());
     if(have.includes(pr.dataset.fdpreset.toLowerCase())){msg($("#fdMsg"),pr.dataset.fdpreset+" is already on the list.","err");return;}

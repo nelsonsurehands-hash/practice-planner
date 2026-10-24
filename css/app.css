@@ -847,3 +847,7 @@ body.pb-full{overflow:hidden}
 .ex-plays small{color:var(--muted)}
 .ex-plays label{display:flex;flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:14px;font-weight:500;color:var(--ink);padding:3px 0}
 .ex-plays input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--accent)}
+.fd-drop{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:13.5px;padding:2px 0 8px}
+.fd-drop label{display:flex;align-items:center;gap:6px;font-weight:600}
+.fd-drop input{width:auto;padding:4px 6px;font-size:14px}
+.fd-drop small{color:var(--muted)}.fd-drop small.warn{color:var(--warn)}

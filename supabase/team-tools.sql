@@ -76,6 +76,8 @@ create table if not exists public.signup_entries (
   created_at  timestamptz not null default now()
 );
 create index if not exists signup_entries_board on public.signup_entries(board_id, game_date);
+-- When food needs to be delivered: home games share one time; each game can have its own (away games).
+alter table public.signup_boards add column if not exists dropoff jsonb not null default '{"home":"16:00","games":{}}'::jsonb;
 
 alter table public.signup_boards enable row level security;
 alter table public.signup_entries enable row level security;
@@ -104,7 +106,7 @@ begin
   if b.id is null then return null; end if;
   select * into t from teams where id = b.team_id;
   return jsonb_build_object(
-    'title', b.title, 'note', b.note, 'slots', b.slots,
+    'title', b.title, 'note', b.note, 'slots', b.slots, 'dropoff', b.dropoff,
     'team', jsonb_build_object('name', t.name, 'color', t.settings->>'color', 'color2', t.settings->>'color2',
                                'logo', t.settings->>'logo', 'school', t.settings->>'school',
                                'mascot', t.settings->>'mascot', 'teamLabel', t.settings->>'teamLabel'),

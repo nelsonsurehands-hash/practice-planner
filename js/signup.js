@@ -12,6 +12,8 @@ const longDay=s=>dObj(s).toLocaleDateString("en-US",{weekday:"long",month:"long"
 const ampm=t=>{if(!t)return "";const [h,m]=t.split(":").map(Number);return `${((h+11)%12)+1}:${String(m).padStart(2,"0")} ${h<12?"AM":"PM"}`;};
 const isoOf=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const yesterday=()=>{const d=new Date();d.setDate(d.getDate()-1);return isoOf(d);};
+/* When the food needs to be there: the game's own time, or the home-game time for home games. */
+function dropOf(g){const d=(SHEET&&SHEET.dropoff)||{home:"16:00"},own=(d.games||{})[g.date];return own||(g.home?(d.home||"16:00"):"");}
 const MINE_KEY="cpp:mySignups:"+ID;
 const readMine=()=>{try{return JSON.parse(localStorage.getItem(MINE_KEY)||"[]");}catch{return [];}};
 const writeMine=v=>{try{localStorage.setItem(MINE_KEY,JSON.stringify(v));}catch{}};
@@ -27,7 +29,7 @@ if(DEMO){
     async get(){
       const v=read();if(!v||!v.board||v.board.id!==ID||!v.board.active)return null;
       const t=(JSON.parse(localStorage.getItem("cpp:demoTeams")||"[]")).find(x=>x.id===teamId)||{settings:{}},st=t.settings||{},b=v.board,y=yesterday();
-      return {title:b.title,note:b.note,slots:b.slots,team:{name:t.name,color:st.color,color2:st.color2,logo:st.logo,school:st.school,mascot:st.mascot,teamLabel:st.teamLabel},
+      return {title:b.title,note:b.note,slots:b.slots,dropoff:b.dropoff||{home:"16:00"},team:{name:t.name,color:st.color,color2:st.color2,logo:st.logo,school:st.school,mascot:st.mascot,teamLabel:st.teamLabel},
         games:(st.games||[]).filter(g=>g.date&&(b.games==="all"||(b.games==="home")===(g.home!==false))).sort((a,c)=>a.date<c.date?-1:1).map(g=>({...g,home:g.home!==false,past:g.date<y,skip:(b.skip||[]).includes(g.date)})),
         entries:v.entries.filter(e=>e.game_date>=y).map(e=>({id:e.id,date:e.game_date,slot:e.slot,name:shortName(e.name),item:e.item}))};
     },
@@ -88,10 +90,10 @@ function render(){
     return `<article class="su-g ${cls}${on?" on":""}">
       <button type="button" class="su-row" data-g="${g.date}" aria-expanded="${on}"${can?"":" disabled"}>
         <span class="su-date"><small>${d.toLocaleDateString("en-US",{month:"short"})}</small><b>${d.getDate()}</b><small>${d.toLocaleDateString("en-US",{weekday:"short"})}</small></span>
-        <span class="su-opp"><b>${g.home?"vs":"at"} ${esc(g.opponent||"Game")}</b><small>${g.time?ampm(g.time)+" · ":""}${g.home?"Home":"Away"}</small></span>
+        <span class="su-opp"><b>${g.home?"vs":"at"} ${esc(g.opponent||"Game")}</b><small>${g.time?ampm(g.time)+" · ":""}${g.home?"Home":"Away"}</small>${g.past?"":`<span class="su-drop${dropOf(g)?"":" tba"}">${dropOf(g)?`🍎 Food by ${ampm(dropOf(g))}`:"Food drop-off time coming soon"}</span>`}</span>
         <span class="su-st">${st}</span>${can?`<span class="su-chev" aria-hidden="true">›</span>`:""}
       </button>
-      ${on?`<div class="su-slots"><p class="su-pickhelp">Pick what you'll bring:</p>${(SHEET.slots||[]).map(x=>{const list=by[g.date+"|"+x.name]||[],l=x.count-list.length;
+      ${on?`<div class="su-slots"><p class="su-pickhelp">${dropOf(g)?`Please have food there by <b>${ampm(dropOf(g))}</b>${g.home?"":" (away game)"}. `:"The coach will post the drop-off time soon. "}Pick what you'll bring:</p>${(SHEET.slots||[]).map(x=>{const list=by[g.date+"|"+x.name]||[],l=x.count-list.length;
         return `<div class="su-slot"><div><div class="nm">${esc(x.name)}</div><div class="left${l<=0?" full":""}">${l<=0?"All set, thank you!":`${l} of ${x.count} spot${x.count===1?"":"s"} open`}</div></div>
           ${l>0?`<button class="btn primary" type="button" data-date="${g.date}" data-slot="${esc(x.name)}">Sign up</button>`:""}
           ${list.length?`<ul>${list.map(e=>`<li>${esc(e.name)}${e.item?`: ${esc(e.item)}`:""}</li>`).join("")}</ul>`:""}</div>`;}).join("")}</div>`:""}
@@ -126,19 +128,20 @@ $("#suForm").addEventListener("submit",async e=>{
     try{localStorage.setItem("cpp:parent",JSON.stringify({name:a.name,contact:a.contact,player:a.player}));}catch{}
     writeMine([...readMine(),{id:r.id,token:r.token,date:a.date,slot:a.slot,opp:a.g.opponent||"",home:a.g.home}]);
     last=a;openDate=a.date;
-    $("#suDoneText").innerHTML=`<b>${esc(a.slot)}</b>${a.item?` (${esc(a.item)})`:""} for ${esc(longDay(a.date))}, ${a.g.home?"vs":"at"} ${esc(a.g.opponent||"the game")}${a.g.time?` at ${ampm(a.g.time)}`:""}. Thank you!`;
+    const dp=dropOf(a.g);
+    $("#suDoneText").innerHTML=`<b>${esc(a.slot)}</b>${a.item?` (${esc(a.item)})`:""} for ${esc(longDay(a.date))}, ${a.g.home?"vs":"at"} ${esc(a.g.opponent||"the game")}${a.g.time?` at ${ampm(a.g.time)}`:""}.${dp?` Please have it there by <b>${ampm(dp)}</b>.`:" The coach will post the drop-off time."} Thank you!`;
     $("#suForm").hidden=true;$("#suDone").hidden=false;
     await load();
   }catch(err){$("#suGo").disabled=false;$("#suMsg").textContent=err.message.replace(/^.*?ERROR:\s*/,"");$("#suMsg").className="msg err";await load().catch(()=>{});}
 });
 $("#suIcs").addEventListener("click",()=>{
   if(!last)return;const g=last.g,d=last.date.replace(/-/g,"");
-  const t=(g.time||"17:00").replace(":","")+"00";
+  const t=(dropOf(g)||g.time||"17:00").replace(":","")+"00";
   const team=(SHEET.team||{}).name||"Team";
   const ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Coach Practice Planner//Sign-up//EN","BEGIN:VEVENT",
     `UID:${Date.now()}-${Math.random().toString(36).slice(2)}@practice-planner`,`DTSTAMP:${new Date().toISOString().replace(/[-:]/g,"").slice(0,15)}Z`,
-    `DTSTART:${d}T${t}`,`SUMMARY:Bring ${last.slot.replace(/[,;]/g," ")} - ${team.replace(/[,;]/g," ")} ${g.home?"vs":"at"} ${(g.opponent||"").replace(/[,;]/g," ")}`,
-    `DESCRIPTION:${(last.item||"").replace(/[,;\n]/g," ")}`,"BEGIN:VALARM","TRIGGER:-PT3H","ACTION:DISPLAY","DESCRIPTION:Game-day food","END:VALARM","END:VEVENT","END:VCALENDAR"].join("\r\n");
+    `DTSTART:${d}T${t}`,`SUMMARY:${dropOf(g)?"Drop off":"Bring"} ${last.slot.replace(/[,;]/g," ")} - ${team.replace(/[,;]/g," ")} ${g.home?"vs":"at"} ${(g.opponent||"").replace(/[,;]/g," ")}`,
+    `DESCRIPTION:${(last.item||"").replace(/[,;\n]/g," ")}`,"BEGIN:VALARM","TRIGGER:-PT2H","ACTION:DISPLAY","DESCRIPTION:Game-day food","END:VALARM","END:VEVENT","END:VCALENDAR"].join("\r\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([ics],{type:"text/calendar"}));a.download="game-day-food.ics";document.body.appendChild(a);a.click();a.remove();
 });
 $("#suMine").addEventListener("click",async e=>{
