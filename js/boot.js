@@ -94,6 +94,8 @@ async function init(){
   document.querySelectorAll(".demo-only").forEach(x=>x.hidden=HOSTED);
   if(!HOSTED){
     $("#demoBar").hidden=false;$("#joinForm").hidden=true;$("#joinDivider").hidden=true;
+    /* The test copy of the app (test.theextracoach.com): say so plainly, so nobody mistakes it for the real one. */
+    if(CFG.env==="test"){const bar=$("#demoBar");bar.classList.add("test-bar");bar.innerHTML="<strong>🧪 TEST VERSION.</strong> Try new features here. Nothing you do here touches the real app or your team's data, and it's saved only on this device. To bring your real plays in: Settings → Import a backup.";}
     user={id:"me",email:""};
     teams=readDemoTeams();
     return teams.length?openTeam(pickLast()):showSetup(false);

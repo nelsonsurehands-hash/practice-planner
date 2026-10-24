@@ -1077,3 +1077,4 @@ body.pb-full{overflow:hidden}
 .hm-wait{display:flex;align-items:center;gap:10px;color:var(--muted);font-weight:600}
 .hm-spin{width:18px;height:18px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);animation:hmspin .8s linear infinite}
 @keyframes hmspin{to{transform:rotate(360deg)}}
+.demo-bar.test-bar{background:#ffe08a;color:#3d2e00;border:2px dashed #b98900}
