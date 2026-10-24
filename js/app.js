@@ -594,7 +594,7 @@ function blankPlay(){const f=Object.keys(sp().forms)[0];return {id:null,name:"",
 
 /* geometry */
 /* editor rendering */
-function renderBoard(){$("#board").innerHTML=boardInner(frame(),"screen",temp,false,optionGhost());renderOptBanner(fi);}
+function renderBoard(){$("#board").innerHTML=boardInner(withDefense(frame(),curDefense()),"screen",temp,false,optionGhost());renderOptBanner(fi);}
 /* On the first step of an option, show the step it branches from as faint lines, so the play stays in view. */
 function optionGhost(){
   const f=frame();if(!f.opt)return null;const L=playLines(play.frames),o=optionOf(play.frames,L,fi);
@@ -607,7 +607,7 @@ function renderOptBanner(i){
   if(n.opt)$("#pOptBanner").innerHTML=`<b>${esc(n.opt.title)}</b><span>Step ${n.opt.steps.indexOf(i)+1} of ${n.opt.steps.length} · ${esc(n.where)}</span>`;
   else if(lead)$("#pOptBanner").innerHTML=`<b>${esc(lead.title)}</b><span>Set-up: the option starts after step ${lead.branch+1}</span>`;
 }
-function renderSteps(){
+function renderSteps(){renderDefPick();
   const L=playLines(play.frames);
   const branches=k=>L.options.filter(o=>o.branch===k).map(o=>o.letter).join("");
   $("#pSteps").innerHTML=L.main.map((i,k)=>`<button class="step" aria-pressed="${i===fi}" data-step="${i}">Step ${k+1}${branches(k)?`<span class="branch" title="Options branch off here">${branches(k)}</span>`:""}</button>`).join("")+
@@ -625,6 +625,7 @@ function renderSteps(){
 const fidOf=f=>f.fid||(f.fid=uid());
 function renderEditor(){
   if(anim)stopAnim();
+  previewDef=null;
   $("#pName").value=play.name;$("#pType").value=play.type;$("#pNotes").value=play.notes||"";fsName();
   renderSteps();renderBoard();
   $("#pStatus").textContent=pdirty?"Unsaved changes":(play.id?"Saved":"");
@@ -719,6 +720,7 @@ board.addEventListener("pointerdown",e=>{
     drag={t,dx:p.x-t.x,dy:p.y-t.y,ball:t.kind!=="ball"&&h&&h.id===t.id?fr.tokens.find(x=>x.kind==="ball"):null,moved:false,before:nextTokens(fr)};
     board.setPointerCapture(e.pointerId);return;
   }
+  if(tool==="d"&&AUTO_DEF((curDefense()||{}).type)){pflash("The defense is set to move on its own. To place defenders by hand, set Defense to “Place my own”.");return;}
   if(tool==="o"||tool==="d"){
     const used=fr.tokens.filter(t=>t.kind===tool).map(t=>t.n);
     const n=Array.from({length:sp().players},(_,k)=>k+1).find(k=>!used.includes(k));
@@ -804,7 +806,7 @@ function refreshSportUI(){
   $("#pShot").hidden=!S.tools.shot;
   ["cut","pass","dribble","screen"].forEach(k=>{const b=document.querySelector(`#ptools [data-tool="${k}"]`);if(!b)return;
     b.hidden=!S.tools[k];if(S.tools[k])b.lastChild.textContent=S.tools[k];});
-  $("#pAutoD").hidden=!S.defend;
+  $("#pDefWrap").hidden=!S.defend;
   $("#board").setAttribute("aria-label",S.board);
   $("#dCats").innerHTML=CATS.map((c,i)=>`<label><input type="checkbox" id="dc${i}" value="${c}"><span>${c}</span></label>`).join("");
   $("#libCat").innerHTML=`<option value="">All categories</option>`+CATS.map(c=>`<option>${c}</option>`).join("");
@@ -817,14 +819,34 @@ $("#pForm").addEventListener("change",e=>{
   const fr=frame();fr.tokens=fr.tokens.filter(t=>t.kind==="d").concat(formTokens(f));fr.actions=[];
   e.target.value="";markDirty();renderBoard();
 });
-$("#pAutoD").addEventListener("click",()=>{
-  const fr=frame(),os=fr.tokens.filter(t=>t.kind==="o"&&t.y>0);
-  if(!os.length){pflash("Place offensive players first.");return;}
-  pushHist();fr.tokens=fr.tokens.filter(t=>t.kind!=="d");
-  if(!sp().defend)return;
-  os.forEach(o=>{const q=sp().defend(o);fr.tokens.push({id:"d"+o.n,kind:"d",n:o.n,x:q.x,y:q.y});});
-  markDirty();renderBoard();
-});
+/* ---------- defense to run the play against ----------
+   Auto defenses (man, 2-3, 3-2, box-and-1) place and move the defenders for you. "Place my own"
+   keeps hand-placed defenders. In view mode the choice is just a preview; editing saves it. */
+let previewDef=null;
+function curDefense(){return previewDef||playDefense(play.frames);}
+function renderDefPick(){
+  const d=curDefense()||{type:"none"},sel=$("#pDef");if(!sel)return;
+  sel.innerHTML=DEF_TYPES.map(([v,l])=>`<option value="${v}"${v===(d.type||"none")?" selected":""}>${l}</option>`).join("");
+  const os=(frame()?frame().tokens:[]).filter(t=>t.kind==="o").sort((a,b)=>a.n-b.n);
+  $("#pChaseWrap").hidden=d.type!=="box1";
+  $("#pChase").innerHTML=os.map(o=>`<option value="${o.n}"${String(o.n)===String(d.chase||(os[0]&&os[0].n))?" selected":""}>#${o.n}${o.label?" "+esc(o.label):""}</option>`).join("")||`<option value="1">#1</option>`;
+}
+function setDefense(type,chase){
+  const editable=typeof PERM!=="undefined"&&PERM.plays&&!PLAY_LOCK;
+  const prev=curDefense()||{type:"none"};
+  const next=type==="none"?null:{type,chase:chase||(prev.chase)||undefined};
+  if(!editable){previewDef=next||{type:"none"};renderBoard();renderDefPick();
+    pflash(PERM&&PERM.plays?"Preview only. Tap Edit play to save a defense with the play.":"Preview: this is how the play looks against that defense.");return;}
+  pushHist();
+  /* Going from an auto defense to "Place my own": start from where the auto defenders were. */
+  if(type==="custom"&&AUTO_DEF(prev.type))play.frames.forEach(f=>{if(!f.tokens.some(t=>t.kind==="d"))
+    f.tokens=f.tokens.concat(defenseFor(f.tokens,prev).map(t=>({id:"d"+t.n,kind:"d",n:t.n,x:Math.round(t.x),y:Math.round(t.y)})));});
+  if(next)play.frames[0].defense=next;else delete play.frames[0].defense;
+  previewDef=null;markDirty();renderBoard();renderDefPick();
+  if(AUTO_DEF(type))pflash(`${(DEF_TYPES.find(x=>x[0]===type)||[])[1]}: the defenders move on their own as the ball moves. Press Play through to watch it.`);
+}
+$("#pDef").addEventListener("change",e=>setDefense(e.target.value));
+$("#pChase").addEventListener("change",e=>setDefense("box1",e.target.value));
 $("#pUndo").addEventListener("click",()=>{if(!hist.length){pflash("Nothing to undo.");return;}const h=JSON.parse(hist.pop());play.frames=h.frames;fi=Math.min(h.fi,play.frames.length-1);markDirty();renderSteps();renderBoard();});
 let clearStepArmed=false;
 $("#pClear").addEventListener("click",e=>{
@@ -915,7 +937,7 @@ function stopAnim(){
 function tick(now){
   if(!anim||anim.paused)return;
   const spd=+$("#pSpeed").value||1;
-  anim.t+=(now-anim.last)*spd;anim.last=now;
+  const dtv=(now-anim.last)*spd;anim.t+=dtv;anim.last=now;
   const tr=anim.tr;
   const dur=anim.phase==="move"?(tr.moves?(tr.moveDur||DUR.move):0):anim.phase==="pass"?(tr.passCurve?DUR.pass:0):anim.phase==="end"?DUR.end:DUR.hold;
   if(anim.t>=dur){
@@ -927,7 +949,7 @@ function tick(now){
       else{anim.i++;anim.tr=buildTransition(anim.frames,anim.i);anim.phase="hold";animCaption(anim.i);}
     }
     else if(anim.phase==="end"){
-      $("#board").innerHTML=boardInner({tokens:animTokens(tr,"pass",1),actions:[]},"screen");
+      $("#board").innerHTML=boardInner({tokens:animDefense(anim,animTokens(tr,"pass",1),400,curDefense()),actions:[]},"screen");
       anim.paused=true;$("#pPlay").innerHTML="&#8635; Replay";$("#pAnimCap").innerHTML+=` <span style="color:var(--muted)">· End of play</span>`;
       anim.done=true;return;
     }
@@ -935,7 +957,7 @@ function tick(now){
   }
   const u=dur?anim.t/dur:1;
   const ph=anim.phase==="end"?"pass":anim.phase;
-  $("#board").innerHTML=boardInner({tokens:animTokens(tr,ph,anim.phase==="end"?1:u),actions:anim.phase==="end"?[]:tr.f.actions},"screen",null,anim.phase!=="hold");
+  $("#board").innerHTML=boardInner({tokens:animDefense(anim,animTokens(tr,ph,anim.phase==="end"?1:u),dtv,curDefense()),actions:anim.phase==="end"?[]:tr.f.actions},"screen",null,anim.phase!=="hold");
   requestAnimationFrame(tick);
 }
 $("#pPlay").addEventListener("click",()=>{
@@ -1078,7 +1100,7 @@ async function addPlayPages(doc,p,fresh){
       doc.setTextColor(0);y+=32;lastOpt=o;
     }
     if(y+IH>H-M){doc.addPage();y=M;}
-    const img=await svgToPng(boardSVG(f,"print",900),900);
+    const img=await svgToPng(boardSVG({...f,defense:curDefense()},"print",900),900);
     doc.addImage(img,"PNG",M,y,IW,IH);doc.setLineWidth(o?2.5:.75);doc.rect(M,y,IW,IH);
     doc.setFont("helvetica","bold");doc.setFontSize(13);doc.text(o?`OPTION ${o.letter} · STEP ${o.steps.indexOf(i)+1}`:n.short.toUpperCase(),M+IW+16,y+16);
     doc.setFont("helvetica","normal");doc.setFontSize(10);

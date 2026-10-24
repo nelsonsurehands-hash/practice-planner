@@ -63,7 +63,7 @@ $("#pbList").addEventListener("click",e=>{const b=e.target.closest("[data-open]"
 
 /* ---------- one play ---------- */
 function openPlay(i){
-  stopRun();cur=i;step=0;
+  stopRun();cur=i;step=0;pbDefPick=null;
   const p=BOOK.plays[i];
   $("#pbName").textContent=p.name;$("#pbPlayType").textContent=p.type||"";
   $("#pbNotes").textContent=p.notes||"";
@@ -73,9 +73,15 @@ function openPlay(i){
 }
 /* step = real frame index. Prev/next walk the display order: main steps, then each option. */
 function order(){return displayOrder(playLines(BOOK.plays[cur].frames));}
+function renderDefSel(){
+  const w=$("#pbDefWrap");if(!w)return;w.hidden=SPORT!=="basketball";
+  const p=BOOK.plays[cur],saved=playDefense(p.frames),cur0=pbDefense()||{type:"none"};
+  $("#pbDef").innerHTML=DEF_TYPES.filter(([v])=>v!=="custom"||(saved&&saved.type==="custom")).map(([v,l])=>`<option value="${v}"${v===(cur0.type||"none")?" selected":""}>${v==="custom"?"Coach's defense":l}${saved&&saved.type===v?" (coach's pick)":""}</option>`).join("");
+}
 function renderStep(){
+  renderDefSel();
   const p=BOOK.plays[cur],f=p.frames[step],L=playLines(p.frames),n=stepName(p.frames,L,step),ord=displayOrder(L),pos=ord.indexOf(step);
-  $("#pbBoard").innerHTML=boardInner(f,"screen");
+  $("#pbBoard").innerHTML=boardInner(withDefense(f,pbDefense()),"screen");
   const branches=k=>L.options.filter(o=>o.branch===k).map(o=>o.letter).join("");
   $("#pbSteps").innerHTML=p.frames.length>1?L.main.map((i,k)=>`<button class="step" aria-pressed="${i===step}" data-step="${i}">Step ${k+1}${branches(k)?`<span class="branch">${branches(k)}</span>`:""}</button>`).join("")+
     L.options.map(o=>`<div class="optgroup"><span class="optlabel">${esc(o.title)}<small>after step ${o.branch+1}</small></span>`+o.steps.map((i,k)=>`<button class="step opt" aria-pressed="${i===step}" data-step="${i}">${o.letter}${k+1}</button>`).join("")+`</div>`).join(""):"";
@@ -103,6 +109,10 @@ $("#pbBoard").addEventListener("touchstart",e=>{sx=e.touches[0].clientX;},{passi
 $("#pbBoard").addEventListener("touchend",e=>{if(sx===null)return;const dx=e.changedTouches[0].clientX-sx;sx=null;
   if(Math.abs(dx)<50)return;stopRun();const o=order(),k=o.indexOf(step);step=o[Math.max(0,Math.min(o.length-1,k+(dx<0?1:-1)))];renderStep();},{passive:true});
 
+/* The defense this play runs against: the coach's choice, or one picked here to watch it against. */
+let pbDefPick=null;
+document.addEventListener("change",e=>{if(e.target.id!=="pbDef")return;pbDefPick=e.target.value;stopRun();renderStep();});
+function pbDefense(){const p=BOOK&&BOOK.plays[cur];if(!p)return null;if(pbDefPick)return pbDefPick==="saved"?playDefense(p.frames):{type:pbDefPick,chase:(playDefense(p.frames)||{}).chase};return playDefense(p.frames);}
 /* ---------- play through ---------- */
 function stopRun(){if(!anim)return;anim=null;$("#pbRun").textContent="▶ Play through";document.querySelectorAll("#pbLines [data-line]").forEach(b=>b.removeAttribute("aria-pressed"));}
 /* Play one line: the main play, or an option (which starts from the step it branches off). */
@@ -121,7 +131,7 @@ $("#pbRun").addEventListener("click",()=>{
 });
 function tick(now){
   if(!anim||anim.paused)return;
-  anim.t+=now-anim.last;anim.last=now;
+  const dtv=now-anim.last;anim.t+=dtv;anim.last=now;
   const tr=anim.tr,frames=anim.frames;
   const dur=anim.phase==="move"?(tr.moves?(tr.moveDur||DUR.move):0):anim.phase==="pass"?(tr.passCurve?DUR.pass:0):anim.phase==="end"?DUR.end:DUR.hold;
   if(anim.t>=dur){
@@ -132,13 +142,13 @@ function tick(now){
       if(tr.last)anim.phase="end";
       else{anim.i++;step=anim.seq[anim.i];anim.tr=buildTransition(frames,anim.i);anim.phase="hold";renderStep();}
     }else{
-      $("#pbBoard").innerHTML=boardInner({tokens:animTokens(tr,"pass",1),actions:[]},"screen");
+      $("#pbBoard").innerHTML=boardInner({tokens:animDefense(anim,animTokens(tr,"pass",1),400,pbDefense()),actions:[]},"screen");
       anim.done=true;anim.paused=true;$("#pbRun").textContent="↻ Watch again";return;
     }
     requestAnimationFrame(tick);return;
   }
   const u=dur?anim.t/dur:1;
-  $("#pbBoard").innerHTML=boardInner({tokens:animTokens(tr,anim.phase,u),actions:tr.f.actions},"screen",null,anim.phase!=="hold");
+  $("#pbBoard").innerHTML=boardInner({tokens:animDefense(anim,animTokens(tr,anim.phase,u),dtv,pbDefense()),actions:tr.f.actions},"screen",null,anim.phase!=="hold");
   requestAnimationFrame(tick);
 }
 

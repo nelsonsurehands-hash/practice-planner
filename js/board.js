@@ -69,7 +69,7 @@ function boardInner(fr,mode,tmp,fade,ghost){
   return s;
 }
 function lblSize(t){const n=String(t.label||t.n).length;return n>=3?10.5:n===2?14:18;}
-function boardSVG(fr,mode,w){return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VB.x} ${VB.y} ${VB.w} ${VB.h}"${w?` width="${w}" height="${Math.round(w*VB.h/VB.w)}"`:""}>${boardInner(fr,mode)}</svg>`;}
+function boardSVG(fr,mode,w){fr=withDefense(fr,fr.defense);return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VB.x} ${VB.y} ${VB.w} ${VB.h}"${w?` width="${w}" height="${Math.round(w*VB.h/VB.w)}"`:""}>${boardInner(fr,mode)}</svg>`;}
 
 
 /* Cuts, dribbles and screens move a player; passes and shots only move the ball. */
@@ -216,7 +216,7 @@ function playbookPayload(title,team,playList){
 /* Whole numbers are plenty for a diagram and keep packed links shorter. */
 function compactFrame(f){
   const r=v=>typeof v==="number"?Math.round(v):v;
-  const extra={};["fid","opt","optName","from"].forEach(k=>{if(f[k])extra[k]=f[k];});
+  const extra={};["fid","opt","optName","from","defense"].forEach(k=>{if(f[k])extra[k]=f[k];});
   return {...extra,caption:f.caption||"",
     tokens:f.tokens.map(t=>{const o={id:t.id,kind:t.kind,x:r(t.x),y:r(t.y)};if(t.n)o.n=t.n;if(t.label)o.label=t.label;return o;}),
     actions:f.actions.map(a=>({type:a.type,from:a.from||null,to:a.to||null,x1:r(a.x1),y1:r(a.y1),cx:r(a.cx),cy:r(a.cy),x2:r(a.x2),y2:r(a.y2)}))};
@@ -250,3 +250,127 @@ function stepName(frames,lines,i){
 }
 /* Display order: main steps, then each option's steps. */
 function displayOrder(lines){return lines.main.concat(...lines.options.map(o=>o.steps));}
+
+/* ---------- auto defense (basketball) ----------
+   A play can carry a defense to run against: man-to-man, 2-3 zone, 3-2 zone or box-and-1.
+   The defenders aren't drawn by hand: their spots are worked out from where the offense and the
+   ball are, at every moment of the play, so they slide and rotate as the ball moves.
+   Stored on the play's first step as frames[0].defense = {type, chase}. */
+const DEF_TYPES=[["none","No defense"],["custom","Place my own"],["man","Man-to-man"],["z23","2-3 zone"],["z32","3-2 zone"],["box1","Box-and-1"]];
+const AUTO_DEF=t=>["man","z23","z32","box1"].includes(t);
+const HOOP={x:250,y:52.5};
+const lerpP=(a,b,t)=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t});
+const clamp01=v=>Math.max(0,Math.min(1,v));
+const unitV=(a,b)=>{const d=Math.hypot(b.x-a.x,b.y-a.y)||1;return {x:(b.x-a.x)/d,y:(b.y-a.y)/d};};
+const smooth01=v=>{v=clamp01(v);return v*v*(3-2*v);};
+/* Guarding the ball: about 3 feet off, between the ball and the basket. */
+const onBall=B=>{const u=unitV(B,HOOP);return {x:B.x+u.x*30,y:B.y+u.y*30};};
+const P=(x,y)=>({x,y});
+function ballSpot(toks){
+  const b=toks.find(t=>t.kind==="ball");if(b)return {x:b.x,y:b.y};
+  const o=toks.filter(t=>t.kind==="o").sort((a,c)=>a.n-c.n)[0];return o?{x:o.x,y:o.y}:P(250,250);
+}
+/* Man-to-man, pack-line style: pressure the ball, deny one pass away, help in the lane two passes away. */
+function manSpot(o,B,deny){
+  const dB=Math.hypot(o.x-B.x,o.y-B.y);
+  const toHoop=unitV(o,HOOP),toBall=unitV(o,B);
+  const den={x:o.x+toBall.x*(deny?28:22)+toHoop.x*(deny?12:22),y:o.y+toBall.y*(deny?28:22)+toHoop.y*(deny?12:22)};
+  const line=lerpP(HOOP,B,0.28),help=lerpP(o,line,0.55);
+  const h=deny?0:smooth01((dB-170)/190);
+  const off=lerpP(den,help,h);
+  const w=smooth01(1-(dB-24)/40);           // has the ball (or about to)
+  return lerpP(off,onBall(B),w);
+}
+/* Zones: each one is a set of spots for "ball on the left" and "ball on the right", high and low,
+   blended smoothly by where the ball is, so defenders glide instead of jumping. */
+function zoneSpots(type,B,extra){
+  const bx=B.x-250;
+  const cfg=s=>{   // s = +1 ball on the right, -1 ball on the left (from the offense's view, facing the basket)
+    const R=k=>s>0?k:-k;   // mirror helper for an x offset
+    const ballR=s>0;
+    if(type==="z23"){
+      // roles: 0 left guard, 1 right guard, 2 left forward, 3 right forward, 4 center
+      const high=[], low=[];
+      const bg=ballR?1:0,wg=ballR?0:1,bf=ballR?3:2,wf=ballR?2:3;
+      high[bg]=onBall(B);high[wg]=P(250+bx*0.25-R(12),188);high[bf]=P(250+R(150)+bx*0.1,108);high[wf]=P(250-R(95),74);high[4]=P(250+bx*0.3,72);
+      low[bf]=onBall(B);low[4]=P(250+R(72),56);low[wf]=P(250-R(35),76);low[bg]=P(250+R(118),172);low[wg]=P(250-R(10),186);
+      return {high,low};
+    }
+    if(type==="z32"){
+      // roles: 0 point, 1 left wing, 2 right wing, 3 left bottom, 4 right bottom
+      const bw=ballR?2:1,ww=ballR?1:2,bb=ballR?4:3,wb=ballR?3:4;
+      const high=[],low=[];
+      high[bw]=onBall(B);high[0]=P(250+R(48),208);high[ww]=P(250-R(42),182);high[bb]=P(250+R(95),82);high[wb]=P(250-R(30),64);
+      low[bb]=onBall(B);low[wb]=P(250+R(55),56);low[bw]=P(250+R(120),124);low[0]=P(250+R(30),172);low[ww]=P(250-R(55),76);
+      return {high,low};
+    }
+    // box-and-1 box: roles 1 left top, 2 right top, 3 left bottom, 4 right bottom (0 is the chaser)
+    const bt=ballR?2:1,wt=ballR?1:2,bb=ballR?4:3,wb=ballR?3:4;
+    const high=[],low=[];
+    high[bt]=onBall(B);high[wt]=P(250-R(15),190);high[bb]=P(250+R(85),76);high[wb]=P(250-R(40),64);
+    low[bb]=onBall(B);low[wb]=P(250+R(35),56);low[bt]=P(250+R(100),130);low[wt]=P(250-R(20),170);
+    return {high,low};
+  };
+  const n=5,L=cfg(-1),Rr=cfg(1),tSide=smooth01((bx+55)/110),tLow=smooth01((165-B.y)/50);
+  const at=(c,i)=>lerpP(c.high[i]||P(250,150),c.low[i]||P(250,150),tLow);
+  const out=[];for(let i=0;i<n;i++){if(type==="box1"&&i===0)continue;out[i]=lerpP(at(L,i),at(Rr,i),tSide);}
+  // top of the key, ball in the middle: the zone's top defender(s) meet it
+  const tTop=smooth01(1-(Math.abs(bx)-40)/70)*smooth01((B.y-185)/40);
+  if(tTop>0){
+    const top=type==="z23"?[P(250+bx*0.6-28,Math.max(205,B.y-30)),P(250+bx*0.6+28,Math.max(205,B.y-30))]:null;
+    if(type==="z23"){const near=bx<0?0:1;out[near]=lerpP(out[near],onBall(B),tTop);out[1-near]=lerpP(out[1-near],P(250-(near?1:-1)*45,195),tTop);
+      out[2]=lerpP(out[2],P(130,95),tTop);out[3]=lerpP(out[3],P(370,95),tTop);out[4]=lerpP(out[4],P(250,72),tTop);}
+    if(type==="z32"){out[0]=lerpP(out[0],onBall(B),tTop);out[1]=lerpP(out[1],P(128,195),tTop);out[2]=lerpP(out[2],P(372,195),tTop);out[3]=lerpP(out[3],P(180,66),tTop);out[4]=lerpP(out[4],P(320,66),tTop);}
+    if(type==="box1"){const near=bx<0?1:2;out[near]=lerpP(out[near],onBall(B),tTop*0.85);out[3-near]=lerpP(out[3-near],P(250+(near===1?45:-45),192),tTop);}
+    void top;
+  }
+  // ball inside the lane (a post touch): collapse
+  const tPost=smooth01((80-Math.abs(bx))/30)*smooth01((185-B.y)/30);
+  if(tPost>0){
+    const big=type==="z23"?4:type==="z32"?(bx<0?3:4):(bx<0?3:4);
+    out.forEach((p,i)=>{if(!p)return;const sag=lerpP(p,lerpP(B,HOOP,0.4),0.35);out[i]=lerpP(p,i===big?onBall(B):sag,tPost);});
+  }
+  if(type==="box1"&&extra&&extra.chaserHasBall>0){   // their best player has it: the chaser takes the ball, the box stays home
+    const home=[null,P(195+bx*0.2,192),P(305+bx*0.2,192),P(190+bx*0.18,64),P(310+bx*0.18,64)];
+    for(let i=1;i<5;i++)out[i]=lerpP(out[i],home[i],extra.chaserHasBall);
+  }
+  return out;
+}
+/* Where each defender should be right now. Returns defender tokens (marked auto). */
+function defenseFor(toks,sch){
+  if(!sch||!AUTO_DEF(sch.type))return [];
+  const os=toks.filter(t=>t.kind==="o").sort((a,b)=>a.n-b.n);if(!os.length)return [];
+  const B=ballSpot(toks),fit=p=>({x:Math.max(6,Math.min(494,p.x)),y:Math.max(6,Math.min(464,p.y))});
+  /* don't draw a defender right on top of a player: keep them a step apart */
+  const apart=p=>{let q={...p};os.forEach(o=>{const d=Math.hypot(q.x-o.x,q.y-o.y);if(d<24){const u=d>0.5?{x:(q.x-o.x)/d,y:(q.y-o.y)/d}:unitV(o,HOOP);q={x:o.x+u.x*24,y:o.y+u.y*24};}});return q;};
+  const mk=(n,p)=>({id:"ad"+n,kind:"d",n,auto:true,...fit(apart(p))});
+  if(sch.type==="man")return os.map(o=>mk(o.n,manSpot(o,B,false)));
+  if(sch.type==="box1"){
+    const tgt=os.find(o=>String(o.n)===String(sch.chase))||os[0];
+    const dB=Math.hypot(tgt.x-B.x,tgt.y-B.y),has=smooth01(1-(dB-24)/40);
+    const z=zoneSpots("box1",B,{chaserHasBall:has});
+    return [mk(1,manSpot(tgt,B,true)),mk(2,z[1]),mk(3,z[2]),mk(4,z[3]),mk(5,z[4])];
+  }
+  const z=zoneSpots(sch.type,B);
+  return z.map((p,i)=>mk(i+1,p));
+}
+/* The play's defense with defenders filled in, for drawing one step. */
+function withDefense(fr,sch){
+  if(!sch||!AUTO_DEF(sch.type))return fr;
+  const base=fr.tokens.filter(t=>t.kind!=="d");
+  return {...fr,tokens:base.concat(defenseFor(base,sch))};
+}
+/* During a play-through: defenders react with a short delay instead of teleporting. */
+function chaseDefense(prev,toks,sch,dt){
+  const tgt=defenseFor(toks,sch);if(!tgt.length)return [];
+  const k=1-Math.exp(-(dt||16)/260);
+  return tgt.map(t=>{const p=prev&&prev[t.id];if(!p)return t;const q={...t,x:p.x+(t.x-p.x)*k,y:p.y+(t.y-p.y)*k};return q;});
+}
+const playDefense=frames=>(frames&&frames[0]&&frames[0].defense)||null;
+
+/* Play-through: put the reacting defenders into this moment's tokens. */
+function animDefense(anim,toks,dt,sch){
+  if(!sch||!AUTO_DEF(sch.type))return toks;
+  const base=toks.filter(t=>t.kind!=="d"),d=chaseDefense(anim.dprev,base,sch,dt);
+  anim.dprev=Object.fromEntries(d.map(t=>[t.id,t]));return base.concat(d);
+}
