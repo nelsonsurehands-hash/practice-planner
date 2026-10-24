@@ -594,3 +594,54 @@ alter table public.ai_usage enable row level security;
 drop policy if exists "members read ai usage" on public.ai_usage;
 create policy "members read ai usage" on public.ai_usage for select to authenticated using (is_member(team_id));
 grant select on public.ai_usage to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Parent calendar link: a read-only, always-current season calendar parents open
+-- from a link (schedule.html?c=…), with no account. It can also feed their phone's
+-- calendar app through the calendar-feed function.
+-- ---------------------------------------------------------------------------
+create table if not exists public.calendar_shares (
+  id          text primary key,                    -- random id in the parents' link
+  team_id     uuid not null unique references public.teams(id) on delete cascade,
+  title       text not null default '',
+  show        jsonb not null default '{"practices":true,"games":true,"off":true}'::jsonb,
+  active      boolean not null default true,
+  created_by  uuid references auth.users(id) on delete set null default auth.uid(),
+  created_at  timestamptz not null default now()
+);
+alter table public.calendar_shares enable row level security;
+drop policy if exists "members read calendar links" on public.calendar_shares;
+drop policy if exists "editors add calendar links" on public.calendar_shares;
+drop policy if exists "editors change calendar links" on public.calendar_shares;
+drop policy if exists "editors delete calendar links" on public.calendar_shares;
+create policy "members read calendar links"   on public.calendar_shares for select to authenticated using (is_member(team_id));
+create policy "editors add calendar links"    on public.calendar_shares for insert to authenticated with check (can_edit(team_id, 'schedule') and length(id) >= 10);
+create policy "editors change calendar links" on public.calendar_shares for update to authenticated using (can_edit(team_id, 'schedule')) with check (can_edit(team_id, 'schedule'));
+create policy "editors delete calendar links" on public.calendar_shares for delete to authenticated using (can_edit(team_id, 'schedule'));
+
+-- What the parents' calendar shows: team name, colors and logo, and the schedule parts of the
+-- team settings (season dates, practice days and times, games, special days). Nothing else.
+create or replace function public.get_calendar(p_id text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare c calendar_shares; t teams; s jsonb;
+begin
+  select * into c from calendar_shares where id = p_id and active;
+  if c.id is null then return null; end if;
+  select * into t from teams where id = c.team_id;
+  s := coalesce(t.settings, '{}'::jsonb);
+  return jsonb_build_object(
+    'title', c.title, 'show', c.show,
+    'team', jsonb_build_object('name', t.name, 'color', s->>'color', 'color2', s->>'color2', 'logo', s->>'logo',
+                               'school', s->>'school', 'mascot', s->>'mascot', 'teamLabel', s->>'teamLabel', 'sport', s->>'sport'),
+    'schedule', jsonb_build_object(
+      'seasonStart', s->>'seasonStart', 'seasonEnd', s->>'seasonEnd', 'practiceDays', coalesce(s->'practiceDays', '[]'::jsonb),
+      'weekdayStart', s->>'weekdayStart', 'weekdayEnd', s->>'weekdayEnd', 'weekendStart', s->>'weekendStart', 'weekendEnd', s->>'weekendEnd',
+      'games', coalesce((select jsonb_agg(jsonb_build_object('date', g->>'date', 'opponent', g->>'opponent', 'time', g->>'time',
+                                                            'home', coalesce((g->>'home')::boolean, true), 'location', g->>'location'))
+                           from jsonb_array_elements(coalesce(s->'games', '[]'::jsonb)) g where coalesce(g->>'date', '') <> ''), '[]'::jsonb),
+      'special', coalesce((select jsonb_agg(jsonb_build_object('date', x->>'date', 'kind', x->>'kind', 'note', x->>'note',
+                                                              'start', x->>'start', 'end', x->>'end'))
+                             from jsonb_array_elements(coalesce(s->'special', '[]'::jsonb)) x where coalesce(x->>'date', '') <> ''), '[]'::jsonb)));
+end $$;
+revoke all on function public.get_calendar(text) from public;
+grant execute on function public.get_calendar(text) to anon, authenticated;
