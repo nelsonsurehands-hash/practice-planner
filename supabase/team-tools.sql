@@ -192,3 +192,41 @@ alter table public.ai_usage enable row level security;
 drop policy if exists "members read ai usage" on public.ai_usage;
 create policy "members read ai usage" on public.ai_usage for select to authenticated using (is_member(team_id));
 grant select on public.ai_usage to authenticated;
+
+
+-- ---------------------------------------------------------------------------
+-- Player playbook links leave out plays saved only as drafts. (A saved play with draft
+-- changes still shows its last saved version.)
+-- ---------------------------------------------------------------------------
+create or replace function public.get_playbook(p_id text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare pb playbooks; t teams; result jsonb;
+begin
+  select * into pb from playbooks where id = p_id and active;
+  if pb.id is null then return null; end if;
+  select * into t from teams where id = pb.team_id;
+  update playbooks set views = views + 1 where id = pb.id;
+  select jsonb_build_object(
+    'v', 1,
+    'title', pb.title,
+    'team', jsonb_build_object('name', t.name,
+                               'sport', coalesce(t.settings->>'sport','basketball'),
+                               'color', t.settings->>'color',
+                               'color2', t.settings->>'color2',
+                               'logo', t.settings->>'logo',
+                               'school', t.settings->>'school',
+                               'mascot', t.settings->>'mascot',
+                               'teamLabel', t.settings->>'teamLabel'),
+    'plays', coalesce((
+      select jsonb_agg(jsonb_build_object('id', i.id, 'name', i.data->>'name', 'type', i.data->>'type',
+                                          'notes', coalesce(i.data->>'notes',''), 'frames', i.data->'frames')
+                       order by i.data->>'type', i.data->>'name')
+        from items i
+       where i.team_id = pb.team_id and i.kind = 'plays'
+         and (pb.play_ids is null or i.id = any(pb.play_ids))
+         and coalesce(i.data->>'draft', 'false') <> 'true'), '[]'::jsonb))
+  into result;
+  return result;
+end $$;
+revoke all on function public.get_playbook(text) from public;
+grant execute on function public.get_playbook(text) to anon, authenticated;

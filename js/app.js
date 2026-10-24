@@ -944,22 +944,23 @@ $("#pType").addEventListener("change",e=>{play.type=e.target.value;markDirty();}
 $("#pNotes").addEventListener("input",e=>{play.notes=e.target.value;markDirty();});
 
 /* save / new / library */
-$("#pSave").addEventListener("click",async()=>{
-  if(!play.name.trim()){pflash("Give the play a name before saving.");$("#pName").focus();return;}
+/* Save play: publishes to the play library. It replaces any draft of this play. Returns true when saved. */
+async function savePlay(){
+  if(!play.name.trim()){pflash("Give the play a name before saving.");$("#pName").focus();return false;}
   const id=play.id||uid()+uid();
   const body={name:play.name.trim(),type:play.type,notes:play.notes||"",frames:play.frames,updatedAt:Date.now(),editedBy:ME.name};
-  play.id=id;pdirty=false;
-  const ex=plays.find(p=>p.id===id);if(ex)Object.assign(ex,body);else plays.push({id,...body});
+  play.id=id;delete play.draftOf;delete play.draft;pdirty=false;
+  const ex=plays.find(p=>p.id===id);if(ex){Object.keys(ex).forEach(k=>{if(k!=="id")delete ex[k];});Object.assign(ex,body);}else plays.push({id,...body});
   renderPlayLib();renderPickCats();renderPick();renderEditor();
-  if(!db||!canWrite){$("#pStatus").textContent=db?"View only":"Not saved in this view";return;}
+  if(!db||!canWrite){$("#pStatus").textContent=db?"View only":"Not saved in this view";return false;}
   $("#pStatus").textContent="Saving…";
-  try{await db.collection("plays").doc(id).set(body);$("#pStatus").textContent="Saved to play library";}
-  catch(err){handleWriteErr(err);$("#pStatus").textContent="Not saved";pdirty=true;}
-});
+  try{await db.collection("plays").doc(id).set(body);$("#pStatus").textContent="Saved to play library";if(window.clearPlayBackup)clearPlayBackup();return true;}
+  catch(err){handleWriteErr(err);$("#pStatus").textContent="Not saved";pdirty=true;return false;}
+}
+$("#pSave").addEventListener("click",()=>savePlay());
 let newArmed=false;
 $("#pNew").addEventListener("click",e=>{
-  if(pdirty&&!newArmed){newArmed=true;e.currentTarget.textContent="Discard changes?";setTimeout(()=>{newArmed=false;$("#pNew").textContent="New play";},3000);return;}
-  newArmed=false;$("#pNew").textContent="New play";
+  if(window.guardPlay&&!guardPlay(()=>$("#pNew").click()))return;
   play=blankPlay();fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();$("#pName").focus();
 });
 function playSummary(frames){const L=playLines(frames),n=L.main.length,k=L.options.length;return `${n} step${n>1?"s":""}${k?` · <b class="optcount">${k} option${k>1?"s":""}</b>`:""}`;}
@@ -969,7 +970,7 @@ function renderPlayLib(){
   const list=[...plays].sort((a,b)=>a.name.localeCompare(b.name)).filter(p=>!q||(p.name+" "+p.type+" "+(p.notes||"")).toLowerCase().includes(q));
   $("#plList").innerHTML=list.length?list.map(p=>`<article class="pcard${play&&play.id===p.id?" open":""}" data-card="${p.id}">
       <div class="pthumb">${boardSVG(p.frames[0],"screen")}</div>
-      <div style="min-width:0"><b>${esc(p.name)}</b><span>${esc(p.type)} · ${playSummary(p.frames)}</span>
+      <div style="min-width:0"><b>${esc(p.name)}</b>${p.draft?` <span class="draft-tag">Draft</span>`:p.draftCopy?` <span class="draft-tag">Draft changes</span>`:""}<span>${esc(p.type)} · ${playSummary(p.frames)}</span>
       <div class="actions"><button class="btn" data-open="${p.id}">${!PERM.plays?"View":"View / edit"}</button><button class="btn edit-only" data-copy="plays" data-id="${p.id}">Copy</button><button class="btn danger edit-only" data-pdel="${p.id}">Delete</button></div></div></article>`).join("")
     :`<div class="empty">${plays.length?"No plays match.":"No plays saved yet. Draw a play on the board, name it, and tap Save play."}</div>`;
 }
@@ -1016,8 +1017,9 @@ $("#plList").addEventListener("click",async e=>{
   /* Tapping anywhere on a play card (picture or name) opens it, same as the button. */
   if(!o&&!d&&!e.target.closest("button")){const card=e.target.closest("[data-card]");if(card)o=card.querySelector("[data-open]");}
   if(o){
-    if(pdirty&&o.dataset.armed!=="1"){o.dataset.armed="1";o.textContent="Discard changes?";setTimeout(()=>{o.dataset.armed="";o.textContent=!PERM.plays?"View":"View / edit";},3000);return;}
-    const p=plays.find(x=>x.id===o.dataset.open);play=clone(p);fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();
+    const pid=o.dataset.open;
+    if(window.guardPlay&&!guardPlay(()=>{const b=document.querySelector(`#plList [data-open="${CSS.escape(pid)}"]`);if(b)b.click();}))return;
+    const p=plays.find(x=>x.id===pid);play=window.playFromSaved?playFromSaved(p):clone(p);fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();
     document.querySelector("#view-plays .board-card").scrollIntoView({behavior:"smooth",block:"start"});
   }
   if(d){
@@ -1089,6 +1091,7 @@ async function saveFile(name,data){
 /* ---------- tabs ---------- */
 document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
 function setTab(t){
+  if(t!=="plays"&&!$("#view-plays").hidden&&window.guardPlay&&!guardPlay(()=>setTab(t)))return;
   if(typeof FS!=="undefined"&&FS.on&&t!=="plays")exitFull();
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));
   document.querySelectorAll("section.view").forEach(v=>v.hidden=v.id!=="view-"+t);

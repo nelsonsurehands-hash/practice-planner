@@ -141,6 +141,7 @@ async function loadMembers(){
   members=data||[];
 }
 async function openTeam(t){
+  if(team&&t&&team.id!==t.id&&window.guardPlay&&!guardPlay(()=>openTeam(t)))return;
   team=t;
   if(store)store.close();
   store=HOSTED?supabaseStore(sb,t.id,user.id):localStore(t.id);
@@ -697,7 +698,7 @@ async function renderShareLinks(){
 $("#shareBook").addEventListener("click",()=>{
   if(!plays.length){pflash("Save a play first, then share it.");return;}
   $("#shareName").value=`${SETTINGS.mascot||team.name} Playbook`;
-  $("#sharePlays").innerHTML=[...plays].sort((a,b)=>(a.type||"").localeCompare(b.type||"")||a.name.localeCompare(b.name))
+  $("#sharePlays").innerHTML=plays.filter(p=>!p.draft).sort((a,b)=>(a.type||"").localeCompare(b.type||"")||a.name.localeCompare(b.name))
     .map(p=>`<label><input type="checkbox" value="${esc(p.id)}" checked> <span>${esc(p.name)} <small>${esc(p.type||"")}</small></span></label>`).join("");
   $("#shareMake").textContent=IN_PREVIEW&&!HOSTED?"Preview player view":"Create player link";
   $("#shareHelp").textContent=IN_PREVIEW&&!HOSTED?
@@ -720,7 +721,7 @@ $("#shareMake").addEventListener("click",async()=>{
   let link;
   try{
     if(HOSTED){
-      const id=randomId(),all=ids.length===plays.length;
+      const id=randomId(),all=ids.length===plays.filter(p=>!p.draft).length;
       const {error}=await sb.from("playbooks").insert({id,team_id:team.id,title,play_ids:all?null:ids});
       if(error)throw error;
       link=shareLinkFor(id);renderShareLinks();

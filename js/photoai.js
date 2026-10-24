@@ -180,7 +180,8 @@ function reviewPlay(){
     `${usage()}<button class="btn" type="button" data-ai="pick">Different photo</button><button class="btn primary" type="button" data-ai="apply">Open in play designer</button>`);
 }
 function applyPlay(){
-  dlg.close();setTab("plays");
+  dlg.close();
+  if(window.guardPlay&&!guardPlay(applyPlay))return;setTab("plays");
   play=job.play;fi=0;hist=[];pdirty=true;renderEditor();renderPlayLib();
   $("#pStatus").textContent="Unsaved: drawn from your photo";
   document.querySelector("#view-plays .board-card").scrollIntoView({behavior:"smooth",block:"start"});

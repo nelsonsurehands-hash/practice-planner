@@ -281,7 +281,8 @@ begin
                        order by i.data->>'type', i.data->>'name')
         from items i
        where i.team_id = pb.team_id and i.kind = 'plays'
-         and (pb.play_ids is null or i.id = any(pb.play_ids))), '[]'::jsonb))
+         and (pb.play_ids is null or i.id = any(pb.play_ids))
+         and coalesce(i.data->>'draft', 'false') <> 'true'), '[]'::jsonb))
   into result;
   return result;
 end $$;
