@@ -18,7 +18,36 @@
 <body>
 
 <!-- Loading -->
-<div id="screen-loading" class="screen"><p>Loading…</p></div>
+<div id="screen-loading" class="splash" role="status" aria-live="polite">
+  <svg class="sp-court" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <circle cx="200" cy="200" r="70"/><circle cx="200" cy="200" r="22"/><path d="M0 200H400"/>
+    <path d="M140 0V120H260V0M140 400V280H260V400"/><path d="M40 0V40A160 160 0 0 0 360 40V0M40 400V360A160 160 0 0 1 360 360V400"/>
+  </svg>
+  <div class="sp-center">
+    <div class="sp-badge">
+      <svg class="sp-ring" viewBox="0 0 120 120" aria-hidden="true"><circle class="sp-track" cx="60" cy="60" r="55"/><circle class="sp-arc" cx="60" cy="60" r="55"/></svg>
+      <img id="spLogo" alt="" hidden>
+      <svg id="spBall" class="sp-ball" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29"/><path d="M3 32H61M32 3V61M11 11Q32 32 11 53M53 11Q32 32 53 53"/></svg>
+    </div>
+    <div class="sp-name" id="spName">Practice Planner</div>
+    <div class="sp-label" id="spLabel"></div>
+    <div class="sp-msg">Loading<span class="sp-dots"><i>.</i><i>.</i><i>.</i></span></div>
+  </div>
+</div>
+<script>
+/* Splash: the last team opened on this device (saved by boot.js), shown before anything else loads. */
+(function(){try{
+  var s=JSON.parse(localStorage.getItem("cpp:splash")||"null");if(!s)return;
+  var el=document.getElementById("screen-loading"),c=s.color||"#5b2a86",m=/^#?([0-9a-f]{6})$/i.exec(c),dark=true;
+  if(m){var n=parseInt(m[1],16),L=[n>>16&255,n>>8&255,n&255].map(function(v){v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);});dark=.2126*L[0]+.7152*L[1]+.0722*L[2]<=.4;}
+  el.style.setProperty("--sp-bg",c);el.style.setProperty("--sp-ink",dark?"#ffffff":"#17141c");
+  if(s.color2)el.style.setProperty("--sp-2",s.color2);
+  if(s.logo){var im=document.getElementById("spLogo");im.src=s.logo;im.hidden=false;document.getElementById("spBall").style.display="none";}
+  if(s.name)document.getElementById("spName").textContent=s.name;
+  if(s.label)document.getElementById("spLabel").textContent=s.label;
+  var t=document.querySelector('meta[name="theme-color"]');if(t)t.content=c;
+}catch(e){}})();
+</script>
 
 <!-- Sign in -->
 <div id="screen-auth" class="screen" hidden>

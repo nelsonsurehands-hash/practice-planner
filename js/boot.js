@@ -45,7 +45,18 @@ const STARTERS={
 function startersFor(sport){return (STARTERS[sport]||[]).map(([id,d])=>[id,{...d,category:d.categories[0],createdAt:Date.now()}]);}
 
 const screens=["screen-loading","screen-auth","screen-setup","app"];
-function show(id){screens.forEach(x=>{$("#"+x).hidden=x!==id;});window.scrollTo(0,0);}
+function show(id){
+  screens.forEach(x=>{if(x==="screen-loading")return;$("#"+x).hidden=x!==id;});window.scrollTo(0,0);
+  const sp=$("#screen-loading");   // the splash fades out instead of vanishing
+  if(id==="screen-loading"){sp.hidden=false;sp.classList.remove("out");}
+  else if(!sp.hidden&&!sp.classList.contains("out")){sp.classList.add("out");setTimeout(()=>{if(sp.classList.contains("out"))sp.hidden=true;},450);}
+}
+/* Remember this team's look for the splash screen next time the app opens on this device. */
+function saveSplash(){
+  try{const st=team&&team.settings||{};
+    localStorage.setItem("cpp:splash",JSON.stringify({name:[st.school,st.mascot].filter(Boolean).join(" ")||team.name,label:st.teamLabel||"",logo:st.logo||"",color:st.color||"#5b2a86",color2:st.color2||""}));
+  }catch{}
+}
 const msg=(el,text,kind)=>{el.textContent=text||"";el.className="msg"+(kind?" "+kind:"");};
 const sportName=t=>(SPORTS[(t.settings||{}).sport]||SPORTS.basketball).name;
 const roleName=r=>({owner:"Head coach",coach:"Coach",viewer:"View only"})[r]||r;
@@ -138,7 +149,7 @@ async function openTeam(t){
   const me=members.find(m=>m.user_id===user.id);
   ME={id:user.id,name:(me&&me.display_name)||(HOSTED?(user.email||"").split("@")[0]:demoName())};
   STAFF=members.filter(m=>m.role!=="viewer").map(m=>m.display_name||(m.email||"").split("@")[0]).filter(Boolean);
-  show("app");
+  show("app");saveSplash();
   startPlanner(store,t.settings||{});
   setPerms(HOSTED?permsFor(t.role,t.perms):permsFor("owner"));
   $("#viewOnlyBar").hidden=!READONLY;
@@ -504,7 +515,7 @@ async function saveSettings(st){
     if(error)throw error;
   }else{writeDemoTeams(readDemoTeams().map(t=>t.id===team.id?{...t,name,settings:st}:t));}
   const sportChanged=(team.settings||{}).sport!==st.sport;
-  team.name=name;team.settings=st;teams=teams.map(t=>t.id===team.id?team:t);
+  team.name=name;team.settings=st;teams=teams.map(t=>t.id===team.id?team:t);saveSplash();
   applySettings(st);renderSwitcher();
   if(sportChanged){play=blankPlay();fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();renderAllDrills();}
 }
