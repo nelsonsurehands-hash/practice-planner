@@ -696,7 +696,7 @@ $("#copyCancel").addEventListener("click",e=>{e.preventDefault();$("#copyDlg").c
 
 /* ---------- share plays with players ---------- */
 const playbookURL=q=>new URL("playbook.html"+q,location.href).href;
-function shareLinkFor(id){return playbookURL("?pb="+encodeURIComponent(id));}
+function shareLinkFor(id){return location.origin+"/p/"+encodeURIComponent(id);}
 /* 10 letters/digits: short enough to text, about 60 bits so links can't be guessed. */
 function randomId(){const A="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789",b=new Uint8Array(10);crypto.getRandomValues(b);return [...b].map(x=>A[x%A.length]).join("");}
 /* Inside the Claude preview there is no web address players could open. */

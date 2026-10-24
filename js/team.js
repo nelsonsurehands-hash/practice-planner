@@ -456,8 +456,8 @@ function printBus(t){
 /* ---------- game-day food sign-ups ---------- */
 const FOOD_SLOTS=[{name:"Pre-game meals",count:1}];
 const FOOD_PRESETS=[["Pre-game meal",1],["Post-game snacks",2],["Drinks / water",1],["Gatorade / sports drinks",1],["Fruit",1],["Ice / cooler",1],["Paper plates & napkins",1],["Dessert",1]];
-const signupURL=id=>new URL("signup.html?s="+encodeURIComponent(id)+(HOSTED?"":"&demo=1"),location.href).href;
-const randId=()=>{const a=new Uint8Array(12);crypto.getRandomValues(a);return Array.from(a,b=>"abcdefghijkmnpqrstuvwxyz23456789"[b%32]).join("");};
+const signupURL=id=>location.origin+"/f/"+encodeURIComponent(id)+(HOSTED?"":"?demo=1");
+const randId=()=>{const a=new Uint8Array(10);crypto.getRandomValues(a);return Array.from(a,b=>"abcdefghijkmnpqrstuvwxyz23456789"[b%32]).join("");};
 /* Same storage calls whether the sheet lives in Supabase or (demo mode) in this browser. */
 const FoodAPI=HOSTED?{
   async load(){

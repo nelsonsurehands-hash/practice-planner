@@ -1,11 +1,11 @@
-/* Parents' game-day food sign-up. Opened from a link like signup.html?s=abc123…
+/* Parents' game-day food sign-up. Opened from a short link like theextracoach.com/f/abc123… (or signup.html?s=…)
    No account: the page calls three public database functions (get_signup, add_signup,
    cancel_signup). In demo mode (&demo=1) it reads the sheet the coach made in this browser.
    Each parent's own sign-ups are remembered on their phone so they can cancel them. */
 (function(){
 const $=q=>document.querySelector(q);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const params=new URLSearchParams(location.search),ID=params.get("s")||"",DEMO=params.get("demo")==="1";
+const params=new URLSearchParams(location.search),ID=params.get("s")||(location.pathname.match(/\/f\/([A-Za-z0-9]+)\/?$/)||[])[1]||"",DEMO=params.get("demo")==="1";
 const CFG=window.APP_CONFIG||{};
 const dObj=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d);};
 const longDay=s=>dObj(s).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});

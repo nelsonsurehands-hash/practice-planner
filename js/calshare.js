@@ -1,11 +1,12 @@
 /* Calendar tab → "Parent link": one read-only link per team that always shows the current
-   calendar (schedule.html?c=…). Parents need no account. Coaches who can edit the calendar
+   calendar (theextracoach.com/c/…). Parents need no account. Coaches who can edit the calendar
    make the link, pick what it shows, and can turn it off. Saved in calendar_shares (hosted)
    or in this browser (demo). */
 (function(){
 const SHOW_DEFAULT={practices:true,games:true,off:true};
-const randId=()=>{const a=new Uint8Array(12);crypto.getRandomValues(a);return Array.from(a,b=>"abcdefghijkmnpqrstuvwxyz23456789"[b%32]).join("");};
-const linkURL=id=>new URL("schedule.html?c="+encodeURIComponent(id)+(HOSTED?"":"&demo=1"),location.href).href;
+const randId=()=>{const a=new Uint8Array(10);crypto.getRandomValues(a);return Array.from(a,b=>"abcdefghijkmnpqrstuvwxyz23456789"[b%32]).join("");};
+/* Short, clean links parents can trust: theextracoach.com/c/<code> */
+const linkURL=id=>location.origin+"/c/"+encodeURIComponent(id)+(HOSTED?"":"?demo=1");
 const canMake=()=>typeof PERM==="undefined"||!!PERM.schedule;
 const missing=e=>/calendar_shares|does not exist|schema cache/i.test((e&&e.message)||String(e||""));
 const API=()=>HOSTED?{

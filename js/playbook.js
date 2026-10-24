@@ -5,16 +5,16 @@ let SPORT="basketball", BOOK=null, cur=null, step=0, anim=null, filter="";
 const show=(id,on)=>{$(id).hidden=!on;};
 
 async function load(){
-  const params=new URLSearchParams(location.search), hash=location.hash.slice(1);
+  const params=new URLSearchParams(location.search), hash=location.hash.slice(1), pbId=params.get("pb")||(location.pathname.match(/\/p\/([A-Za-z0-9]+)\/?$/)||[])[1]||"";
   try{
     if(params.get("preview")){
       BOOK=JSON.parse(localStorage.getItem("cpp:previewBook")||"null");
       if(!BOOK)return fail("Nothing to preview. Go back to the planner and tap Share with players.");
       $("#pbPreviewBar").hidden=false;
-    }else if(params.get("pb")){
+    }else if(pbId){
       if(!(CFG.supabaseUrl&&CFG.supabaseAnonKey&&window.supabase))throw new Error("This playbook link needs the hosted app.");
       const sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseAnonKey,{auth:{persistSession:false}});
-      const {data,error}=await sb.rpc("get_playbook",{p_id:params.get("pb")});
+      const {data,error}=await sb.rpc("get_playbook",{p_id:pbId});
       if(error)throw error;
       if(!data)return fail("This playbook link has been turned off or doesn't exist. Ask your coach for a new one.");
       BOOK=data;

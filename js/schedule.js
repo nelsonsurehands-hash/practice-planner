@@ -1,4 +1,4 @@
-/* Parents' team calendar. Opened from a link like schedule.html?c=abc123…
+/* Parents' team calendar. Opened from a short link like theextracoach.com/c/abc123… (or schedule.html?c=…)
    No account: the page reads the schedule through the public get_calendar function every time
    it opens (and again when the phone comes back to it), so it always shows the coach's latest.
    Parents can also subscribe in their phone's calendar app through the calendar-feed function.
@@ -6,7 +6,7 @@
 (function(){
 const $=q=>document.querySelector(q);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const params=new URLSearchParams(location.search),ID=params.get("c")||"",DEMO=params.get("demo")==="1";
+const params=new URLSearchParams(location.search),ID=params.get("c")||(location.pathname.match(/\/c\/([A-Za-z0-9]+)\/?$/)||[])[1]||"",DEMO=params.get("demo")==="1";
 const CFG=window.APP_CONFIG||{},S=window.SchedCore;
 const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
 const ampm=t=>{if(!t)return "";const [h,m]=t.split(":").map(Number);return `${((h+11)%12)+1}:${String(m).padStart(2,"0")} ${h<12?"AM":"PM"}`;};
