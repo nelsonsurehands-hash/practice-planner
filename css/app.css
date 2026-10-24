@@ -1068,3 +1068,9 @@ body.pb-full{overflow:hidden}
 .sch-bi .sch-sug{background:#fff3c4;color:#6b5100}
 .sch-links{display:flex;gap:14px;margin-top:8px;font-size:14px}
 @media (max-width:640px){.sch-bus{grid-template-columns:repeat(2,minmax(0,1fr))}.sch-bi,.sch-bus .btn{grid-column:1/-1}}
+.sch-food{display:grid;grid-template-columns:auto minmax(0,150px) minmax(0,1fr);gap:8px 12px;align-items:end;background:color-mix(in srgb,#e8a33a 10%,var(--bg));border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0 0}
+.sch-food .f{margin:0}
+.sch-food.off{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);padding:8px 12px}
+.sch-fi{font-size:20px;align-self:center}
+.sch-bi .sch-need{background:var(--warn-soft);color:var(--warn)}
+@media (max-width:640px){.sch-food{grid-template-columns:auto minmax(0,1fr)}.sch-food .sch-bi{grid-column:1/-1}}
