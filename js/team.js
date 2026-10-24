@@ -179,7 +179,7 @@ $("#tm-teams").addEventListener("submit",async e=>{
   if(src){const want=k=>f.elements["cal_"+k]&&f.elements["cal_"+k].checked,ss=src.settings||{};
     if(want("games"))settings.games=JSON.parse(JSON.stringify(ss.games||[]));
     settings.special=JSON.parse(JSON.stringify((ss.special||[]).filter(x=>x.date&&want(calKind(x)))));}
-  ["color2","logo","appIcon","quickAdds"].forEach(k=>{if(base[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(base[k]));});
+  ["color2","logo","appIcon","iconBg","iconBgColor","quickAdds"].forEach(k=>{if(base[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(base[k]));});
   if(src&&f.sched.checked)["practiceDays","weekdayStart","weekdayEnd","weekendStart","weekendEnd","seasonStart","seasonEnd","minPractices"].forEach(k=>{if(src.settings&&src.settings[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(src.settings[k]));});
   const kinds=src?[["drills",f.drills.checked],["plays",f.plays.checked&&sameSport],["players",f.roster.checked]].filter(x=>x[1]).map(x=>x[0]):[];
   const btn=f.querySelector("[type=submit]");btn.disabled=true;msg(f.querySelector("[data-addmsg]"),"Creating "+label+"…");

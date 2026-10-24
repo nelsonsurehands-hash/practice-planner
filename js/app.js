@@ -92,19 +92,27 @@ function drawCourtIcon(ctx,N,o){
   ctx.lineWidth=8*k;ctx.beginPath();ctx.arc(X(CX),Y(BK+3),9*k,0,Math.PI*2);ctx.stroke();         // rim
   ctx.fillStyle=o.ball;ctx.beginPath();ctx.arc(X(250),Y(272),34*k,0,Math.PI*2);ctx.fill();      // ball
 }
+/* Background behind the logo on the app icon: each school picks what makes its logo readable.
+   "none" is see-through; iPhones don't allow that on home-screen icons, so those get white. */
+function iconBg(st,opaque){
+  const k=st.iconBg||"white";
+  const c=k==="team"?st.color||"#5b2a86":k==="team2"?st.color2||"#ffffff":k==="black"?"#000000":k==="custom"?st.iconBgColor||"#ffffff":k==="none"?null:"#ffffff";
+  return c||(opaque?"#ffffff":null);
+}
 function iconCanvas(st,N,opts){
   const c=document.createElement("canvas");c.width=c.height=N;const x=c.getContext("2d");
   const team=st.color||"#5b2a86",ink=contrastInk(team);
   if(opts.mode==="logo"&&opts.img){
-    x.fillStyle=team;if(opts.round){const r=N*.22;x.beginPath();x.moveTo(r,0);x.arcTo(N,0,N,N,r);x.arcTo(N,N,0,N,r);x.arcTo(0,N,0,0,r);x.arcTo(0,0,N,0,r);x.closePath();x.fill();}else x.fillRect(0,0,N,N);
-    const im=opts.img,box=N*(opts.safe?.62:.78),s=Math.min(box/im.naturalWidth,box/im.naturalHeight),w=im.naturalWidth*s,h=im.naturalHeight*s;
+    const bg=iconBg(st,opts.opaque);
+    if(bg){x.fillStyle=bg;if(opts.round){const r=N*.22;x.beginPath();x.moveTo(r,0);x.arcTo(N,0,N,N,r);x.arcTo(N,N,0,N,r);x.arcTo(0,N,0,0,r);x.arcTo(0,0,N,0,r);x.closePath();x.fill();}else x.fillRect(0,0,N,N);}
+    const im=opts.img,box=N*(opts.safe?.62:bg?.78:.92),s=Math.min(box/im.naturalWidth,box/im.naturalHeight),w=im.naturalWidth*s,h=im.naturalHeight*s;
     x.drawImage(im,(N-w)/2,(N-h)/2,w,h);
   }else drawCourtIcon(x,N,{bg:team,line:ink==="#ffffff"?"#ffffff":"#17141c",ball:st.color2||"#f0884a",round:opts.round,pad:opts.safe?120:(opts.round?88:60)});
   return c.toDataURL("image/png");
 }
 let _iconKey=null,_manifestURL=null;
 function applyAppIcon(st){
-  const mode=appIconMode(st),key=[mode,st.color,st.color2,mode==="logo"?(st.logo||"").length+":"+(st.logo||"").slice(-40):""].join("|");
+  const mode=appIconMode(st),key=[mode,st.color,st.color2,st.iconBg,st.iconBgColor,mode==="logo"?(st.logo||"").length+":"+(st.logo||"").slice(-40):""].join("|");
   if(key===_iconKey)return;_iconKey=key;
   const setLinks=(fav,touch,icons)=>{
     const f=document.querySelector('link[rel="icon"]');if(f)f.href=fav;
@@ -120,7 +128,7 @@ function applyAppIcon(st){
   const go=img=>{
     const m=img?"logo":"colors";
     const i192=iconCanvas(st,192,{mode:m,img,round:true}),i512=iconCanvas(st,512,{mode:m,img,round:true}),
-      touch=iconCanvas(st,180,{mode:m,img,round:false}),mask=iconCanvas(st,512,{mode:m,img,round:false,safe:true});
+      touch=iconCanvas(st,180,{mode:m,img,round:false,opaque:true}),mask=iconCanvas(st,512,{mode:m,img,round:false,safe:true,opaque:true});
     setLinks(st.logo&&m!=="logo"?st.logo:i192,touch,[{src:i192,sizes:"192x192",type:"image/png"},{src:i512,sizes:"512x512",type:"image/png"},{src:mask,sizes:"512x512",type:"image/png",purpose:"maskable"}]);
   };
   if(mode==="logo"&&st.logo){const im=new Image();im.onload=()=>go(im);im.onerror=()=>go(null);im.src=st.logo;}else go(null);

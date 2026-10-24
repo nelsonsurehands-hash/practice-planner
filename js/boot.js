@@ -312,7 +312,7 @@ $("#setupForm").addEventListener("submit",async e=>{
     ["practiceDays","weekendStart","weekendEnd","minPractices"].forEach(k=>{if(sst[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(sst[k]));});
     if(!settings.seasonStart)settings.seasonStart=sst.seasonStart||"";if(!settings.seasonEnd)settings.seasonEnd=sst.seasonEnd||"";
   }
-  if(src&&$("#suCpLook").checked)["logo","color2","quickAdds","appIcon"].forEach(k=>{if(sst[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(sst[k]));});
+  if(src&&$("#suCpLook").checked)["logo","color2","quickAdds","appIcon","iconBg","iconBgColor"].forEach(k=>{if(sst[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(sst[k]));});
   const copyKinds=src?[["drills","#suCpDrills"],["plays","#suCpPlays"],["players","#suCpRoster"]].filter(([k,q])=>$(q).checked&&!$(q).disabled).map(([k])=>k):[];
   let copied={};
   for(const k of copyKinds){try{copied[k]=await readItems(src.id,k);}catch{copied[k]=[];}}
@@ -407,6 +407,7 @@ function readForm(){
   draft.school=$("#sSchool").value.trim();draft.mascot=$("#sMascot").value.trim();draft.teamLabel=$("#sLabel").value.trim();draft.color=$("#sColor").value;
   draft.color2=$("#sUseC2").checked?$("#sColor2").value:"";
   {const r=document.querySelector('input[name="sIcon"]:checked');if(r)draft.appIcon=r.value;}
+  {const r=document.querySelector('input[name="sIconBg"]:checked');if(r)draft.iconBg=r.value;const c=$("#sIconBgColor");if(c&&draft.iconBg==="custom")draft.iconBgColor=c.value;}
   draft.weekdayStart=$("#sWdS").value;draft.weekdayEnd=$("#sWdE").value;draft.weekendStart=$("#sWeS").value;draft.weekendEnd=$("#sWeE").value;
   draft.seasonStart=$("#sStart").value;draft.seasonEnd=$("#sEnd").value;
   draft.minPractices=+$("#sMinPr").value||0;
@@ -471,6 +472,16 @@ function renderIconPick(){
   if(draft.logo){const im=new Image();im.onload=()=>{$("#sIconLogo").src=iconCanvas(st,96,{mode:"logo",img:im,round:true});};im.src=draft.logo;}
   else $("#sIconLogo").src=iconCanvas({...st},96,{mode:"colors",round:true});
   const cur=draft.appIcon||appIconMode(st),r=document.querySelector(`input[name="sIcon"][value="${cur==="logo"&&!draft.logo?"colors":cur}"]`);if(r)r.checked=true;
+  renderIconBg(st);
+}
+/* Logo background swatches, each previewing the real icon. */
+function renderIconBg(st){
+  const wrap=$("#sIconBgWrap"),on=(document.querySelector('input[name="sIcon"]:checked')||{}).value==="logo"&&!!draft.logo;
+  wrap.hidden=!on;if(!on)return;
+  const cur=draft.iconBg||"white",custom=draft.iconBgColor||"#ffffff";
+  const opts=[["white","White"],["team","Team color"],["team2","Second color"],["black","Black"],["none","Transparent"],["custom","Pick a color"]].filter(([k])=>k!=="team2"||st.color2);
+  $("#sIconBgOpts").innerHTML=opts.map(([k,l])=>`<label class="ibg"><input type="radio" name="sIconBg" value="${k}"${k===cur?" checked":""}><img alt="" data-ibg="${k}"><span>${l}</span>${k==="custom"?`<input type="color" id="sIconBgColor" value="${esc(custom)}" aria-label="Background color">`:""}</label>`).join("");
+  const im=new Image();im.onload=()=>{opts.forEach(([k])=>{const el=document.querySelector(`[data-ibg="${k}"]`);if(el)el.src=iconCanvas({...st,iconBg:k,iconBgColor:custom},96,{mode:"logo",img:im,round:true});});};im.src=draft.logo;
 }
 function renderLogoEdit(){
   $("#sLogoPrev").innerHTML=draft.logo?`<img src="${draft.logo}" alt="Team logo">`:"No logo";
@@ -495,7 +506,10 @@ $("#sLogoRm").addEventListener("click",()=>{draft.logo="";if(draft.appIcon==="lo
 const settingsView=$("#view-settings");
 $("#sSport").addEventListener("change",()=>{$("#sSportHelp").hidden=$("#sSport").value===((team.settings||{}).sport||"basketball");});
 settingsView.addEventListener("input",e=>{
-  if(e.target.name==="sIcon")draft.appIcon=e.target.value;
+  if(e.target.name==="sIcon"){draft.appIcon=e.target.value;renderIconBg({...draft,color:$("#sColor").value,color2:$("#sUseC2").checked?$("#sColor2").value:""});}
+  if(e.target.name==="sIconBg"){draft.iconBg=e.target.value;$("#sStatus").textContent="Unsaved changes";}
+  if(e.target.id==="sIconBgColor"){draft.iconBg="custom";draft.iconBgColor=e.target.value;const r=document.querySelector('input[name="sIconBg"][value="custom"]');if(r)r.checked=true;
+    const st={...draft,color:$("#sColor").value,color2:$("#sUseC2").checked?$("#sColor2").value:""};const im=new Image();im.onload=()=>{const el=document.querySelector('[data-ibg="custom"]');if(el)el.src=iconCanvas(st,96,{mode:"logo",img:im,round:true});};im.src=draft.logo;$("#sStatus").textContent="Unsaved changes";}
   if(["sColor","sColor2","sUseC2"].includes(e.target.id))renderIconPick();
   const row=e.target.closest(".row");
   if(row){const list=row.classList.contains("game")?draft.games:draft.special,item=list[+row.dataset.i],f=e.target.dataset.f;
@@ -793,7 +807,7 @@ async function buildExport(){
   if(want("exPlans")){data.plans=Object.values(plans);contents.push("plans");}
   const settings={};
   if(want("exCal")){CAL_KEYS.forEach(k=>{if(st[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(st[k]));});contents.push("calendar");}
-  if(want("exLook")){["sport","school","mascot","teamLabel","color","color2","logo","appIcon","quickAdds"].forEach(k=>{if(st[k]!==undefined)settings[k]=st[k];});contents.push("team");}
+  if(want("exLook")){["sport","school","mascot","teamLabel","color","color2","logo","appIcon","iconBg","iconBgColor","quickAdds"].forEach(k=>{if(st[k]!==undefined)settings[k]=st[k];});contents.push("team");}
   if(Object.keys(settings).length)data.settings=settings;
   if(want("exRoster")){data.players=(await readItems(team.id,"players")).map(([id,d])=>({id,...d}));contents.push("roster");}
   const slug=s=>(s||"team").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");

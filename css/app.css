@@ -851,3 +851,14 @@ body.pb-full{overflow:hidden}
 .fd-drop label{display:flex;align-items:center;gap:6px;font-weight:600}
 .fd-drop input{width:auto;padding:4px 6px;font-size:14px}
 .fd-drop small{color:var(--muted)}.fd-drop small.warn{color:var(--warn)}
+/* logo background picker for the app icon */
+.icon-bg{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.icon-bg[hidden]{display:none}
+.icon-bg-h{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.icon-bg-opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.ibg{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border:2px solid var(--line);border-radius:12px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:600;color:var(--ink);text-align:center}
+.ibg>input[type=radio]{position:absolute;opacity:0;pointer-events:none}
+.ibg:has(input[type=radio]:checked){border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.ibg img{width:56px;height:56px;border-radius:13px}
+.ibg img[data-ibg="none"]{background:repeating-conic-gradient(#d9d5e1 0 25%,#fff 0 50%) 0 0/12px 12px}
+.ibg input[type=color]{width:44px;height:26px;padding:0;border:1px solid var(--line);border-radius:6px}
