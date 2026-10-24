@@ -60,6 +60,7 @@ function render(){
   if(pane==="roster")renderRoster();
   if(pane==="staff")renderStaff();
   if(pane==="bus")renderBus();
+  if(pane==="sched")renderSched();
   if(pane==="food")renderFood();
   if(TM.panes[pane])TM.panes[pane]();
 }
@@ -75,14 +76,14 @@ let openedFor=null;
 window.onTeamOpen=function(){
   openedFor=store;
   unsubs.forEach(u=>{try{u()}catch{}});unsubs=[];ROSTER=[];TRIPS={};busDate=null;rosterEdit=null;food=null;needsDb="";
-  unsubs.push(store.collection("players").onSnapshot(s=>{ROSTER=s.docs.map(d=>({id:d.id,...d.data()})).sort(byNum);if(["roster","bus","game"].includes(pane))render();},()=>{}));
+  unsubs.push(store.collection("players").onSnapshot(s=>{ROSTER=s.docs.map(d=>({id:d.id,...d.data()})).sort(byNum);if(["roster","bus","game","sched"].includes(pane))render();},()=>{}));
   /* Bus lists: redraw only for changes from someone else, so typing here isn't interrupted. */
   unsubs.push(store.collection("trips").onSnapshot(s=>{
     const next=Object.fromEntries(s.docs.map(d=>[d.id,d.data()]));
     if(tripTimer&&busDate&&TRIPS[busDate])next[busDate]=TRIPS[busDate];   // keep edits that haven't saved yet
     const changed=JSON.stringify(next)!==JSON.stringify(JSON.parse(JSON.stringify(TRIPS)));
     TRIPS=next;
-    if(changed&&pane==="bus"&&!(document.activeElement&&document.activeElement.closest("#tm-bus input")))render();
+    if(changed&&(pane==="bus"||pane==="sched")&&!(document.activeElement&&document.activeElement.closest("#tm-bus input,#tm-sched input")))render();
   },()=>{}));
   TM.opened.forEach(f=>{try{f()}catch(e){console.error(e)}});
   render();
@@ -356,6 +357,75 @@ function printRoster(){
   doc.save(`${slug(team.name)}-roster.pdf`);
 }
 const slug=s=>String(s||"team").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+
+/* ---------- season schedule: every game, with the bus for away games ---------- */
+let schedFilter="upcoming";try{schedFilter=localStorage.getItem("cpp:schedFilter")||"upcoming";}catch{}
+const allGames=()=>(SETTINGS.games||[]).filter(g=>g.date).sort((a,b)=>a.date<b.date?-1:1);
+const busSet=iso=>!!((TRIPS[iso]||{}).depart||calBus(iso));
+function resultTxt(iso){const r=((TM.plans||{})[iso]||{}).result||{};if(r.us===""||r.us==null||r.them===""||r.them==null)return "";const u=+r.us,t=+r.them;return `${u>t?"W":u<t?"L":"T"} ${u}–${t}`;}
+function renderSched(){
+  const box=$("#tm-sched"),today=todayISO(),ed=can(),dis=ed?"":" disabled",all=allGames();
+  if(!all.length){box.innerHTML=`<div class="tm-card"><h3 class="tm-h">Schedule</h3><p class="help">No games yet. Add games in the Calendar tab and they show up here, with the bus for every away game.</p></div>`;return;}
+  const list=all.filter(g=>schedFilter==="all"||(schedFilter==="away"?g.home===false:g.date>=today));
+  const away=all.filter(g=>g.home===false),missing=away.filter(g=>g.date>=today&&!busSet(g.date)).length;
+  const row=g=>{
+    const d=dObj(g.date),past=g.date<today,res=resultTxt(g.date),isAway=g.home===false;
+    let bus="";
+    if(isAway){const t=tripFor(g.date),set=busSet(g.date);
+      const riding=ROSTER.filter(p=>status(t,p)==="bus").length,own=ROSTER.filter(p=>status(t,p)==="own").length,out=ROSTER.filter(p=>status(t,p)==="out").length;
+      const on=Object.values(t.boarded||{}).filter(Boolean).length;
+      bus=`<div class="sch-bus">
+        <label class="f">Bus departs<input type="time" data-sch="depart" data-date="${g.date}" value="${esc(t.depart||"")}"${dis}></label>
+        <label class="f">Back about<input type="time" data-sch="return" data-date="${g.date}" value="${esc(t.return||"")}"${dis}></label>
+        <div class="sch-bi">${set?"":`<span class="sch-sug">Suggested time: 90 min before the game</span>`}${t.from?`<span>From ${esc(t.from)}</span>`:""}${t.driver?`<span>Bus ${esc(t.driver)}</span>`:""}
+          ${ROSTER.length?`<span><b>${riding}</b> on the bus</span>${own?`<span><b>${own}</b> own ride</span>`:""}${out?`<span><b>${out}</b> not going</span>`:""}${on?`<span class="ok"><b>${on}</b> checked in</span>`:""}`:""}</div>
+        <button type="button" class="btn" data-schbus="${g.date}">Bus list ›</button></div>`;}
+    return `<article class="sch-row${past?" past":""}${isAway?" away":" home"}${g.date===today?" today":""}">
+      <div class="sch-date"><small>${DOWS[d.getDay()]}</small><b>${d.getDate()}</b><small>${MONS[d.getMonth()]}</small></div>
+      <div class="sch-main"><div class="sch-top"><span class="sch-pill">${isAway?"Away":"Home"}</span><b class="sch-opp">${isAway?"at":"vs"} ${esc(g.opponent||"Game")}</b>${res?`<span class="sch-res ${res[0]}">${res}</span>`:""}</div>
+        <div class="sch-meta">${g.time?`Game ${hm(g.time)}`:"Game time not set"}${g.date===today?" · <b>Today</b>":""}</div>
+        ${bus}
+        <div class="sch-links"><button type="button" class="linkbtn" data-schgp="${g.date}">Gameplan</button>${g.date>=today||res?"":`<button type="button" class="linkbtn" data-schgp="${g.date}">Add the score</button>`}</div></div></article>`;};
+  box.innerHTML=(needsDb==="trips"?DB_HELP:"")+`<div class="tm-card sch-head"><h3 class="tm-h">Schedule <small>${all.length} games · ${away.length} away</small></h3>
+    <p class="help" style="margin-top:0">Every game in one place. Away games show their bus: set the departure and return times here and they update the Bus list and the calendar.</p>
+    ${missing?`<p class="sch-warn">${missing} upcoming away game${missing===1?" doesn't":"s don't"} have a bus time yet.</p>`:""}
+    <div class="sch-bar"><div class="seg" role="group" aria-label="Show">${[["upcoming","Upcoming"],["away","Away games"],["all","All games"]].map(([k,l])=>`<button type="button" data-schf="${k}" aria-pressed="${schedFilter===k}">${l}</button>`).join("")}</div>
+      <div class="sch-act"><button type="button" class="btn" data-schact="pdf">Print schedule</button><button type="button" class="btn" data-schact="text">Copy as text</button></div></div>
+    <div class="msg" id="schMsg"></div></div>
+    ${list.length?list.map(row).join(""):`<div class="tm-card"><p class="help">No upcoming games. Tap All games to see the season.</p></div>`}`;
+}
+const DOWS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],MONS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function schedLines(){
+  return allGames().map(g=>{const t=g.home===false?tripFor(g.date):null;
+    return `${longDay(g.date)}: ${g.home===false?"at":"vs"} ${g.opponent||"Game"}${g.time?", game "+hm(g.time):""}${t?` · bus leaves ${hm(t.depart)}${t.return?", back about "+hm(t.return):""}${t.from?" from "+t.from:""}`:" (home)"}`;});
+}
+function printSched(){
+  const doc=pdfDoc();let y=pdfHead(doc,"Game & Bus Schedule",[team.name,(team.settings||{}).teamLabel].filter(Boolean).join(" · "));
+  const cols=[40,135,300,345,415,490];
+  doc.setFont("helvetica","bold");doc.setFontSize(9);["DATE","OPPONENT","","GAME","BUS LEAVES","BACK"].forEach((h,i)=>doc.text(h,cols[i],y));y+=5;doc.line(40,y,572,y);y+=15;
+  doc.setFont("helvetica","normal");doc.setFontSize(10);
+  allGames().forEach(g=>{if(y>740){doc.addPage();y=50;}const t=g.home===false?tripFor(g.date):null;
+    doc.setFont("helvetica","normal");doc.text(longDay(g.date),cols[0],y);doc.setFont("helvetica","bold");doc.text(String((g.home===false?"at ":"vs ")+(g.opponent||"Game")).slice(0,30),cols[1],y);
+    doc.setFont("helvetica","normal");doc.text(g.home===false?"Away":"Home",cols[2],y);doc.text(hm(g.time)||"",cols[3],y);
+    if(t){doc.setFont("helvetica","bold");doc.text(hm(t.depart)||"",cols[4],y);doc.setFont("helvetica","normal");doc.text(hm(t.return)||"",cols[5],y);
+      if(t.from){y+=12;doc.setFontSize(8.5);doc.setTextColor(110);doc.text("Leaves from "+t.from,cols[4],y);doc.setTextColor(0);doc.setFontSize(10);}}
+    y+=7;doc.setDrawColor(220);doc.line(40,y,572,y);doc.setDrawColor(0);y+=14;});
+  doc.save(`${slug(team.name)}-game-bus-schedule.pdf`);
+}
+$("#tm-sched").addEventListener("click",async e=>{
+  const f=e.target.closest("[data-schf]");if(f){schedFilter=f.dataset.schf;try{localStorage.setItem("cpp:schedFilter",schedFilter);}catch{}renderSched();return;}
+  const b=e.target.closest("[data-schbus]");if(b){busDate=b.dataset.schbus;showPane("bus");scrollTo(0,0);return;}
+  const gp=e.target.closest("[data-schgp]");if(gp){window.goTeam("game",{date:gp.dataset.schgp});scrollTo(0,0);return;}
+  const a=e.target.closest("[data-schact]");if(!a)return;
+  if(a.dataset.schact==="pdf")printSched();
+  if(a.dataset.schact==="text"){const txt=`${team.name} games\n`+schedLines().join("\n");try{await navigator.clipboard.writeText(txt);msg($("#schMsg"),"Copied. Paste it into a text or email.","ok");}catch{msg($("#schMsg"),"Couldn't copy here.","err");}}
+});
+$("#tm-sched").addEventListener("change",e=>{
+  const f=e.target.closest("[data-sch]");if(!f||!can())return;const iso=f.dataset.date;
+  busDate=iso;const t=tripFor(iso);t[f.dataset.sch]=f.value;saveTrip(t,true);
+  if(f.dataset.sch==="depart")syncCalendarBus(iso,f.value);
+  setTimeout(renderSched,50);
+});
 
 /* ---------- bus list for away games ---------- */
 const awayGames=()=>(SETTINGS.games||[]).filter(g=>g.date&&g.home===false).sort((a,b)=>a.date<b.date?-1:1);

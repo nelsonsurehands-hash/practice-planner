@@ -1041,3 +1041,30 @@ body.pb-full{overflow:hidden}
 .tm-menu button small{font-weight:400;font-size:12.5px;color:var(--muted);padding-left:1.6em}
 .tm-menu button:hover,.tm-menu button.on{background:var(--accent-soft)}
 .tm-menu button.on{color:var(--accent)}
+
+/* Team → Schedule: every game, with the bus for away games */
+.sch-bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
+.sch-act{display:flex;gap:8px;flex-wrap:wrap}
+.sch-warn{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 12px;font-size:14px;font-weight:600;margin:0 0 10px}
+.sch-row{display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--cal-game,#8f2d3a);border-radius:12px;padding:12px 14px;margin:0 0 10px}
+.sch-row.home{border-left-color:var(--accent)}
+.sch-row.past{opacity:.62}
+.sch-row.today{box-shadow:0 0 0 2px var(--accent)}
+.sch-date{text-align:center;background:var(--sunk);border-radius:8px;padding:5px 0 6px;line-height:1;align-self:start}
+.sch-date small{display:block;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted)}
+.sch-date b{display:block;font-family:var(--display);font-size:26px;font-weight:800;margin:2px 0}
+.sch-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.sch-pill{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:20px;padding:2px 8px;background:var(--accent);color:var(--accent-ink)}
+.sch-row.away .sch-pill{background:#7a4b00;color:#fff}
+.sch-opp{font-family:var(--display);font-size:22px;text-transform:uppercase;line-height:1.05}
+.sch-res{font-weight:800;font-size:13px;border-radius:6px;padding:2px 8px;background:var(--sunk)}
+.sch-res.W{background:var(--good-soft);color:var(--good)}.sch-res.L{background:var(--warn-soft);color:var(--warn)}
+.sch-meta{font-size:14px;color:var(--muted);margin:2px 0 0}
+.sch-bus{display:grid;grid-template-columns:repeat(2,minmax(0,150px)) minmax(0,1fr) auto;gap:8px 12px;align-items:end;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0 0}
+.sch-bus .f{margin:0}
+.sch-bi{display:flex;flex-wrap:wrap;gap:6px;align-self:center}
+.sch-bi span{font-size:12.5px;background:var(--sunk);border-radius:20px;padding:3px 9px}
+.sch-bi span.ok{background:var(--good-soft);color:var(--good)}
+.sch-bi .sch-sug{background:#fff3c4;color:#6b5100}
+.sch-links{display:flex;gap:14px;margin-top:8px;font-size:14px}
+@media (max-width:640px){.sch-bus{grid-template-columns:repeat(2,minmax(0,1fr))}.sch-bi,.sch-bus .btn{grid-column:1/-1}}

@@ -83,7 +83,7 @@ function quick(){
     ${tile("stats","📊","Stats","Season and games")}
     ${tile("cal","📅","Calendar","Practices and games")}
   </div>
-  <div class="hm-more"><button type="button" class="btn" data-hm="roster">Roster</button><button type="button" class="btn" data-hm="food">Food sign-ups</button><button type="button" class="btn" data-hm="parentlink">🔗 Parent calendar link</button></div>`;
+  <div class="hm-more"><button type="button" class="btn" data-hm="sched">🚌 Game &amp; bus schedule</button><button type="button" class="btn" data-hm="roster">Roster</button><button type="button" class="btn" data-hm="food">Food sign-ups</button><button type="button" class="btn" data-hm="parentlink">🔗 Parent calendar link</button></div>`;
 }
 function render(){
   const box=document.getElementById("homeBody");if(!box||document.getElementById("view-home").hidden||typeof SETTINGS==="undefined")return;
@@ -109,6 +109,7 @@ document.getElementById("view-home").addEventListener("click",e=>{
   if(k==="gameplan")window.goTeam("game",{date:d});
   if(k==="bus")window.goTeam("bus",{date:d});
   if(k==="roster")window.goTeam("roster");
+  if(k==="sched")window.goTeam("sched");
   if(k==="food")window.goTeam("food");
   if(k==="parentlink")window.goTeam("plink");
   if(k!=="practice")scrollTo(0,0);
