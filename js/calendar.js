@@ -79,7 +79,17 @@ function monthHTML(y,m,days){
     <div class="cal-grid">${DOW.map(x=>`<div class="dow">${x}</div>`).join("")}${cells}</div></section>`;
 }
 
+/* Switch between your teams' calendars without leaving the Calendar tab. */
+function renderTeamPick(){
+  const w=$("#calTeamWrap");if(typeof teams==="undefined"||teams.length<2){w.hidden=true;return;}
+  const groups=new Map();teams.forEach(t=>{const st=t.settings||{},k=[st.school,st.mascot].filter(Boolean).join(" ")||t.name;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(t);});
+  $("#calTeam").innerHTML=[...groups.entries()].map(([k,list])=>`<optgroup label="${esc(k)}">${list.sort((a,b)=>String((a.settings||{}).teamLabel||"").localeCompare(String((b.settings||{}).teamLabel||""),undefined,{numeric:true}))
+    .map(t=>`<option value="${t.id}"${t.id===team.id?" selected":""}>${esc((t.settings||{}).teamLabel||t.name)}</option>`).join("")}</optgroup>`).join("");
+  w.hidden=false;
+}
+$("#calTeam").addEventListener("change",async e=>{const t=teams.find(x=>x.id===e.target.value);if(t&&t.id!==team.id){await openTeam(t);setTab("cal");}});
 function render(){
+  renderTeamPick();
   if(typeof SETTINGS==="undefined"||!$("#calMonths"))return;
   const st=SETTINGS,{days,practices}=buildDays(st),months=monthsToShow(st,days);
   $("#calEyebrow").textContent=[st.school&&st.mascot?st.school+" "+st.mascot:st.school||st.mascot,st.teamLabel].filter(Boolean).join(" · ");

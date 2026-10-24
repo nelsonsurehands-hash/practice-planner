@@ -96,7 +96,28 @@ function schoolGroups(){
 const CLASSES=[{id:"7th",name:"7th",label:"7th Grade",re:/\b7(th)?\b|seventh/i},{id:"8th",name:"8th",label:"8th Grade",re:/\b8(th)?\b|eighth/i},
   {id:"fr",name:"Freshman",label:"Freshman",re:/fresh|\b9(th)?\b|ninth/i},{id:"jv",name:"JV",label:"JV",re:/\bjv\b|junior\s*varsity/i},{id:"v",name:"Varsity",label:"Varsity",re:/varsity/i}];
 const classOf=t=>{const l=String((t.settings||{}).teamLabel||"");const c=CLASSES.find(c=>c.re.test(l));return c?c.id:null;};
+/* Calendar marks that can carry over to a new team (a school's no-school days and breaks are usually shared). */
+const CAL_KINDS=[["noschool","No school days",true],["holiday","Holidays and breaks",true],["nopractice","No-practice days",false],["games","Games",false],
+  ["extra","Extra practices",false],["tryout","Tryouts",false],["meeting","Meetings",false],["bus","Bus departures",false],["times","Practice time changes and notes",false]];
+function calKind(x){
+  const n=String(x.note||"");
+  if(x.bus!==undefined||/^bus\b/i.test(n))return "bus";
+  if(/tryout/i.test(n))return "tryout";
+  if(/meeting/i.test(n))return "meeting";
+  if(/no school/i.test(n))return "noschool";
+  if(x.kind==="off")return /no practice/i.test(n)?"nopractice":"holiday";
+  if(x.kind==="extra")return "extra";
+  return "times";
+}
+function calCounts(st){
+  const c={games:(st.games||[]).filter(g=>g.date).length};(st.special||[]).forEach(x=>{if(x.date){const k=calKind(x);c[k]=(c[k]||0)+1;}});return c;
+}
 let addClassFor=null;   // {key: school, cls: class id or "other"}
+function calKindBoxes(src){
+  const c=calCounts((src&&src.settings)||{});
+  const list=CAL_KINDS.filter(([k])=>c[k]);
+  return list.length?list.map(([k,l,on])=>`<label><input type="checkbox" name="cal_${k}"${on?" checked":""}> ${l} <small>(${c[k]})</small></label>`).join(""):`<p class="help" style="margin:0">That team's calendar has no games or marked days yet.</p>`;
+}
 function addClassForm(g){
   const same=g.list.filter(t=>canEdit(t)),src=same.find(t=>t.id===team.id)||same[0]||g.lead,have=new Set(g.list.map(classOf));
   const first=CLASSES.find(c=>!have.has(c.id));
@@ -112,6 +133,9 @@ function addClassForm(g){
       <label><input type="checkbox" name="sched" checked> Practice days, times and season dates</label>
       <label><input type="checkbox" name="roster"> Roster</label>
     </div>
+    <fieldset class="catpick tm-calcopy"><legend>Calendar: carry over from the team above</legend>
+      <div class="exp-pick" data-calkinds>${calKindBoxes(src)}</div>
+    </fieldset>
     <p class="help" style="margin:0">The school name, colors and logo carry over. Games, practice plans and staff start empty.</p>
     <div class="actions" style="margin:0"><button class="btn primary" type="submit">Create team</button><button class="btn" type="button" data-addclass="">Cancel</button></div>
     <div class="msg" data-addmsg></div></form>`;
@@ -139,6 +163,7 @@ function renderTeams(){
       <button class="btn danger" type="button" id="tmDel">Delete team forever</button><div class="msg" id="tmDelMsg"></div></details>`:""}</div>`;
 }
 $("#tm-teams").addEventListener("change",e=>{
+  if(e.target.name==="from"){const src=teams.find(t=>t.id===e.target.value);e.target.form.querySelector("[data-calkinds]").innerHTML=src?calKindBoxes(src):`<p class="help" style="margin:0">Starting fresh: the calendar starts empty.</p>`;return;}
   if(e.target.name==="cls"){const w=e.target.form.querySelector("[data-otherwrap]");w.hidden=e.target.value!=="other";if(!w.hidden)w.querySelector("input").focus();}
 });
 $("#tm-teams").addEventListener("submit",async e=>{
@@ -151,6 +176,9 @@ $("#tm-teams").addEventListener("submit",async e=>{
   if(cls&&g.list.some(t=>classOf(t)===cls.id)){msg(f.querySelector("[data-addmsg]"),`${g.school} already has a ${cls.name} team.`,"err");return;}
   if(teams.some(t=>schoolKey(t)===g.key&&String((t.settings||{}).teamLabel||"").trim().toLowerCase()===label.toLowerCase())){msg(f.querySelector("[data-addmsg]"),`${g.school} already has a team called ${label}.`,"err");return;}
   const settings={...DEFAULT_SETTINGS,sport,school:base.school||"",mascot:base.mascot||"",teamLabel:label,color:base.color||"#5b2a86"};
+  if(src){const want=k=>f.elements["cal_"+k]&&f.elements["cal_"+k].checked,ss=src.settings||{};
+    if(want("games"))settings.games=JSON.parse(JSON.stringify(ss.games||[]));
+    settings.special=JSON.parse(JSON.stringify((ss.special||[]).filter(x=>x.date&&want(calKind(x)))));}
   ["color2","logo","appIcon","quickAdds"].forEach(k=>{if(base[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(base[k]));});
   if(src&&f.sched.checked)["practiceDays","weekdayStart","weekdayEnd","weekendStart","weekendEnd","seasonStart","seasonEnd","minPractices"].forEach(k=>{if(src.settings&&src.settings[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(src.settings[k]));});
   const kinds=src?[["drills",f.drills.checked],["plays",f.plays.checked&&sameSport],["players",f.roster.checked]].filter(x=>x[1]).map(x=>x[0]):[];
@@ -165,7 +193,9 @@ $("#tm-teams").addEventListener("submit",async e=>{
     addClassFor=null;await openTeam(t);
     for(const k of Object.keys(copied))if(copied[k].length)await store.bulkSet(k,copied[k].map(([id,d])=>[id,{...d,copiedFrom:(src.settings||{}).teamLabel||src.name}]));
     showPane("teams");
-    showNotice(`${label} is ready${Object.keys(copied).length?`, with ${Object.entries(copied).map(([k,v])=>`${v.length} ${k==="players"?"players":k}`).join(", ")} from ${(src.settings||{}).teamLabel||src.name}`:""}. Add its games in the Calendar tab.`);
+    const nCal=(settings.games||[]).length+(settings.special||[]).length;
+    const parts=Object.entries(copied).filter(([k,v])=>v.length).map(([k,v])=>`${v.length} ${k==="players"?"players":k}`);if(nCal)parts.push(`${nCal} calendar item${nCal===1?"":"s"}`);
+    showNotice(`${label} is ready.${parts.length?` Carried over from ${(src.settings||{}).teamLabel||src.name}: ${parts.join(", ")}.`:""}${(settings.games||[]).length?"":" Add its games in the Calendar tab."}`);
   }catch(err){btn.disabled=false;msg(f.querySelector("[data-addmsg]"),err.message||String(err),"err");}
 });
 $("#tm-teams").addEventListener("click",async e=>{

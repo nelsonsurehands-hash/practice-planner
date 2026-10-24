@@ -764,3 +764,7 @@ body.pb-full{overflow:hidden}
 .tm-school>.linkbtn{margin-top:2px}
 .tm-class>div{text-align:left;min-width:0}.tm-school>.linkbtn{text-align:left}
 [data-otherwrap][hidden]{display:none}
+.cal-teamsel{display:flex;flex-direction:column;gap:3px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.cal-teamsel[hidden]{display:none}
+.cal-teamsel select{font-size:16px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink);min-width:200px;min-height:44px}
+.tm-calcopy small{color:var(--muted)}
