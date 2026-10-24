@@ -90,32 +90,36 @@ function setupForm(g,saved){
       <div class="actions" style="margin:0"><button class="btn primary" type="submit">Start tracking</button><button class="btn" type="button" data-st="back">Back</button></div><div class="msg" id="lvMsg"></div></form>`:
       `<p class="help">Add your players on the <button type="button" class="linkbtn" data-goteam="roster">Roster</button> page first, then come back to track the game.</p>`}</div>`;
 }
+/* Short labels for the stat bar. */
+const SHORT={"2pm":"2 PT ✓","2px":"2 PT ✗","3pm":"3 PT ✓","3px":"3 PT ✗","ftm":"FT ✓","ftx":"FT ✗","oreb":"O REB","dreb":"D REB","ast":"AST","stl":"STL","blk":"BLK","to":"TO","pf":"FOUL"};
+const statKind=(k,pts)=>pts?"made":/x$|err|^to$|^pf$|foul|yc|rc/.test(k)?"miss":"";
+let armed=null;   // a stat waiting for a player tap
 function renderLive(){
   const box=$("#tm-stats"),g=live;if(!g){document.body.classList.remove("live-mode");return;}
   document.body.classList.add("live-mode");if(!renderLive.top){window.scrollTo(0,0);renderLive.top=true;}
   const R=T().roster,by=Object.fromEntries(R.map(p=>[p.id,p])),c=compute(g,true),set=statset();
   const onc=c.onCourt.map(id=>by[id]).filter(Boolean),bench=R.filter(p=>!c.onCourt.includes(p.id));
-  const left=g.len-clockNow(g),tf=teamFouls(g,g.period);
-  const card=p=>{const r=c.players[p.id]||{s:{},pts:0,min:0},s=r.s;
-    const line=SPORT()==="basketball"?`${r.pts} pts · ${(s.oreb||0)+(s.dreb||0)} reb · ${s.ast||0} ast · <b class="${(s.pf||0)>=4?"warn":""}">${s.pf||0} PF</b>`:
-      set.filter(([k])=>s[k]).map(([k,l])=>`${s[k]} ${l.toLowerCase()}`).join(" · ")||"No stats yet";
-    const open=pick===p.id;
-    return `<div class="lv-p${open?" open":""}${subIn?" subtarget":""}" data-lvp="${esc(p.id)}"><div class="lv-ph"><b>${esc(short(p))}</b><span class="lv-min" data-min="${esc(p.id)}">${mmss(r.min)}</span></div><small>${line}</small>
-      ${open?`<div class="lv-stats">${set.map(([k,l,pts])=>`<button type="button" class="btn${pts?" made":/x$|err|to|pf|foul|yc|rc/.test(k)?" miss":""}" data-stat="${k}" data-pid="${esc(p.id)}">${esc(l)}</button>`).join("")}</div>`:""}</div>`;};
+  const left=g.len-clockNow(g),tf=teamFouls(g,g.period),bb=SPORT()==="basketball";
+  const tile=(p,floor)=>{const r=c.players[p.id]||{s:{},pts:0,min:0},pf=r.s.pf||r.s.foul||0;
+    return `<div class="lv-t${floor?" floor":""}${pick===p.id?" sel":""}${armed?" armed":""}" data-tile="${esc(p.id)}" data-floor="${floor?1:0}" role="button" tabindex="0" aria-label="${esc(pname(p))}">
+      <b>${esc(short(p))}</b><small><span>${r.pts} pts</span>${bb||pf?`<span class="${pf>=4?"warn":""}">${pf} PF</span>`:""}<span class="lv-min" data-min="${esc(p.id)}">${r.min||floor?mmss(r.min):"DNP"}</span></small></div>`;};
+  const hint=armed?`Tap a player to give them <b>${esc(SHORT[armed]||(set.find(x=>x[0]===armed)||[])[1]||armed)}</b>. <button type="button" class="linkbtn" data-lv="disarm">Cancel</button>`:
+    pick?`Now tap a stat for <b>${esc(short(by[pick]))}</b>. <button type="button" class="linkbtn" data-lv="unpick">Cancel</button>`:
+    `Tap a stat, then a player. Drag a bench player onto the floor to sub.`;
   box.innerHTML=`<div class="lv">
     <div class="lv-top">
       <div class="lv-score"><div><small>${esc((team.settings||{}).mascot||team.name)}</small><b>${c.us}</b></div><span>–</span><div><small>${esc(g.opponent||"Them")}</small><b>${c.them}</b></div></div>
       <div class="lv-clock"><span class="lv-per">${periodLabel(g,g.period)}</span><b id="lvClock">${mmss(left)}</b>
         <button type="button" class="btn ${g.running?"":"primary"}" data-lv="clock"${left<=0?" disabled":""}>${g.running?"⏸ Stop":"▶ Start"}</button>
         <button type="button" class="linkbtn" data-lv="setclock">Set</button></div>
-      <div class="lv-opp"><span>${esc(g.opponent||"Opponent")} scores:</span>${OPP().map(n=>`<button type="button" class="btn" data-opp="${n}">+${n}</button>`).join("")}
-        ${SPORT()==="basketball"?`<span class="lv-tf${tf>=7?" warn":""}">Team fouls ${tf}${tf>=10?" · double bonus":tf>=7?" · bonus":""}</span>`:""}</div>
+      <div class="lv-opp"><span>${esc(g.opponent||"Opponent")}:</span>${OPP().map(n=>`<button type="button" class="btn" data-opp="${n}">+${n}</button>`).join("")}
+        ${bb?`<span class="lv-tf${tf>=7?" warn":""}">Team fouls ${tf}${tf>=10?" · double bonus":tf>=7?" · bonus":""}</span>`:""}</div>
     </div>
-    ${subIn?`<p class="lv-hint">Tap the player coming <b>out</b> for ${esc(short(by[subIn]))}. <button type="button" class="linkbtn" data-lv="cancelsub">Cancel</button></p>`:
-      `<p class="lv-hint">Tap a player for stats. Tap someone on the bench to sub them in.</p>`}
-    <div class="lv-court">${onc.map(card).join("")||`<p class="help">Nobody on the floor. Tap bench players to put them in.</p>`}</div>
-    <h4 class="gp-h">Bench</h4>
-    <div class="lv-bench">${bench.map(p=>{const r=c.players[p.id];return `<button type="button" class="lv-b${subIn===p.id?" on":""}" data-bench="${esc(p.id)}"><b>${esc(short(p))}</b><small>${r?`${r.pts} pts · ${mmss(r.min)}`:"DNP"}${r&&(r.s.pf||0)?` · ${r.s.pf} PF`:""}</small></button>`;}).join("")}</div>
+    <p class="lv-hint">${hint}</p>
+    <div class="lv-zone floor" data-zone="floor"><div class="lv-zh">On the floor <small>${onc.length}/${lineupSize()}</small></div>
+      <div class="lv-grid">${onc.map(p=>tile(p,true)).join("")||`<p class="help">Drag players here to put them in.</p>`}</div></div>
+    <div class="lv-zone bench" data-zone="bench"><div class="lv-zh">Bench</div>
+      <div class="lv-grid">${bench.map(p=>tile(p,false)).join("")||`<p class="help">Everyone's in.</p>`}</div></div>
     <div class="lv-foot">
       <button type="button" class="btn" data-lv="undo"${(g.events||[]).length?"":" disabled"}>↶ Undo</button>
       ${g.period<g.periods?`<button type="button" class="btn" data-lv="nextper">End ${periodLabel(g,g.period)}</button>`:""}
@@ -124,29 +128,70 @@ function renderLive(){
       <button type="button" class="btn" data-lv="exit">Close</button>
     </div>
     <p class="help lv-note">Saves as you go on this device and to the team. Track each game on one phone at a time.</p>
+    <div class="lv-pal" role="group" aria-label="Stats">${set.map(([k,l,pts])=>`<button type="button" class="${statKind(k,pts)}${armed===k?" on":""}" data-arm="${k}" aria-pressed="${armed===k}">${esc(SHORT[k]||l)}</button>`).join("")}</div>
   </div>`;
 }
 function addEvent(e){
   const g=live;e.id=uid();e.p=g.period;e.s=Math.round(clockNow(g)*10)/10;
   (g.events=g.events||[]).push(e);persist();
 }
+function applyStat(pid,k){
+  addEvent({k:"stat",pid,stat:k});armed=null;pick=null;
+  const p=T().roster.find(x=>x.id===pid),lab=SHORT[k]||(statset().find(x=>x[0]===k)||[])[1]||k;
+  renderLive();flash(`${short(p)} · ${lab}`);
+}
+/* Drag a player between the floor and the bench to sub. Works with a finger or a mouse. */
+let drag=null,noClick=false;
+$("#tm-stats").addEventListener("pointerdown",e=>{
+  const t=e.target.closest("[data-tile]");if(!t||!live||!can())return;
+  drag={id:t.dataset.tile,floor:t.dataset.floor==="1",x:e.clientX,y:e.clientY,el:t,ghost:null,pid:e.pointerId};
+});
+$("#tm-stats").addEventListener("pointermove",e=>{
+  if(!drag||e.pointerId!==drag.pid)return;
+  const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+  if(!drag.ghost){if(Math.hypot(dx,dy)<10)return;
+    const r=drag.el.getBoundingClientRect(),gh=drag.el.cloneNode(true);gh.classList.add("lv-ghost");gh.style.width=r.width+"px";gh.style.left=r.left+"px";gh.style.top=r.top+"px";
+    document.body.appendChild(gh);drag.ghost=gh;drag.ox=e.clientX-r.left;drag.oy=e.clientY-r.top;drag.el.classList.add("dragging");
+    try{drag.el.setPointerCapture(e.pointerId);}catch{}}
+  drag.ghost.style.left=(e.clientX-drag.ox)+"px";drag.ghost.style.top=(e.clientY-drag.oy)+"px";
+  document.querySelectorAll(".lv-drop").forEach(x=>x.classList.remove("lv-drop"));
+  drag.ghost.hidden=true;const under=document.elementFromPoint(e.clientX,e.clientY);drag.ghost.hidden=false;
+  const tgt=under&&(under.closest("[data-tile]")||under.closest("[data-zone]"));if(tgt&&tgt!==drag.el)tgt.classList.add("lv-drop");
+  e.preventDefault();
+});
+function endDrag(e,cancel){
+  if(!drag)return;const d=drag;drag=null;
+  document.querySelectorAll(".lv-drop").forEach(x=>x.classList.remove("lv-drop"));
+  if(!d.ghost)return;
+  d.ghost.remove();d.el.classList.remove("dragging");noClick=true;setTimeout(()=>noClick=false,350);
+  if(cancel)return;
+  const under=document.elementFromPoint(e.clientX,e.clientY),tile=under&&under.closest("[data-tile]"),zone=under&&under.closest("[data-zone]");
+  const c=compute(live,true),full=c.onCourt.length>=lineupSize(),by=Object.fromEntries(T().roster.map(p=>[p.id,p]));
+  let ev=null;
+  if(!d.floor&&tile&&tile.dataset.floor==="1")ev={k:"sub",ins:[d.id],outs:[tile.dataset.tile]};
+  else if(d.floor&&tile&&tile.dataset.floor==="0")ev={k:"sub",ins:[tile.dataset.tile],outs:[d.id]};
+  else if(!d.floor&&zone&&zone.dataset.zone==="floor"){if(full){flash(`Floor is full: drop ${short(by[d.id])} on the player coming out`);return;}ev={k:"sub",ins:[d.id],outs:[]};}
+  else if(d.floor&&zone&&zone.dataset.zone==="bench")ev={k:"sub",ins:[],outs:[d.id]};
+  if(!ev)return;
+  addEvent(ev);pick=null;renderLive();
+  flash(`${ev.ins.map(i=>short(by[i])).join(", ")||"–"} in${ev.outs.length?" · "+ev.outs.map(i=>short(by[i])).join(", ")+" out":""}`);
+}
+$("#tm-stats").addEventListener("pointerup",e=>endDrag(e,false));
+$("#tm-stats").addEventListener("pointercancel",e=>endDrag(e,true));
 $("#tm-stats").addEventListener("click",e=>{
   if(!live)return;const g=live;
-  const st=e.target.closest("[data-stat]");if(st&&can()){addEvent({k:"stat",pid:st.dataset.pid,stat:st.dataset.stat});pick=null;renderLive();flash(st.textContent);return;}
-  const op=e.target.closest("[data-opp]");if(op&&can()){addEvent({k:"opp",pts:+op.dataset.opp});renderLive();return;}
-  const bn=e.target.closest("[data-bench]");
-  if(bn&&can()){const id=bn.dataset.bench,c=compute(g,true);
-    if(c.onCourt.length<lineupSize()){addEvent({k:"sub",ins:[id],outs:[]});subIn=null;}else subIn=subIn===id?null:id;
-    pick=null;renderLive();return;}
-  const pc=e.target.closest("[data-lvp]");
-  if(pc&&!e.target.closest("[data-stat]")){
-    if(subIn&&can()){addEvent({k:"sub",ins:[subIn],outs:[pc.dataset.lvp]});subIn=null;renderLive();return;}
-    pick=pick===pc.dataset.lvp?null:pc.dataset.lvp;renderLive();return;}
+  if(noClick&&e.target.closest("[data-tile]"))return;
+  const ar=e.target.closest("[data-arm]");
+  if(ar&&can()){const k=ar.dataset.arm;if(pick){applyStat(pick,k);return;}armed=armed===k?null:k;renderLive();return;}
+  const op=e.target.closest("[data-opp]");if(op&&can()){addEvent({k:"opp",pts:+op.dataset.opp});renderLive();flash(`${g.opponent||"Opponent"} +${op.dataset.opp}`);return;}
+  const tl=e.target.closest("[data-tile]");
+  if(tl&&can()){const id=tl.dataset.tile;if(armed){applyStat(id,armed);return;}pick=pick===id?null:id;renderLive();return;}
+  if(e.target.closest('[data-lv="disarm"]')){armed=null;renderLive();return;}
+  if(e.target.closest('[data-lv="unpick"]')){pick=null;renderLive();return;}
   const a=e.target.closest("[data-lv]");if(!a)return;
   const k=a.dataset.lv;
   if(k==="clock"&&can()){if(g.running){g.elapsed=clockNow(g);g.running=false;g.startedAt=null;}else{g.running=true;g.startedAt=Date.now();}persist(true);renderLive();}
   if(k==="setclock"&&can()){if(!document.getElementById("lvSet"))showSetClock();}
-  if(k==="cancelsub"){subIn=null;renderLive();}
   if(k==="undo"&&can()){const ev=(g.events||[]).pop();if(ev&&ev.k==="period"){g.period=ev.from;g.elapsed=ev.prevElapsed||g.len;}persist();renderLive();flash("Undone");}
   if(k==="nextper"&&can()){g.elapsed=clockNow(g);(g.events=g.events||[]).push({id:uid(),k:"period",from:g.period,p:g.period,s:g.elapsed,prevElapsed:g.elapsed});
     g.period++;g.elapsed=0;g.running=false;g.startedAt=null;persist(true);renderLive();}
@@ -194,7 +239,8 @@ function eventText(g,e,by){
   const set=Object.fromEntries(statset().map(([k,l])=>[k,l]));
   if(e.k==="stat")return `${short(by[e.pid])}: ${set[e.stat]||e.stat}`;
   if(e.k==="opp")return `${g.opponent||"Opponent"} +${e.pts}`;
-  if(e.k==="sub")return `Sub: ${(e.ins||[]).map(i=>short(by[i])).join(", ")} in${(e.outs||[]).length?" for "+e.outs.map(i=>short(by[i])).join(", "):""}`;
+  if(e.k==="sub"){const i=(e.ins||[]).map(x=>short(by[x])).join(", "),o=(e.outs||[]).map(x=>short(by[x])).join(", ");
+    return !i?`${o} to the bench`:`Sub: ${i} in${o?" for "+o:""}`;}
   if(e.k==="period")return `End of ${periodLabel(g,e.from)}`;
   return "";
 }
@@ -331,7 +377,7 @@ $("#tm-stats").addEventListener("click",e=>{
     const d=b.dataset.date,saved=GAMES[d];openDate=d;
     let local=null;try{local=JSON.parse(localStorage.getItem("cpp:live:"+team.id+":"+d)||"null");}catch{}
     const best=[saved,local].filter(Boolean).sort((x,y)=>(y.events||[]).length-(x.events||[]).length)[0];
-    if(best&&(best.events||[]).length){live=JSON.parse(JSON.stringify(best));if(a==="resume"&&live.final)live.final=false;pick=null;subIn=null;startTick();renderLive();}
+    if(best&&(best.events||[]).length){live=JSON.parse(JSON.stringify(best));if(a==="resume"&&live.final)live.final=false;pick=null;subIn=null;armed=null;startTick();renderLive();}
     else{view="setup";render();}
   }
   if(a==="pdf")printRecap(b.dataset.date);
