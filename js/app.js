@@ -1121,9 +1121,11 @@ function setTab(t){
   if(t==="settings"&&window.onSettingsTab)window.onSettingsTab();
   if(t==="cal"&&window.onCalChange)window.onCalChange();
   if(t==="team"&&window.onTeamTab)window.onTeamTab();
+  if(t==="home"&&window.onHomeTab)window.onHomeTab();
   try{localStorage.setItem("tab",t)}catch{}
 }
-try{const t=localStorage.getItem("tab");if(t)setTab(t)}catch{}
+/* The app always opens on Home. */
+setTab("home");
 
 /* ---------- start / stop (called by boot.js once a team is chosen) ---------- */
 let unsubs=[];
@@ -1144,7 +1146,7 @@ function startPlanner(store,settings){
   },err));
   unsubs.push(db.collection("plans").onSnapshot(s=>{
     plans={};s.docs.forEach(d=>{plans[d.id]=d.data();});
-    buildDateSelect();
+    buildDateSelect();if(window.renderHome)renderHome();
     const inc=plans[cur.date];
     if(firstPlans||(!saveTimer&&inc&&!s.metadata.hasPendingWrites&&JSON.stringify(inc)!==JSON.stringify(cur))){firstPlans=false;loadPlan($("#planDate").value);}
     else renderCopyFrom();

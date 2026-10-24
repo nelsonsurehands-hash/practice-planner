@@ -964,3 +964,55 @@ body.pb-full{overflow:hidden}
 .lv-pal button.miss{background:var(--sunk)}
 .lv-pal button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .lv-pal button:focus-visible,.lv-t:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* ---------- Home ---------- */
+#view-home .cal-head{margin-bottom:14px}
+.hm-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:760px){.hm-grid{grid-template-columns:minmax(0,1fr)}}
+.hm-col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.hm-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.hm-k{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.hm-big{display:block;font-family:var(--display);font-size:64px;font-weight:800;line-height:.95;margin:4px 0 6px;letter-spacing:.01em}
+.hm-split{display:flex;flex-wrap:wrap;gap:6px}
+.hm-split span{font-size:13px;font-weight:600;background:var(--sunk);border-radius:20px;padding:3px 10px}
+.hm-last{margin:10px 0 0;font-size:15px}
+.hm-last small{color:var(--muted)}
+.hm-wl{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:6px;font-weight:800;font-size:13px;color:#fff;background:var(--muted)}
+.hm-wl.W{background:var(--good)}.hm-wl.L{background:var(--warn)}
+.hm-miss{display:block;margin-top:8px;font-size:13.5px}
+.hm-help{color:var(--muted);font-size:14px;margin:6px 0 0}
+.hm-next{border-left:5px solid var(--accent)}
+.hm-next.live{border-left-color:#e5484d}
+.hm-opp{display:block;font-family:var(--display);font-size:30px;text-transform:uppercase;line-height:1;margin:4px 0}
+.hm-meta{margin:0;font-size:14.5px;color:var(--muted)}
+.hm-mini{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.hm-date{font-family:var(--display);font-size:28px;text-transform:uppercase;line-height:1;margin:4px 0 8px}
+.hm-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.hm-list li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;font-size:15px}
+.hm-list li small{color:var(--muted);font-size:13.5px}
+.hm-plan{flex-basis:100%;font-size:14px}
+.hm-pill{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:20px;padding:2px 8px;white-space:nowrap}
+.hm-pill.home{background:var(--accent);color:var(--accent-ink)}
+.hm-pill.away{background:#7a4b00;color:#fff}
+.hm-pill.prac{background:var(--accent-soft);color:var(--accent)}
+.hm-pill.off{background:var(--sunk);color:var(--muted)}
+.hm-pill.note{background:#fff3c4;color:#6b5100}
+.hm-nextup{margin:10px 0 0;font-size:14px;color:var(--muted)}
+.hm-nextup b{color:var(--ink)}
+.hm-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.hm-tile{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;min-height:104px;color:inherit;cursor:pointer;transition:border-color .15s,transform .15s}
+.hm-tile:hover{border-color:var(--accent)}
+.hm-tile:active{transform:scale(.98)}
+.hm-tile b{font-family:var(--display);font-size:21px;text-transform:uppercase;line-height:1.05;margin-top:auto}
+.hm-tile small{font-size:13px;color:var(--muted)}
+.hm-ic{font-size:24px;line-height:1}
+.hm-more{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.hm-week{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.hm-wd{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;align-items:start}
+.hm-wdate{text-align:center;background:var(--sunk);border-radius:8px;padding:3px 0 4px;line-height:1}
+.hm-wdate small{display:block;font-size:10.5px;font-weight:600;text-transform:uppercase;color:var(--muted)}
+.hm-wdate b{font-family:var(--display);font-size:20px}
+.hm-wd.game .hm-wdate{background:var(--accent);color:var(--accent-ink)}
+.hm-wd.game .hm-wdate small{color:inherit}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .hm-pill.note{background:#3a3214;color:#f2d98a}}
+:root[data-theme="dark"] .hm-pill.note{background:#3a3214;color:#f2d98a}

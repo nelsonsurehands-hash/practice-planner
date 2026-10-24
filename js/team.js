@@ -34,6 +34,9 @@ $(".tm-nav").addEventListener("click",e=>{const b=e.target.closest("[data-tm]");
 document.addEventListener("click",e=>{const b=e.target.closest("[data-goteam]");if(b)window.goTeam(b.dataset.goteam);});
 function render(){
   if(typeof team==="undefined"||!team||$("#view-team").hidden)return;
+  /* Keep the visible section in step with the remembered one (the app can open straight onto the Team tab). */
+  document.querySelectorAll(".tm-nav [data-tm]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tm===pane));
+  document.querySelectorAll("#view-team .tm-pane").forEach(x=>x.hidden=x.id!=="tm-"+pane);
   $("#tmEyebrow").textContent=[team.name,(team.settings||{}).teamLabel].filter(Boolean).join(" · ");
   if(pane==="teams")renderTeams();
   if(pane==="roster")renderRoster();

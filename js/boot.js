@@ -174,7 +174,7 @@ function renderSwitcher(){
 }
 $("#swMenu").addEventListener("click",e=>{
   const b=e.target.closest("[data-team]");
-  if(b){const t=teams.find(x=>x.id===b.dataset.team);$("#teamSw").open=false;if(t&&t.id!==team.id){openTeam(t);setTab("plan");}return;}
+  if(b){const t=teams.find(x=>x.id===b.dataset.team);$("#teamSw").open=false;if(t&&t.id!==team.id){openTeam(t);setTab("home");}return;}
   if(e.target.id==="swManage"){$("#teamSw").open=false;window.goTeam&&window.goTeam("teams");return;}
   if(e.target.id==="swNew"){$("#teamSw").open=false;window.goTeam&&window.goTeam("teams");return;}
   if(e.target.id==="swJoin"){$("#teamSw").open=false;showSetup(true,e.target.id==="swJoin");}
@@ -330,7 +330,7 @@ $("#setupForm").addEventListener("submit",async e=>{
   }
   const addStarters=$("#suStarter").checked;
   $("#setupForm").reset();updateStarterLabel();
-  await openTeam(t);setTab("plan");
+  await openTeam(t);setTab("home");
   if(addStarters&&!copied.drills&&STARTERS[sport]&&STARTERS[sport].length){try{await store.bulkSet("drills",startersFor(sport));}catch{}}
   for(const k of Object.keys(copied)){if(copied[k].length){try{await store.bulkSet(k,copied[k].map(([id,d])=>[id,{...d,copiedFrom:src.name}]));}catch(err){showNotice("Some "+k+" couldn't be copied: "+(err.message||err));}}}
   if(src)showNotice(`${t.name} is ready${Object.keys(copied).length?`, with ${Object.entries(copied).map(([k,v])=>`${v.length} ${({drills:"drills",plays:"plays",players:"players"})[k]}`).join(", ")} copied from ${src.name}`:""}.`);
@@ -341,7 +341,7 @@ $("#suSample").addEventListener("click",async e=>{
     const data=await (await fetch("data/sample-team.json")).json();
     const t={id:"demo-"+uid(),name:data.team||"Sample team",settings:{...DEFAULT_SETTINGS,...data.settings},role:"owner",join_code:"",viewer_code:""};
     teams=[...readDemoTeams(),t];writeDemoTeams(teams);
-    await openTeam(t);setTab("plan");
+    await openTeam(t);setTab("home");
     await store.bulkSet("drills",data.drills.map(({id,...d})=>[id,d]));
     await store.bulkSet("plays",data.plays.map(({id,...p})=>[id,p]));
     await store.bulkSet("plans",data.plans.map(p=>[p.date,p]));
@@ -355,7 +355,7 @@ $("#joinForm").addEventListener("submit",async e=>{
   const {data,error}=await sb.rpc("join_team",{p_code:code,p_display_name:$("#joinName").value.trim()||null});
   if(error){msg($("#joinMsg"),error.message,"err");return;}
   await loadTeams();const t=teams.find(x=>x.id===data);
-  if(t){$("#joinForm").reset();await openTeam(t);setTab("plan");}
+  if(t){$("#joinForm").reset();await openTeam(t);setTab("home");}
   else msg($("#joinMsg"),"Joined, but the team couldn't be loaded. Reload the page.","err");
 });
 
@@ -606,7 +606,7 @@ $("#staffBody").addEventListener("click",async e=>{
     const b=e.target;if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to leave "+team.name;return;}
     const {error}=await sb.rpc("remove_member",{p_team:team.id,p_user:user.id});
     if(error){msg($("#staffMsg"),error.message,"err");return;}
-    await loadTeams();if(teams.length){openTeam(teams[0]);setTab("plan");}else showSetup(false);
+    await loadTeams();if(teams.length){openTeam(teams[0]);setTab("home");}else showSetup(false);
   }
 });
 $("#staffBody").addEventListener("change",async e=>{

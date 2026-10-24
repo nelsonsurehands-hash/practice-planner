@@ -4,7 +4,7 @@
    always worked out from the same record, and Undo just removes the last event. */
 (function(){
 const T=()=>window.TM;
-const GAMES={};
+const GAMES={};window.StatsGames=GAMES;   // read by js/home.js (a game in progress)
 let view="season", openDate=null, playerId=null, live=null, saveTimer=null, tick=null, pick=null, subIn=null;
 const can=()=>typeof PERM!=="undefined"&&PERM.plans;
 const SPORT=()=>(SETTINGS.sport||"basketball");

@@ -26,7 +26,7 @@ T().opened.push(()=>{
     const next=Object.fromEntries(s.docs.map(d=>[d.id,d.data()]));
     if(timer&&pendingKind===kind&&map[pendingId])next[pendingId]=map[pendingId];   // keep unsaved typing
     const changed=JSON.stringify(next)!==JSON.stringify(map);
-    Object.keys(map).forEach(k=>delete map[k]);Object.assign(map,next);
+    Object.keys(map).forEach(k=>delete map[k]);Object.assign(map,next);if(window.renderHome)setTimeout(renderHome,0);
     const typing=document.activeElement&&document.activeElement.closest("#tm-"+paneName+" :is(input,textarea,select)");
     if(changed&&!typing&&["game","scout"].includes(T().pane))T().render();
   },()=>{});

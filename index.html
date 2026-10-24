@@ -149,7 +149,8 @@
     <div class="sw-menu" id="swMenu"></div>
   </details>
   <div class="tabs" role="tablist">
-    <button id="tab-plan" role="tab" aria-selected="true" data-tab="plan">Practice</button>
+    <button id="tab-home" role="tab" aria-selected="true" data-tab="home">Home</button>
+    <button id="tab-plan" role="tab" aria-selected="false" data-tab="plan">Practice</button>
     <button id="tab-plays" role="tab" aria-selected="false" data-tab="plays">Plays <span id="playCount"></span></button>
     <button id="tab-lib" role="tab" aria-selected="false" data-tab="lib">Drill Library <span id="drillCount"></span></button>
     <button id="tab-cal" role="tab" aria-selected="false" data-tab="cal">Calendar</button>
@@ -162,7 +163,12 @@
 <div class="viewonly-bar" id="viewOnlyBar" hidden>You have view-only access to this team. You can browse, play through and print, but not change anything.</div>
 <div id="notice" class="notice" hidden></div>
 
-<section id="view-plan" class="view">
+<section id="view-home" class="view">
+  <div class="cal-head"><div><div class="eyebrow" id="hmEyebrow"></div><h2 class="cal-title" id="hmHello">Welcome</h2></div></div>
+  <div id="homeBody"></div>
+</section>
+
+<section id="view-plan" class="view" hidden>
   <div class="plan-grid">
     <div class="sheet">
       <div class="sheet-head">
@@ -523,6 +529,8 @@
 <script src="js/playhelp.js"></script>
 <script src="js/playguard.js"></script>
 <script src="js/photoai.js"></script>
+<script src="js/schedule-core.js"></script>
+<script src="js/home.js"></script>
 <script src="js/update.js"></script>
 </body>
 </html>
