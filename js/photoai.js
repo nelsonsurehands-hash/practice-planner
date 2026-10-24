@@ -7,7 +7,7 @@ const input=document.createElement("input");input.type="file";input.accept="imag
 let job=null;   // {kind, photos, result, used, limit}
 const KIND={roster:{title:"Add players from a photo",tip:"A printed or handwritten roster, a sign-up sheet, or a screenshot. Get the whole list in the picture, flat and in good light."},
   schedule:{title:"Add to the calendar from a photo",tip:"A game schedule, district schedule or school calendar. Up to 4 photos for a schedule that runs across pages."},
-  play:{title:"Draw a play from a photo",tip:"A play on a whiteboard, in a notebook or printed. Numbers for players, X's for defenders. One play per photo works best."}};
+  play:{title:"Draw a play from photos",tip:"A play on a whiteboard, in a notebook or printed. Numbers for players, X's for defenders. If the play is drawn across several pictures, add one photo per step, in order (up to 6)."}};
 const SETUP=`<p class="help">Reading photos needs the photo reader turned on in Supabase. Head coaches: see <b>supabase/functions/photo-import</b> in the app's files, or ask Claude to walk you through it.</p>`;
 
 /* ---------- photos ---------- */
@@ -21,18 +21,30 @@ function shrink(file){
     im.src=url;
   });
 }
+const MAX={roster:4,schedule:4,play:6};
 function start(kind){
   if(typeof team==="undefined"||!team)return;
-  job={kind};input.value="";
-  input.multiple=kind==="schedule";
+  job={kind,photos:[]};input.value="";
+  input.multiple=true;
   input.onchange=async()=>{
-    const files=[...input.files].slice(0,4);if(!files.length)return;
-    try{job.photos=await Promise.all(files.map(shrink));}catch(e){show(`<p class="msg err">${esc(e.message)}</p>`);return;}
-    read();
+    const room=MAX[job.kind]-job.photos.length,files=[...input.files].slice(0,Math.max(0,room));input.value="";if(!files.length)return;
+    try{job.photos=job.photos.concat(await Promise.all(files.map(shrink)));}catch(e){show(`<p class="msg err">${esc(e.message)}</p>`);return;}
+    stage();
   };
   show(`<p class="help" style="margin-top:0">${KIND[kind].tip}</p>
-    <div class="actions" style="margin:0"><button class="btn primary" type="button" data-ai="pick">📷 Take or choose a photo</button></div>
+    <div class="actions" style="margin:0"><button class="btn primary" type="button" data-ai="pick">📷 Take or choose ${job.kind==="roster"?"a photo":"photos"}</button></div>
     ${HOSTED||window.__photoMock?"":`<p class="msg err" style="margin:0">Photo reading works once the app is connected to Supabase (it's in demo mode now).</p>`}`);
+}
+/* Check the photos before reading: add more, put them in order, or remove one. */
+function stage(){
+  const n=job.photos.length,max=MAX[job.kind];
+  show(`<p class="help" style="margin-top:0">${job.kind==="play"?"Add a photo for each step of the play, in order: photo 1 is the start. Claude puts them together as one play.":
+      job.kind==="schedule"?"Add every page of the schedule.":"Add every page of the roster."}</p>
+    <ol class="ai-stage">${job.photos.map((ph,i)=>`<li><img src="${ph.url}" alt="Photo ${i+1}"><span class="ai-n">${job.kind==="play"?"Step ":""}${i+1}</span>
+      <span class="ai-move">${i?`<button type="button" class="icon" data-mv="${i}" data-dir="-1" aria-label="Move earlier">‹</button>`:""}${i<n-1?`<button type="button" class="icon" data-mv="${i}" data-dir="1" aria-label="Move later">›</button>`:""}<button type="button" class="icon" data-rm="${i}" aria-label="Remove photo">✕</button></span></li>`).join("")}
+      ${n<max?`<li class="ai-add"><button type="button" data-ai="pick">＋<span>${job.kind==="play"?"Add the next step":"Add another photo"}</span></button></li>`:""}</ol>
+    <p class="help">${n} of ${max} photos.${job.kind==="play"&&n>1?" Each photo becomes one or more steps.":""}</p>`,
+    `<button class="btn" type="button" data-ai="restart">Start over</button><button class="btn primary" type="button" data-ai="read"${n?"":" disabled"}>Read ${n} photo${n===1?"":"s"}</button>`);
 }
 function show(body,foot){
   dlg.innerHTML=`<div class="dlg ai"><div class="hg-head"><h2 id="aiTitle">${KIND[job.kind].title}</h2><button type="button" class="icon" data-ai="close" aria-label="Close">✕</button></div>
@@ -44,7 +56,7 @@ async function read(){
     <div class="ai-spin" aria-hidden="true"></div><p><b>Reading your photo…</b><br><span class="help">This takes about 10 to 30 seconds.</span></p></div>`);
   const st=SETTINGS||{};
   const context=job.kind==="schedule"?{today:todayISO(),seasonStart:st.seasonStart,seasonEnd:st.seasonEnd,team:[team.name,st.teamLabel].filter(Boolean).join(" ")}:
-    job.kind==="play"?{sport:st.sport||"basketball",players:sp().players,types:sp().playTypes}:{};
+    job.kind==="play"?{sport:st.sport||"basketball",players:sp().players,types:sp().playTypes,photos:job.photos.length}:{};
   try{
     let r;
     if(window.__photoMock)r=await window.__photoMock(job.kind,context);
@@ -59,7 +71,7 @@ async function read(){
     job.result=r.result||{};job.used=r.used;job.limit=r.limit;
     review();
   }catch(e){
-    show(`<p class="msg err">${esc(e.message||String(e))}</p>${e.setup?SETUP:""}`,`<button class="btn" type="button" data-ai="pick">Try another photo</button><button class="btn" type="button" data-ai="close">Close</button>`);
+    show(`<p class="msg err">${esc(e.message||String(e))}</p>${e.setup?SETUP:""}`,`<button class="btn" type="button" data-ai="restart">Try another photo</button>${job.photos.length?`<button class="btn" type="button" data-ai="read">Try again</button>`:""}<button class="btn" type="button" data-ai="close">Close</button>`);
   }
 }
 const usage=()=>job.limit?`<span class="help ai-usage">${job.used} of ${job.limit} photos used this month</span>`:"";
@@ -69,7 +81,7 @@ function reviewRoster(){
   const have=new Set(TM.roster.map(p=>String(p.name||"").trim().toLowerCase()));
   const list=(job.result.players||[]).filter(p=>p&&p.name);
   job.rows=list.map(p=>({...p,dup:have.has(String(p.name).trim().toLowerCase())}));
-  if(!job.rows.length){show(`<p class="msg err">No players found in that photo. Try a closer, straight-on picture of the list.</p>`,`<button class="btn primary" type="button" data-ai="pick">Try another photo</button>`);return;}
+  if(!job.rows.length){show(`<p class="msg err">No players found in that photo. Try a closer, straight-on picture of the list.</p>`,`<button class="btn primary" type="button" data-ai="restart">Try another photo</button>`);return;}
   show(`<p class="help" style="margin-top:0">Found ${job.rows.length} player${job.rows.length===1?"":"s"}. Fix anything that's wrong, uncheck anyone you don't want, then add them.</p>
     ${job.result.notes?`<p class="ai-note">${esc(job.result.notes)}</p>`:""}
     <div class="ai-list">${job.rows.map((p,i)=>`<div class="ai-row${p.unsure?" unsure":""}">
@@ -82,7 +94,7 @@ function reviewRoster(){
         <input data-f="${i}.email" value="${esc(p.email||"")}" placeholder="Email" aria-label="Email" type="email">
         ${p.dup?`<small class="ai-flag">Already on the roster</small>`:p.unsure?`<small class="ai-flag">Hard to read: please check</small>`:""}
       </div></div>`).join("")}</div>`,
-    `${usage()}<button class="btn" type="button" data-ai="pick">Different photo</button><button class="btn primary" type="button" data-ai="apply">Add players</button>`);
+    `${usage()}<button class="btn" type="button" data-ai="restart">Different photo</button><button class="btn primary" type="button" data-ai="apply">Add players</button>`);
   count();
 }
 async function applyRoster(){
@@ -106,7 +118,7 @@ function reviewSchedule(){
   job.games=(job.result.games||[]).filter(g=>valid(g.date)).sort((a,b)=>a.date<b.date?-1:1).map(g=>({...g,dup:haveG.has(g.date),mine:levelMatch(g.level)}));
   job.days=(job.result.days||[]).filter(d=>valid(d.date)).sort((a,b)=>a.date<b.date?-1:1);
   const levels=[...new Set(job.games.map(g=>g.level).filter(Boolean))];
-  if(!job.games.length&&!job.days.length){show(`<p class="msg err">No games or dates found in that photo. Try a closer, straight-on picture.</p>`,`<button class="btn primary" type="button" data-ai="pick">Try another photo</button>`);return;}
+  if(!job.games.length&&!job.days.length){show(`<p class="msg err">No games or dates found in that photo. Try a closer, straight-on picture.</p>`,`<button class="btn primary" type="button" data-ai="restart">Try another photo</button>`);return;}
   const homeSel=(i,h)=>`<select data-f="g${i}.home" aria-label="Home or away"><option value="home"${h==="home"?" selected":""}>Home</option><option value="away"${h==="away"?" selected":""}>Away</option>${h==="unknown"?`<option value="unknown" selected>Home or away?</option>`:""}</select>`;
   show(`<p class="help" style="margin-top:0">Check the dates against the photo, uncheck anything you don't want, then add it to ${esc(st.teamLabel||team.name)}'s calendar.</p>
     ${job.result.notes?`<p class="ai-note">${esc(job.result.notes)}</p>`:""}
@@ -121,7 +133,7 @@ function reviewSchedule(){
       <div class="ai-fields ai-day"><span class="ai-dates">${esc(longDay(d.date))}${d.end&&d.end>d.date?" – "+esc(longDay(d.end)):""}</span>
         <select data-f="d${i}.type" aria-label="Kind of day">${DAY_TYPES.map(([v,l])=>`<option value="${v}"${d.type===v?" selected":""}>${l}</option>`).join("")}</select>
         <input data-f="d${i}.label" value="${esc(d.label||"")}" placeholder="Label" aria-label="Label"></div></div>`).join("")}</div>`:""}`,
-    `${usage()}<button class="btn" type="button" data-ai="pick">Different photo</button><button class="btn primary" type="button" data-ai="apply">Add to calendar</button>`);
+    `${usage()}<button class="btn" type="button" data-ai="restart">Different photo</button><button class="btn primary" type="button" data-ai="apply">Add to calendar</button>`);
   count();
 }
 const longDay=iso=>dObj(iso).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
@@ -171,13 +183,13 @@ function buildPlay(r){
   return {id:null,name:String(r.name||"Play from photo").slice(0,60),type:types.includes(r.type)?r.type:types[0],notes:[r.notes,r.unsure?`Check: ${r.unsure}`:""].filter(Boolean).join("\n"),frames};
 }
 function reviewPlay(){
-  let p;try{p=buildPlay(job.result);}catch(e){show(`<p class="msg err">Couldn't turn that photo into a play. Try a clearer picture.</p>`,`<button class="btn primary" type="button" data-ai="pick">Try another photo</button>`);return;}
+  let p;try{p=buildPlay(job.result);}catch(e){show(`<p class="msg err">Couldn't turn that photo into a play. Try a clearer picture.</p>`,`<button class="btn primary" type="button" data-ai="restart">Try another photo</button>`);return;}
   job.play=p;
   show(`<div class="ai-play"><div><img src="${job.photos[0].url}" alt="Your photo"><small>Your photo</small></div><div>${boardSVG(p.frames[0],"screen")}<small>Step 1 of ${p.frames.length}</small></div></div>
     <p><b>${esc(p.name)}</b> · ${esc(p.type)} · ${p.frames.length} step${p.frames.length===1?"":"s"}</p>
     ${job.result.unsure?`<p class="ai-note">Check: ${esc(job.result.unsure)}</p>`:""}
     <p class="help">This is a first draft. Open it in the play designer, drag anyone who's off, play it through, then tap Save play.</p>`,
-    `${usage()}<button class="btn" type="button" data-ai="pick">Different photo</button><button class="btn primary" type="button" data-ai="apply">Open in play designer</button>`);
+    `${usage()}<button class="btn" type="button" data-ai="restart">Different photo</button><button class="btn primary" type="button" data-ai="apply">Open in play designer</button>`);
 }
 function applyPlay(){
   dlg.close();
@@ -200,11 +212,18 @@ dlg.addEventListener("click",async e=>{
   const a=b.dataset.ai;
   if(a==="close")dlg.close();
   if(a==="pick")input.click();
+  if(a==="restart"){job.photos=[];job.result=null;input.click();}
+  if(a==="read")read();
   if(a==="apply"){b.disabled=true;b.textContent="Saving…";
     try{if(job.kind==="roster")await applyRoster();else if(job.kind==="schedule")await applySchedule();else applyPlay();}
     catch(err){b.disabled=false;count();const m=dlg.querySelector(".ai-body");m.insertAdjacentHTML("afterbegin",`<p class="msg err">Not saved: ${esc(err.message||String(err))}</p>`);}}
 });
 dlg.addEventListener("change",e=>{if(e.target.closest(".ai-chk"))count();});
+dlg.addEventListener("click",e=>{
+  const mv=e.target.closest("[data-mv]"),rm=e.target.closest(".ai-stage [data-rm]");
+  if(mv){const i=+mv.dataset.mv,j=i+(+mv.dataset.dir);[job.photos[i],job.photos[j]]=[job.photos[j],job.photos[i]];stage();}
+  if(rm){job.photos.splice(+rm.dataset.rm,1);stage();}
+});
 dlg.addEventListener("input",e=>{
   const f=e.target.closest("[data-f]");if(!f)return;const [k,field]=f.dataset.f.split(".");
   if(/^g\d+$/.test(k))job.games[+k.slice(1)][field]=f.value;

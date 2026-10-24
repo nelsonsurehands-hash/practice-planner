@@ -154,6 +154,9 @@ const TOOLS: Record<string, { area: string; tool: Record<string, unknown>; promp
       "If the drawing has the basket at the bottom, flip it so the basket is at the top. " +
       `Numbers 1 to ${c.players || 5} are offensive players; X's are defenders. Lines: plain arrow = cut, zig-zag = dribble, dashed = pass, line ending in a bar = screen. ` +
       "Break the play into steps in the order things happen; everything in one step happens at the same time, and players start each step where they ended the last one. " +
+      (Number(c.photos) > 1 ? `There are ${c.photos} photos of this ONE play, in order: photo 1 is the start and each later photo shows what happens next. ` +
+        "Combine them into a single play: take the starting positions from photo 1, make at least one step for each photo in order, and use later photos to see where players ended up. " +
+        "Don't repeat a movement that was already drawn in an earlier photo. " : "") +
       `Play types to choose from: ${(c.types as string[] || []).join(", ")}.`,
   },
 };
@@ -168,7 +171,7 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return reply(400, { error: "Bad request." }); }
   const spec = TOOLS[body.kind || ""];
   if (!spec || !body.team) return reply(400, { error: "Bad request." });
-  const images = (body.images || []).slice(0, 4).filter((i) => i && i.data && /^image\/(jpeg|png|webp|gif)$/.test(i.type));
+  const images = (body.images || []).slice(0, 6).filter((i) => i && i.data && /^image\/(jpeg|png|webp|gif)$/.test(i.type));
   if (!images.length) return reply(400, { error: "Add a photo first." });
 
   // Who's asking, and may they change this part of the team?
@@ -199,7 +202,10 @@ Deno.serve(async (req) => {
       messages: [{
         role: "user",
         content: [
-          ...images.map((i) => ({ type: "image", source: { type: "base64", media_type: i.type, data: i.data } })),
+          ...images.flatMap((i, k) => [
+            ...(images.length > 1 ? [{ type: "text", text: `Photo ${k + 1} of ${images.length}:` }] : []),
+            { type: "image", source: { type: "base64", media_type: i.type, data: i.data } },
+          ]),
           { type: "text", text: spec.prompt(body.context || {}) },
         ],
       }],
