@@ -15,7 +15,7 @@ const yesterday=()=>{const d=new Date();d.setDate(d.getDate()-1);return isoOf(d)
 const MINE_KEY="cpp:mySignups:"+ID;
 const readMine=()=>{try{return JSON.parse(localStorage.getItem(MINE_KEY)||"[]");}catch{return [];}};
 const writeMine=v=>{try{localStorage.setItem(MINE_KEY,JSON.stringify(v));}catch{}};
-let SHEET=null,pick=null,last=null;
+let SHEET=null,pick=null,last=null,openDate=null,showPast=false;
 
 /* ---------- where the sheet lives ---------- */
 let api;
@@ -28,11 +28,12 @@ if(DEMO){
       const v=read();if(!v||!v.board||v.board.id!==ID||!v.board.active)return null;
       const t=(JSON.parse(localStorage.getItem("cpp:demoTeams")||"[]")).find(x=>x.id===teamId)||{settings:{}},st=t.settings||{},b=v.board,y=yesterday();
       return {title:b.title,note:b.note,slots:b.slots,team:{name:t.name,color:st.color,color2:st.color2,logo:st.logo,school:st.school,mascot:st.mascot,teamLabel:st.teamLabel},
-        games:(st.games||[]).filter(g=>g.date>=y&&!(b.skip||[]).includes(g.date)&&(b.games==="all"||(b.games==="home")===(g.home!==false))).sort((a,c)=>a.date<c.date?-1:1).map(g=>({...g,home:g.home!==false})),
+        games:(st.games||[]).filter(g=>g.date&&(b.games==="all"||(b.games==="home")===(g.home!==false))).sort((a,c)=>a.date<c.date?-1:1).map(g=>({...g,home:g.home!==false,past:g.date<y,skip:(b.skip||[]).includes(g.date)})),
         entries:v.entries.filter(e=>e.game_date>=y).map(e=>({id:e.id,date:e.game_date,slot:e.slot,name:shortName(e.name),item:e.item}))};
     },
     async add(a){
       const v=read();const s=await this.get();if(!s)throw new Error("This sign-up sheet is closed.");
+      const gm=s.games.find(g=>g.date===a.date);if(!gm||gm.past||gm.skip)throw new Error("That game is no longer on the sign-up sheet.");
       if(a.name.trim().length<2)throw new Error("Please enter your name.");
       if(a.contact.trim().length<5)throw new Error("Please enter a phone number or email so the coach can reach you.");
       const cap=(s.slots.find(x=>x.name===a.slot)||{}).count||0;
@@ -78,17 +79,34 @@ function render(){
   const mine=readMine().filter(m=>SHEET.entries.some(e=>e.id===m.id));writeMine(mine);
   $("#suMine").hidden=!mine.length;
   $("#suMine").innerHTML=`<h2>Your sign-ups</h2><ul>${mine.map(m=>`<li><span><b>${esc(m.slot)}</b>, ${esc(longDay(m.date))}${m.opp?` (${m.home?"vs":"at"} ${esc(m.opp)})`:""}</span><button class="linkbtn" type="button" data-cancel="${esc(m.id)}">Cancel</button></li>`).join("")}</ul>`;
-  const games=SHEET.games||[];
-  $("#suGames").innerHTML=games.length?games.map(g=>{const d=dObj(g.date);
-    return `<article class="su-game"><header><div class="su-date"><small>${d.toLocaleDateString("en-US",{month:"short"})}</small><b>${d.getDate()}</b><small>${d.toLocaleDateString("en-US",{weekday:"short"})}</small></div>
-      <div class="su-opp"><b>${g.home?"vs":"at"} ${esc(g.opponent||"Game")}</b><small>${esc(longDay(g.date))}${g.time?" · "+ampm(g.time):""} · ${g.home?"Home":"Away"}</small></div></header>
-      ${(SHEET.slots||[]).map(s=>{const list=by[g.date+"|"+s.name]||[],left=s.count-list.length;
-        return `<div class="su-slot"><div><div class="nm">${esc(s.name)}</div><div class="left${left<=0?" full":""}">${left<=0?"All set, thank you!":`${left} of ${s.count} spot${s.count===1?"":"s"} open`}</div></div>
-          ${left>0?`<button class="btn primary" type="button" data-date="${g.date}" data-slot="${esc(s.name)}">Sign up</button>`:""}
-          ${list.length?`<ul>${list.map(e=>`<li>${esc(e.name)}${e.item?`: ${esc(e.item)}`:""}</li>`).join("")}</ul>`:""}</div>`;}).join("")}
-    </article>`;}).join(""):`<div class="su-empty" style="margin-top:0">No upcoming games need food right now. Check back later.</div>`;
+  const games=SHEET.games||[],y=yesterday();
+  games.forEach(g=>{if(g.past===undefined)g.past=g.date<y;});
+  const left=g=>(SHEET.slots||[]).reduce((n,x)=>n+Math.max(0,x.count-(by[g.date+"|"+x.name]||[]).length),0);
+  const total=(SHEET.slots||[]).reduce((n,x)=>n+x.count,0);
+  const status=g=>g.past?["Played","st-past"]:g.skip?["No food needed","st-skip"]:left(g)?[`${left(g)} of ${total} open`,"st-open"]:["All set ✓","st-full"];
+  const row=g=>{const d=dObj(g.date),[st,cls]=status(g),on=openDate===g.date,can=!g.past&&!g.skip;
+    return `<article class="su-g ${cls}${on?" on":""}">
+      <button type="button" class="su-row" data-g="${g.date}" aria-expanded="${on}"${can?"":" disabled"}>
+        <span class="su-date"><small>${d.toLocaleDateString("en-US",{month:"short"})}</small><b>${d.getDate()}</b><small>${d.toLocaleDateString("en-US",{weekday:"short"})}</small></span>
+        <span class="su-opp"><b>${g.home?"vs":"at"} ${esc(g.opponent||"Game")}</b><small>${g.time?ampm(g.time)+" · ":""}${g.home?"Home":"Away"}</small></span>
+        <span class="su-st">${st}</span>${can?`<span class="su-chev" aria-hidden="true">›</span>`:""}
+      </button>
+      ${on?`<div class="su-slots"><p class="su-pickhelp">Pick what you'll bring:</p>${(SHEET.slots||[]).map(x=>{const list=by[g.date+"|"+x.name]||[],l=x.count-list.length;
+        return `<div class="su-slot"><div><div class="nm">${esc(x.name)}</div><div class="left${l<=0?" full":""}">${l<=0?"All set, thank you!":`${l} of ${x.count} spot${x.count===1?"":"s"} open`}</div></div>
+          ${l>0?`<button class="btn primary" type="button" data-date="${g.date}" data-slot="${esc(x.name)}">Sign up</button>`:""}
+          ${list.length?`<ul>${list.map(e=>`<li>${esc(e.name)}${e.item?`: ${esc(e.item)}`:""}</li>`).join("")}</ul>`:""}</div>`;}).join("")}</div>`:""}
+    </article>`;};
+  const past=games.filter(g=>g.past),rest=games.filter(g=>!g.past);
+  $("#suCount").textContent=games.length?`${rest.length} game${rest.length===1?"":"s"} left this season${past.length?`, ${past.length} played`:""}. Tap a game to see what's needed.`:"";
+  $("#suGames").innerHTML=games.length?
+    (past.length?`<details class="su-pastwrap"${showPast?" open":""}><summary>Games already played (${past.length})</summary>${past.map(row).join("")}</details>`:"")+
+    rest.map(row).join("")+(rest.length?"":`<div class="su-empty" style="margin-top:0">The season's games are all played. Thank you for helping out!</div>`):
+    `<div class="su-empty" style="margin-top:0">No games are on the schedule yet. Check back later.</div>`;
 }
 $("#suGames").addEventListener("click",e=>{
+  const r=e.target.closest("[data-g]");
+  if(r){openDate=openDate===r.dataset.g?null:r.dataset.g;render();
+    const el=document.querySelector(`[data-g="${openDate}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});return;}
   const b=e.target.closest("[data-slot]");if(!b)return;
   const g=SHEET.games.find(x=>x.date===b.dataset.date);pick={date:b.dataset.date,slot:b.dataset.slot,g};
   $("#suSum").innerHTML=`<b>${esc(pick.slot)}</b><br>${esc(longDay(pick.date))} · ${g.home?"vs":"at"} ${esc(g.opponent||"Game")}${g.time?" · "+ampm(g.time):""}`;
@@ -107,7 +125,7 @@ $("#suForm").addEventListener("submit",async e=>{
     const r=await api.add(a);
     try{localStorage.setItem("cpp:parent",JSON.stringify({name:a.name,contact:a.contact,player:a.player}));}catch{}
     writeMine([...readMine(),{id:r.id,token:r.token,date:a.date,slot:a.slot,opp:a.g.opponent||"",home:a.g.home}]);
-    last=a;
+    last=a;openDate=a.date;
     $("#suDoneText").innerHTML=`<b>${esc(a.slot)}</b>${a.item?` (${esc(a.item)})`:""} for ${esc(longDay(a.date))}, ${a.g.home?"vs":"at"} ${esc(a.g.opponent||"the game")}${a.g.time?` at ${ampm(a.g.time)}`:""}. Thank you!`;
     $("#suForm").hidden=true;$("#suDone").hidden=false;
     await load();
@@ -129,6 +147,7 @@ $("#suMine").addEventListener("click",async e=>{
   const m=readMine().find(x=>x.id===b.dataset.cancel);if(!m)return;
   try{await api.cancel(m.id,m.token);writeMine(readMine().filter(x=>x.id!==m.id));await load();}catch(err){b.textContent="Couldn't cancel. Try again";}
 });
+$("#suGames").addEventListener("toggle",e=>{if(e.target.classList.contains("su-pastwrap"))showPast=e.target.open;},true);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&SHEET&&!$("#suDlg").open)load();});
 if(!ID)fail("This link is missing its sign-up code. Ask your coach for the link.");else load();
 })();

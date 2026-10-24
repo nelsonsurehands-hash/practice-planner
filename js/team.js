@@ -80,12 +80,47 @@ function teamCard(t){
     <small>${esc(season)} · ${games} game${games===1?"":"s"}</small></div>
     ${on?`<span class="tm-badge">Open now</span>`:`<button class="btn" data-openteam="${t.id}">Open</button>`}</article>`;
 }
+/* Teams are grouped by school or club; each grade or level (7th grade, 8th grade, JV…) is its own team. */
+const schoolKey=t=>String((t.settings||{}).school||t.name||"").trim().toLowerCase();
+function schoolGroups(){
+  const m=new Map();
+  teams.forEach(t=>{const k=schoolKey(t);if(!m.has(k))m.set(k,[]);m.get(k).push(t);});
+  return [...m.values()].map(list=>{
+    list.sort((a,b)=>String((a.settings||{}).teamLabel||"").localeCompare(String((b.settings||{}).teamLabel||""),undefined,{numeric:true}));
+    const lead=list.find(t=>t.id===team.id)||list[0],st=lead.settings||{};
+    return {key:schoolKey(lead),school:st.school||lead.name,mascot:st.mascot||"",lead,list};
+  }).sort((a,b)=>(b.list.some(t=>t.id===team.id))-(a.list.some(t=>t.id===team.id))||a.school.localeCompare(b.school));
+}
+let addClassFor=null;
+function addClassForm(g){
+  const same=g.list.filter(t=>canEdit(t)),src=same.find(t=>t.id===team.id)||same[0]||g.lead;
+  return `<form class="rs-form tm-addclass" data-school="${esc(g.key)}">
+    <label class="f">Grade, level or team name<input name="label" required placeholder="e.g. 7th Grade Girls, JV, 8th Grade Boys" autocomplete="off"></label>
+    <label class="f">Sport<select name="sport">${Object.keys(SPORTS).map(k=>`<option value="${k}"${((src.settings||{}).sport||"basketball")===k?" selected":""}>${esc(SPORTS[k].name)}</option>`).join("")}</select></label>
+    <label class="f">Start it from<select name="from">${g.list.map(t=>`<option value="${t.id}"${t.id===src.id?" selected":""}>${esc((t.settings||{}).teamLabel||t.name)}</option>`).join("")}<option value="">Nothing, start fresh</option></select></label>
+    <div class="exp-pick">
+      <label><input type="checkbox" name="drills" checked> Drill library</label>
+      <label><input type="checkbox" name="plays" checked> Plays (same sport only)</label>
+      <label><input type="checkbox" name="sched" checked> Practice days, times and season dates</label>
+      <label><input type="checkbox" name="roster"> Roster</label>
+    </div>
+    <p class="help" style="margin:0">The school name, team name, colors and logo carry over. Games, practice plans, calendar marks and staff start empty; staff join with the new team's own code.</p>
+    <div class="actions" style="margin:0"><button class="btn primary" type="submit">Create team</button><button class="btn" type="button" data-addclass="">Cancel</button></div>
+    <div class="msg" data-addmsg></div></form>`;
+}
 function renderTeams(){
-  const owner=team.role==="owner"||!HOSTED;
-  $("#tm-teams").innerHTML=`<div class="tm-card"><h3 class="tm-h">Your teams <small>${teams.length}</small></h3>
-    <div class="tm-tlist">${teams.map(teamCard).join("")}</div>
-    <div class="actions" style="margin:12px 0 0"><button class="btn primary" type="button" id="tmNew">+ Create a new team</button>${HOSTED?`<button class="btn" type="button" id="tmJoin">Join another staff with a code</button>`:""}</div>
-    <p class="help">Each team keeps its own practice plans, plays, drills, calendar, roster and staff. When you create a new team (say, a 7th grade team), you can start it from this one and copy the drills, plays, schedule and colors. Switch teams any time from the team button at the top.</p></div>
+  const owner=team.role==="owner"||!HOSTED,groups=schoolGroups();
+  $("#tm-teams").innerHTML=`<div class="tm-card"><h3 class="tm-h">Schools and teams <small>${teams.length} team${teams.length===1?"":"s"}</small></h3>
+    ${groups.map(g=>{const st=g.lead.settings||{};
+      const mark=st.logo?`<img class="sw-logo" src="${esc(st.logo)}" alt="">`:`<span class="sw-dot" style="background:${esc(st.color||"#5b2a86")}${st.color2?`;box-shadow:inset -8px 0 0 ${esc(st.color2)}`:""}"></span>`;
+      return `<section class="tm-school"><header>${mark}<div><b>${esc([g.school,g.mascot].filter(Boolean).join(" "))}</b><small>${g.list.length} team${g.list.length===1?"":"s"}</small></div></header>
+        <ul class="tm-classes">${g.list.map(t=>{const ts=t.settings||{},on=t.id===team.id,n=(ts.games||[]).length;
+          return `<li class="tm-class${on?" on":""}"><div><b>${esc(ts.teamLabel||"Main team")}</b><small>${esc(sportName(t))} · ${esc(roleName(t.role))} · ${n} game${n===1?"":"s"}</small></div>
+            ${on?`<span class="tm-badge">Open now</span>`:`<button class="btn" type="button" data-openteam="${t.id}">Open</button>`}</li>`;}).join("")}</ul>
+        ${addClassFor===g.key?addClassForm(g):g.list.some(t=>canEdit(t))||!HOSTED?`<button class="btn" type="button" data-addclass="${esc(g.key)}">+ Add a grade or team at ${esc(g.school)}</button>`:""}
+      </section>`;}).join("")}
+    <div class="actions" style="margin:12px 0 0"><button class="btn" type="button" id="tmNew">+ Add a different school or club</button>${HOSTED?`<button class="btn" type="button" id="tmJoin">Join another staff with a code</button>`:""}</div>
+    <p class="help">Each grade or level is its own team with its own practice plans, plays, drills, calendar, roster and staff. Switch between them here or from the team button at the top.</p></div>
     <div class="tm-card"><h3 class="tm-h">This team</h3>
     <p class="help" style="margin-top:0">Name, colors, logo, season, practice days and games are in Settings.</p>
     <div class="actions" style="margin:0"><button class="btn" type="button" data-tab-go="settings">Team settings</button><button class="btn" type="button" data-goteam="roster">Roster</button><button class="btn" type="button" data-goteam="staff">Staff</button></div>
@@ -94,11 +129,37 @@ function renderTeams(){
       <label class="f">Type the team name to confirm<input id="tmDelName" autocomplete="off" placeholder="${esc(team.name)}"></label>
       <button class="btn danger" type="button" id="tmDel">Delete team forever</button><div class="msg" id="tmDelMsg"></div></details>`:""}</div>`;
 }
+$("#tm-teams").addEventListener("submit",async e=>{
+  const f=e.target.closest(".tm-addclass");if(!f)return;e.preventDefault();
+  const label=f.label.value.trim();if(!label)return;
+  const g=schoolGroups().find(x=>x.key===f.dataset.school),src=teams.find(t=>t.id===f.from.value)||null,base=(src||g.lead).settings||{};
+  const sport=f.sport.value,sameSport=src&&((src.settings||{}).sport||"basketball")===sport;
+  if(teams.some(t=>schoolKey(t)===g.key&&String((t.settings||{}).teamLabel||"").trim().toLowerCase()===label.toLowerCase())){msg(f.querySelector("[data-addmsg]"),`${g.school} already has a team called ${label}.`,"err");return;}
+  const settings={...DEFAULT_SETTINGS,sport,school:base.school||"",mascot:base.mascot||"",teamLabel:label,color:base.color||"#5b2a86"};
+  ["color2","logo","appIcon","quickAdds"].forEach(k=>{if(base[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(base[k]));});
+  if(src&&f.sched.checked)["practiceDays","weekdayStart","weekdayEnd","weekendStart","weekendEnd","seasonStart","seasonEnd","minPractices"].forEach(k=>{if(src.settings&&src.settings[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(src.settings[k]));});
+  const kinds=src?[["drills",f.drills.checked],["plays",f.plays.checked&&sameSport],["players",f.roster.checked]].filter(x=>x[1]).map(x=>x[0]):[];
+  const btn=f.querySelector("[type=submit]");btn.disabled=true;msg(f.querySelector("[data-addmsg]"),"Creating "+label+"…");
+  try{
+    const copied={};for(const k of kinds)copied[k]=await readItems(src.id,k);
+    const name=[settings.school,settings.mascot].filter(Boolean).join(" ")||label;let t;
+    if(HOSTED){
+      const {data,error}=await sb.rpc("create_team",{p_name:name,p_settings:settings,p_display_name:(team&&team.myName)||null});
+      if(error)throw error;await loadTeams();t=teams.find(x=>x.id===data);if(!t)throw new Error("Team created, but it couldn't be loaded. Reload the app.");
+    }else{t={id:"demo-"+uid(),name,settings,role:"owner",join_code:"",viewer_code:""};teams=[...readDemoTeams(),t];writeDemoTeams(teams);}
+    addClassFor=null;await openTeam(t);
+    for(const k of Object.keys(copied))if(copied[k].length)await store.bulkSet(k,copied[k].map(([id,d])=>[id,{...d,copiedFrom:(src.settings||{}).teamLabel||src.name}]));
+    showPane("teams");
+    showNotice(`${label} is ready${Object.keys(copied).length?`, with ${Object.entries(copied).map(([k,v])=>`${v.length} ${k==="players"?"players":k}`).join(", ")} from ${(src.settings||{}).teamLabel||src.name}`:""}. Add its games in the Calendar tab.`);
+  }catch(err){btn.disabled=false;msg(f.querySelector("[data-addmsg]"),err.message||String(err),"err");}
+});
 $("#tm-teams").addEventListener("click",async e=>{
   const o=e.target.closest("[data-openteam]");
   if(o){const t=teams.find(x=>x.id===o.dataset.openteam);if(t){await openTeam(t);showPane("teams");}return;}
   if(e.target.closest("[data-tab-go]")){setTab(e.target.closest("[data-tab-go]").dataset.tabGo);return;}
   if(e.target.id==="tmNew"||e.target.id==="tmJoin"){showSetup(true,e.target.id==="tmJoin");return;}
+  const ac=e.target.closest("[data-addclass]");
+  if(ac){addClassFor=ac.dataset.addclass||null;renderTeams();const f=document.querySelector(".tm-addclass [name=label]");if(f)f.focus();return;}
   if(e.target.id==="tmDel"){
     if($("#tmDelName").value.trim().toLowerCase()!==team.name.trim().toLowerCase()){msg($("#tmDelMsg"),"Type the team name exactly to confirm.","err");return;}
     e.target.disabled=true;msg($("#tmDelMsg"),"Deleting…");

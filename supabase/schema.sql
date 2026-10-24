@@ -508,12 +508,14 @@ begin
                                'logo', t.settings->>'logo', 'school', t.settings->>'school',
                                'mascot', t.settings->>'mascot', 'teamLabel', t.settings->>'teamLabel'),
     'games', coalesce((
+      -- every game of the season (home/away as the coach chose); past and "no food needed" games are flagged
       select jsonb_agg(jsonb_build_object('date', g->>'date', 'opponent', g->>'opponent', 'time', g->>'time',
-                                          'home', coalesce((g->>'home')::boolean, true))
+                                          'home', coalesce((g->>'home')::boolean, true),
+                                          'past', (g->>'date') < to_char(current_date - 1, 'YYYY-MM-DD'),
+                                          'skip', (g->>'date') = any(b.skip))
                        order by g->>'date')
         from jsonb_array_elements(coalesce(t.settings->'games', '[]'::jsonb)) g
-       where (g->>'date') >= to_char(current_date - 1, 'YYYY-MM-DD')
-         and not ((g->>'date') = any(b.skip))
+       where coalesce(g->>'date', '') <> ''
          and (b.games = 'all' or (b.games = 'home') = coalesce((g->>'home')::boolean, true))), '[]'::jsonb),
     'entries', coalesce((
       select jsonb_agg(jsonb_build_object('id', e.id, 'date', to_char(e.game_date, 'YYYY-MM-DD'), 'slot', e.slot,

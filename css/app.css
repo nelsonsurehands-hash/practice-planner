@@ -745,3 +745,14 @@ body.pb-full{overflow:hidden}
 @keyframes sp-dot{0%,60%,100%{opacity:.2}30%{opacity:1}}
 @keyframes sp-in{from{opacity:0;transform:translateY(8px)}}
 @media (prefers-reduced-motion:reduce){.sp-ring,.sp-badge img,.sp-ball,.sp-dots i,.sp-center{animation:none}}
+/* schools and their grades / teams */
+.tm-school{border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:12px;margin:0 0 10px}
+.tm-school>header{display:flex;gap:10px;align-items:center;margin:0 0 8px}
+.tm-school>header .sw-logo,.tm-school>header .sw-dot{width:40px;height:40px;border-radius:8px;object-fit:contain;flex:none}
+.tm-school>header b{display:block;font-family:var(--display);font-size:20px;text-transform:uppercase;line-height:1.05}
+.tm-school>header small{font-size:12.5px;color:var(--muted)}
+.tm-classes{list-style:none;margin:0 0 10px;padding:0;display:flex;flex-direction:column;gap:6px}
+.tm-class{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:9px 12px}
+.tm-class.on{border-color:var(--accent);box-shadow:inset 4px 0 0 var(--accent)}
+.tm-class b{display:block;font-size:15.5px}.tm-class small{font-size:12.5px;color:var(--muted)}
+.tm-addclass .exp-pick{display:flex;flex-direction:column;gap:4px;font-size:14px}

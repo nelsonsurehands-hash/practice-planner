@@ -163,17 +163,20 @@ async function openTeam(t){
 function renderSwitcher(){
   $("#swName").textContent=team.name;
   $("#swMeta").textContent=`${(team.settings||{}).teamLabel?team.settings.teamLabel+" · ":""}${sportName(team)} · ${roleName(team.role)}`;
-  $("#swMenu").innerHTML=`<div class="sw-head">Your teams</div>`+
-    teams.map(t=>`<button class="sw-item${t.id===team.id?" on":""}" data-team="${t.id}" role="menuitem">
+  const groups=new Map();teams.forEach(t=>{const k=String((t.settings||{}).school||t.name).trim().toLowerCase();if(!groups.has(k))groups.set(k,[]);groups.get(k).push(t);});
+  $("#swMenu").innerHTML=[...groups.values()].map(list=>{list.sort((a,b)=>String((a.settings||{}).teamLabel||"").localeCompare(String((b.settings||{}).teamLabel||""),undefined,{numeric:true}));const st=list[0].settings||{};
+    return `<div class="sw-head">${esc([st.school,st.mascot].filter(Boolean).join(" ")||list[0].name)}</div>`+
+    list.map(t=>`<button class="sw-item${t.id===team.id?" on":""}" data-team="${t.id}" role="menuitem">
       ${(t.settings||{}).logo?`<img class="sw-logo" src="${esc(t.settings.logo)}" alt="">`:`<span class="sw-dot" style="background:${esc((t.settings||{}).color||"#5b2a86")}${(t.settings||{}).color2?`;box-shadow:inset -6px 0 0 ${esc(t.settings.color2)}`:""}"></span>`}
-      <span><b>${esc(t.name)}</b><small>${(t.settings||{}).teamLabel?esc(t.settings.teamLabel)+" · ":""}${esc(sportName(t))} · ${esc(roleName(t.role))}</small></span></button>`).join("")+
-    `<div class="sw-actions"><button class="btn" id="swManage">Manage teams</button><button class="btn" id="swNew">+ New team</button>${HOSTED?`<button class="btn" id="swJoin">Join a staff</button>`:""}</div>`;
+      <span><b>${esc((t.settings||{}).teamLabel||t.name)}</b><small>${esc(sportName(t))} · ${esc(roleName(t.role))}</small></span></button>`).join("");}).join("")+
+    `<div class="sw-actions"><button class="btn" id="swManage">Manage teams</button><button class="btn" id="swNew">+ Add a grade or team</button>${HOSTED?`<button class="btn" id="swJoin">Join a staff</button>`:""}</div>`;
 }
 $("#swMenu").addEventListener("click",e=>{
   const b=e.target.closest("[data-team]");
   if(b){const t=teams.find(x=>x.id===b.dataset.team);$("#teamSw").open=false;if(t&&t.id!==team.id){openTeam(t);setTab("plan");}return;}
   if(e.target.id==="swManage"){$("#teamSw").open=false;window.goTeam&&window.goTeam("teams");return;}
-  if(e.target.id==="swNew"||e.target.id==="swJoin"){$("#teamSw").open=false;showSetup(true,e.target.id==="swJoin");}
+  if(e.target.id==="swNew"){$("#teamSw").open=false;window.goTeam&&window.goTeam("teams");setTimeout(()=>{const b=document.querySelector("#tm-teams [data-addclass]:not([data-addclass=''])");if(b)b.click();},0);return;}
+  if(e.target.id==="swJoin"){$("#teamSw").open=false;showSetup(true,e.target.id==="swJoin");}
 });
 document.addEventListener("click",e=>{const d=$("#teamSw");if(d.open&&!d.contains(e.target))d.open=false;});
 

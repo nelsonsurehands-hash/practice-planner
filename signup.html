@@ -46,6 +46,26 @@ dialog .dlg{max-width:440px}
 .su-done .tick{width:56px;height:56px;border-radius:50%;background:var(--good);color:#fff;font-size:30px;line-height:56px;margin:0 auto 6px}
 .su-foot{margin-top:24px;font-size:12px;color:var(--muted);text-align:center}
 .su-past{font-size:13.5px;color:var(--muted);text-align:center;margin:8px 0}
+.su-step{font-family:var(--display);font-size:22px;text-transform:uppercase;margin:4px 0 0}
+.su-count{font-size:13.5px;color:var(--muted);margin:2px 0 10px}
+.su-g{background:var(--surface);border:1px solid var(--line);border-radius:12px;margin:0 0 8px;overflow:hidden}
+.su-g.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.su-row{display:grid;grid-template-columns:52px minmax(0,1fr) auto 14px;gap:10px;align-items:center;width:100%;text-align:left;border:0;background:none;padding:10px 12px;color:inherit;min-height:64px}
+.su-row .su-date{padding:4px 0 5px}.su-row .su-date b{font-size:22px}
+.su-row .su-opp b{font-size:18px}
+.su-st{font-size:12.5px;font-weight:600;border-radius:20px;padding:3px 9px;white-space:nowrap}
+.st-open .su-st{background:var(--accent-soft);color:var(--accent)}
+.st-full .su-st{background:var(--good-soft);color:var(--good)}
+.st-skip .su-st,.st-past .su-st{background:var(--sunk);color:var(--muted)}
+.st-past,.st-skip{opacity:.7}
+.st-past .su-row,.st-skip .su-row{cursor:default}
+.su-chev{font-size:22px;color:var(--muted);transition:transform .2s}
+.su-g.on .su-chev{transform:rotate(90deg)}
+.su-slots{border-top:1px solid var(--line);background:var(--bg)}
+.su-pickhelp{margin:0;padding:10px 14px 0;font-size:13.5px;font-weight:600;color:var(--muted)}
+.su-slots .su-slot{border-top:0}
+.su-pastwrap>summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--muted);margin:0 0 8px}
+@media (max-width:380px){.su-row{grid-template-columns:46px minmax(0,1fr) 14px}.su-row .su-date{grid-row:span 2}.su-st{grid-column:2;grid-row:2;justify-self:start}.su-chev{grid-column:3;grid-row:1}}
 </style>
 </head>
 <body>
@@ -55,8 +75,10 @@ dialog .dlg{max-width:440px}
 <main id="suApp" hidden>
   <header class="su-head"><img id="suLogo" alt="" hidden><div><div class="eyebrow" id="suEyebrow"></div><h1 id="suTitle">Game-day food</h1></div></header>
   <p class="su-note" id="suNote" hidden></p>
-  <p class="su-how">Pick a game and tap <b>Sign up</b>. No account needed.</p>
+  <p class="su-how">Pick a game, then pick what you'll bring. No account needed.</p>
   <section class="su-mine" id="suMine" hidden></section>
+  <h2 class="su-step">Every game this season</h2>
+  <p class="su-count" id="suCount"></p>
   <div id="suGames"></div>
   <p class="su-foot">Questions? Contact your coach. Your phone number or email is only shown to the coaching staff.</p>
 </main>
