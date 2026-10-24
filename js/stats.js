@@ -54,23 +54,27 @@ const clockNow=g=>g.running&&g.startedAt?Math.min(g.len,g.elapsed+(Date.now()-g.
 const tpos=(g,p,s)=>(p-1)*g.len+s;
 function compute(g,asOfNow){
   const set=statset(),ptsOf=Object.fromEntries(set.map(([k,,p])=>[k,p||0]));
-  const P={},row=pid=>P[pid]=P[pid]||{pid,min:0,pts:0,s:{}};
-  const on=new Map();(g.lineup||[]).forEach(pid=>{on.set(pid,0);row(pid);});
+  const P={},row=pid=>P[pid]=P[pid]||{pid,min:0,pts:0,s:{},qs:new Set()};
+  const on=new Map();(g.lineup||[]).forEach(pid=>{on.set(pid,0);row(pid).qs.add(1);});
   const per={},opp={};let us=0,them=0;const subs=[],plays=[];
   (g.events||[]).forEach(e=>{
     const T0=tpos(g,e.p,e.s);
     if(e.k==="stat"){const r=row(e.pid);r.s[e.stat]=(r.s[e.stat]||0)+1;const v=ptsOf[e.stat]||0;r.pts+=v;us+=v;per[e.p]=(per[e.p]||0)+v;plays.push(e);}
     if(e.k==="opp"){them+=e.pts;opp[e.p]=(opp[e.p]||0)+e.pts;plays.push(e);}
-    if(e.k==="sub"){(e.outs||[]).forEach(pid=>{if(on.has(pid)){row(pid).min+=T0-on.get(pid);on.delete(pid);}});(e.ins||[]).forEach(pid=>{on.set(pid,T0);row(pid);});subs.push(e);}
+    if(e.k==="sub"){(e.outs||[]).forEach(pid=>{if(on.has(pid)){row(pid).min+=T0-on.get(pid);on.delete(pid);}});(e.ins||[]).forEach(pid=>{on.set(pid,T0);row(pid).qs.add(e.p);});subs.push(e);}
+    if(e.k==="period")on.forEach((t,pid)=>row(pid).qs.add(e.from+1));
   });
   const end=tpos(g,g.period,clockNow(g));   // minutes run to where the game is now, or where it ended
   on.forEach((t,pid)=>{row(pid).min+=Math.max(0,end-t);});
+  Object.values(P).forEach(r=>{r.q=r.qs.size;});   // quarters (or halves) played: on the floor at any point in them
   return {players:P,us,them,per,opp,subs,plays,onCourt:[...on.keys()],usedClock:(g.events||[]).some(e=>e.s>0)||g.elapsed>0||g.period>1};
 }
 const teamFouls=(g,p)=>(g.events||[]).filter(e=>e.k==="stat"&&e.p===p&&(e.stat==="pf"||e.stat==="foul")).length;
 
 /* ---------- live tracker ---------- */
-function startTick(){stopTick();tick=setInterval(()=>{if(!live||!live.running)return;
+/* No game clock: playing time is counted in quarters played, so nothing needs to tick. */
+function startTick(){}
+function oldTick(){stopTick();tick=setInterval(()=>{if(!live||!live.running)return;
   const left=live.len-clockNow(live);const el=document.getElementById("lvClock");if(el)el.textContent=mmss(left);
   if(left<=0){live.elapsed=live.len;live.running=false;live.startedAt=null;persist(true);renderLive();}
   document.querySelectorAll("[data-min]").forEach(x=>{const c=compute(live,true).players[x.dataset.min];if(c)x.textContent=mmss(c.min);});
@@ -83,7 +87,6 @@ function setupForm(g,saved){
     ${R.length?`<form id="lvSetup" class="lv-setup">
       <div class="bus-grid">
         <label class="f">Game is played in<select name="periods"><option value="4"${isBB?" selected":""}>4 quarters</option><option value="2"${isBB?"":" selected"}>2 halves</option><option value="3">3 periods</option></select></label>
-        <label class="f">Minutes per ${isBB?"quarter":"period"}<input name="len" type="number" min="1" max="60" value="${isBB?8:20}"></label>
       </div>
       <fieldset class="catpick"><legend>Starters (${lineupSize()})</legend><div class="lv-starters">${R.map(p=>`<label><input type="checkbox" name="st" value="${esc(p.id)}"${pre.includes(p.id)?" checked":""}> ${esc(pname(p))}</label>`).join("")}</div></fieldset>
       ${pre.length?`<p class="help" style="margin:0">Starters are filled in from this game's gameplan.</p>`:""}
@@ -102,16 +105,14 @@ function renderLive(){
   const left=g.len-clockNow(g),tf=teamFouls(g,g.period),bb=SPORT()==="basketball";
   const tile=(p,floor)=>{const r=c.players[p.id]||{s:{},pts:0,min:0},pf=r.s.pf||r.s.foul||0;
     return `<div class="lv-t${floor?" floor":""}${pick===p.id?" sel":""}${armed?" armed":""}" data-tile="${esc(p.id)}" data-floor="${floor?1:0}" role="button" tabindex="0" aria-label="${esc(pname(p))}">
-      <b>${esc(short(p))}</b><small><span>${r.pts} pts</span>${bb||pf?`<span class="${pf>=4?"warn":""}">${pf} PF</span>`:""}<span class="lv-min" data-min="${esc(p.id)}">${r.min||floor?mmss(r.min):"DNP"}</span></small></div>`;};
+      <b>${esc(short(p))}</b><small><span>${r.pts} pts</span>${bb||pf?`<span class="${pf>=4?"warn":""}">${pf} PF</span>`:""}<span class="lv-q">${r.q?(r.q===1?"1 qtr":r.q+" qtrs"):"DNP"}</span></small></div>`;};
   const hint=armed?`Tap a player to give them <b>${esc(SHORT[armed]||(set.find(x=>x[0]===armed)||[])[1]||armed)}</b>. <button type="button" class="linkbtn" data-lv="disarm">Cancel</button>`:
     pick?`Now tap a stat for <b>${esc(short(by[pick]))}</b>. <button type="button" class="linkbtn" data-lv="unpick">Cancel</button>`:
     `Tap a stat, then a player. Drag a bench player onto the floor to sub.`;
   box.innerHTML=`<div class="lv">
     <div class="lv-top">
       <div class="lv-score"><div><small>${esc((team.settings||{}).mascot||team.name)}</small><b>${c.us}</b></div><span>–</span><div><small>${esc(g.opponent||"Them")}</small><b>${c.them}</b></div></div>
-      <div class="lv-clock"><span class="lv-per">${periodLabel(g,g.period)}</span><b id="lvClock">${mmss(left)}</b>
-        <button type="button" class="btn ${g.running?"":"primary"}" data-lv="clock"${left<=0?" disabled":""}>${g.running?"⏸ Stop":"▶ Start"}</button>
-        <button type="button" class="linkbtn" data-lv="setclock">Set</button></div>
+      <div class="lv-clock"><b class="lv-per">${periodLabel(g,g.period)}</b>${g.period<g.periods?`<button type="button" class="btn" data-lv="nextper">End ${periodLabel(g,g.period)} ›</button>`:`<span class="lv-last">Last ${g.periods===2?"half":"quarter"}</span>`}</div>
       <div class="lv-opp"><span>${esc(g.opponent||"Opponent")}:</span>${OPP().map(n=>`<button type="button" class="btn" data-opp="${n}">+${n}</button>`).join("")}
         ${bb?`<span class="lv-tf${tf>=7?" warn":""}">Team fouls ${tf}${tf>=10?" · double bonus":tf>=7?" · bonus":""}</span>`:""}</div>
     </div>
@@ -122,7 +123,6 @@ function renderLive(){
       <div class="lv-grid">${bench.map(p=>tile(p,false)).join("")||`<p class="help">Everyone's in.</p>`}</div></div>
     <div class="lv-foot">
       <button type="button" class="btn" data-lv="undo"${(g.events||[]).length?"":" disabled"}>↶ Undo</button>
-      ${g.period<g.periods?`<button type="button" class="btn" data-lv="nextper">End ${periodLabel(g,g.period)}</button>`:""}
       <button type="button" class="btn" data-lv="recap">Box score</button>
       <button type="button" class="btn ${g.period>=g.periods?"primary":""}" data-lv="final">Final</button>
       <button type="button" class="btn" data-lv="exit">Close</button>
@@ -132,7 +132,7 @@ function renderLive(){
   </div>`;
 }
 function addEvent(e){
-  const g=live;e.id=uid();e.p=g.period;e.s=Math.round(clockNow(g)*10)/10;
+  const g=live;e.id=uid();e.p=g.period;e.s=0;
   (g.events=g.events||[]).push(e);persist();
 }
 function applyStat(pid,k){
@@ -190,13 +190,11 @@ $("#tm-stats").addEventListener("click",e=>{
   if(e.target.closest('[data-lv="unpick"]')){pick=null;renderLive();return;}
   const a=e.target.closest("[data-lv]");if(!a)return;
   const k=a.dataset.lv;
-  if(k==="clock"&&can()){if(g.running){g.elapsed=clockNow(g);g.running=false;g.startedAt=null;}else{g.running=true;g.startedAt=Date.now();}persist(true);renderLive();}
-  if(k==="setclock"&&can()){if(!document.getElementById("lvSet"))showSetClock();}
   if(k==="undo"&&can()){const ev=(g.events||[]).pop();if(ev&&ev.k==="period"){g.period=ev.from;g.elapsed=ev.prevElapsed||g.len;}persist();renderLive();flash("Undone");}
-  if(k==="nextper"&&can()){g.elapsed=clockNow(g);(g.events=g.events||[]).push({id:uid(),k:"period",from:g.period,p:g.period,s:g.elapsed,prevElapsed:g.elapsed});
-    g.period++;g.elapsed=0;g.running=false;g.startedAt=null;persist(true);renderLive();}
+  if(k==="nextper"&&can()){(g.events=g.events||[]).push({id:uid(),k:"period",from:g.period,p:g.period,s:0});
+    g.period++;g.elapsed=0;g.running=false;g.startedAt=null;persist(true);renderLive();flash(`${periodLabel(g,g.period)} started`);}
   if(k==="final"&&can()){if(a.dataset.armed!=="1"){a.dataset.armed="1";a.textContent="Tap again: game over";return;}
-    g.elapsed=clockNow(g);g.running=false;g.startedAt=null;g.final=true;persist(true);stopTick();const d=g.date;live=null;
+    g.running=false;g.startedAt=null;g.final=true;persist(true);stopTick();const d=g.date;live=null;
     saveResult(d);openDate=d;view="recap";render();}
   if(k==="recap"){const d=g.date;persist(true);stopTick();live=null;openDate=d;view="recap";render();}
   if(k==="exit"){persist(true);stopTick();live=null;view="games";render();}
@@ -212,7 +210,7 @@ $("#tm-stats").addEventListener("submit",e=>{
   if(e.target.id==="lvSetup"){e.preventDefault();const f=e.target,st=[...f.querySelectorAll("[name=st]:checked")].map(x=>x.value);
     if(st.length>lineupSize()){msg($("#lvMsg"),`Pick up to ${lineupSize()} starters.`,"err");return;}
     const g=games().find(x=>x.date===openDate);
-    live={date:openDate,opponent:g.opponent||"",home:g.home!==false,sport:SPORT(),periods:+f.periods.value,len:Math.max(1,+f.len.value||8)*60,period:1,elapsed:0,running:false,startedAt:null,lineup:st,events:[],final:false,startedOn:Date.now()};
+    live={date:openDate,opponent:g.opponent||"",home:g.home!==false,sport:SPORT(),periods:+f.periods.value,len:480,period:1,elapsed:0,running:false,startedAt:null,lineup:st,events:[],final:false,startedOn:Date.now()};
     persist(true);startTick();renderLive();}
 });
 function flash(t){const el=document.createElement("div");el.className="lv-flash";el.textContent="✓ "+t;document.body.appendChild(el);setTimeout(()=>el.remove(),900);}
@@ -229,9 +227,9 @@ function boxRows(g,c){
   const ids=Object.keys(c.players).sort((a,b)=>(c.players[b].pts-c.players[a].pts)||((parseInt((by[a]||{}).number)||99)-(parseInt((by[b]||{}).number)||99)));
   return ids.map(id=>({p:by[id]||{name:"Former player"},r:c.players[id]}));
 }
-const BB_COLS=[["MIN",r=>mmss(r.min)],["PTS",r=>r.pts],["FG",r=>{const s=r.s,m=(s["2pm"]||0)+(s["3pm"]||0);return `${m}-${m+(s["2px"]||0)+(s["3px"]||0)}`;}],["3P",r=>`${r.s["3pm"]||0}-${(r.s["3pm"]||0)+(r.s["3px"]||0)}`],
+const BB_COLS=[["QTR",r=>r.q||0],["PTS",r=>r.pts],["FG",r=>{const s=r.s,m=(s["2pm"]||0)+(s["3pm"]||0);return `${m}-${m+(s["2px"]||0)+(s["3px"]||0)}`;}],["3P",r=>`${r.s["3pm"]||0}-${(r.s["3pm"]||0)+(r.s["3px"]||0)}`],
   ["FT",r=>`${r.s.ftm||0}-${(r.s.ftm||0)+(r.s.ftx||0)}`],["REB",r=>(r.s.oreb||0)+(r.s.dreb||0)],["AST",r=>r.s.ast||0],["STL",r=>r.s.stl||0],["BLK",r=>r.s.blk||0],["TO",r=>r.s.to||0],["PF",r=>r.s.pf||0]];
-const cols=()=>SPORT()==="basketball"?BB_COLS:[["MIN",r=>mmss(r.min)],["PTS",r=>r.pts],...statset().map(([k,l])=>[l.replace(/ .*/,"").slice(0,5).toUpperCase(),r=>r.s[k]||0])];
+const cols=()=>SPORT()==="basketball"?BB_COLS:[["QTR",r=>r.q||0],["PTS",r=>r.pts],...statset().map(([k,l])=>[l.replace(/ .*/,"").slice(0,5).toUpperCase(),r=>r.s[k]||0])];
 function totalsRow(rows){
   const t={min:0,pts:0,s:{}};rows.forEach(({r})=>{t.min+=r.min;t.pts+=r.pts;Object.entries(r.s).forEach(([k,v])=>t.s[k]=(t.s[k]||0)+v);});return t;
 }
@@ -264,12 +262,12 @@ function renderRecap(date){
     <h4 class="gp-h">Box score</h4>
     <div class="st-tablewrap"><table class="st-table"><thead><tr><th class="nm">Player</th>${C.map(([h])=>`<th>${h}</th>`).join("")}</tr></thead>
       <tbody>${rows.map(({p,r})=>`<tr><th class="nm"><button type="button" class="linkbtn" data-st="player" data-pid="${esc(p.id||"")}">${esc(pname(p))}</button></th>${C.map(([,f])=>`<td>${f(r)}</td>`).join("")}</tr>`).join("")}
-      <tr class="tot"><th class="nm">Team</th>${C.map(([h,f])=>`<td>${h==="MIN"?"":f(tot)}</td>`).join("")}</tr></tbody></table></div>
-    ${c.usedClock?"":`<p class="help">Minutes need the game clock: tap Start and Stop on the tracker as the game clock runs.</p>`}
+      <tr class="tot"><th class="nm">Team</th>${C.map(([h,f])=>`<td>${h==="QTR"?"":f(tot)}</td>`).join("")}</tr></tbody></table></div>
+    <p class="help">QTR = ${g.periods===2?"halves":"quarters"} played: on the floor at any point in them.</p>
     <h4 class="gp-h">Substitutions</h4>
-    ${c.subs.length?`<ol class="st-log">${c.subs.map(e=>`<li><span>${periodLabel(g,e.p)} ${mmss(g.len-e.s)}</span>${esc(eventText(g,e,by))}</li>`).join("")}</ol>`:`<p class="help">No substitutions recorded.</p>`}
+    ${c.subs.length?`<ol class="st-log">${c.subs.map(e=>`<li><span>${periodLabel(g,e.p)}</span>${esc(eventText(g,e,by))}</li>`).join("")}</ol>`:`<p class="help">No substitutions recorded.</p>`}
     <details class="st-pbp"><summary>Every play, in order (${(g.events||[]).length})</summary>
-      <ol class="st-log">${(g.events||[]).map(e=>`<li><span>${periodLabel(g,e.p)} ${mmss(g.len-e.s)}</span>${esc(eventText(g,e,by))}${can()&&e.k!=="period"?` <button type="button" class="icon" data-st="delev" data-id="${esc(e.id)}" data-date="${date}" aria-label="Remove">✕</button>`:""}</li>`).join("")}</ol></details>
+      <ol class="st-log">${(g.events||[]).map(e=>`<li><span>${periodLabel(g,e.p)}</span>${esc(eventText(g,e,by))}${can()&&e.k!=="period"?` <button type="button" class="icon" data-st="delev" data-id="${esc(e.id)}" data-date="${date}" aria-label="Remove">✕</button>`:""}</li>`).join("")}</ol></details>
     <label class="f" style="margin-top:10px">Game notes<textarea data-st-notes="${date}" rows="2" placeholder="What went well, what to work on"${can()?"":" disabled"}>${esc(g.notes||"")}</textarea></label>
   </div>`;
 }
@@ -279,25 +277,25 @@ function seasonData(){
   const tracked=games().filter(g=>GAMES[g.date]&&(GAMES[g.date].events||[]).length);
   const P={};let w=0,l=0,pf=0,pa=0;
   tracked.forEach(gm=>{const g=GAMES[gm.date],c=compute(g);if(g.final){if(c.us>c.them)w++;else if(c.us<c.them)l++;}pf+=c.us;pa+=c.them;
-    Object.values(c.players).forEach(r=>{const t=P[r.pid]=P[r.pid]||{pid:r.pid,gp:0,min:0,pts:0,s:{},log:[]};
-      if(r.min>0||r.pts||Object.keys(r.s).length){t.gp++;t.min+=r.min;t.pts+=r.pts;Object.entries(r.s).forEach(([k,v])=>t.s[k]=(t.s[k]||0)+v);t.log.push({date:gm.date,opp:gm.opponent,home:gm.home!==false,r});}});});
+    Object.values(c.players).forEach(r=>{const t=P[r.pid]=P[r.pid]||{pid:r.pid,gp:0,min:0,q:0,pts:0,s:{},log:[]};
+      if(r.q>0||r.pts||Object.keys(r.s).length){t.gp++;t.min+=r.min;t.q+=r.q||0;t.pts+=r.pts;Object.entries(r.s).forEach(([k,v])=>t.s[k]=(t.s[k]||0)+v);t.log.push({date:gm.date,opp:gm.opponent,home:gm.home!==false,r});}});});
   return {tracked,P,w,l,pf,pa};
 }
 function renderSeason(){
   const box=$("#tm-stats"),d=seasonData(),R=T().roster,by=Object.fromEntries(R.map(p=>[p.id,p]));
   const bb=SPORT()==="basketball",set=statset();
   const list=Object.values(d.P).sort((a,b)=>b.pts/b.gp-a.pts/a.gp);
-  const head=bb?["GP","MIN","PTS","REB","AST","STL","BLK","TO","FG%","3P%","FT%"]:["GP","MIN","PTS",...set.filter(([,,p])=>!p).map(([,l])=>l.replace(/ .*/,"").slice(0,5).toUpperCase())];
-  const cells=t=>bb?[t.gp,avg(t.min/60,t.gp),avg(t.pts,t.gp),avg((t.s.oreb||0)+(t.s.dreb||0),t.gp),avg(t.s.ast||0,t.gp),avg(t.s.stl||0,t.gp),avg(t.s.blk||0,t.gp),avg(t.s.to||0,t.gp),
+  const head=bb?["GP","QTR","PTS","REB","AST","STL","BLK","TO","FG%","3P%","FT%"]:["GP","QTR","PTS",...set.filter(([,,p])=>!p).map(([,l])=>l.replace(/ .*/,"").slice(0,5).toUpperCase())];
+  const cells=t=>bb?[t.gp,avg(t.q,t.gp),avg(t.pts,t.gp),avg((t.s.oreb||0)+(t.s.dreb||0),t.gp),avg(t.s.ast||0,t.gp),avg(t.s.stl||0,t.gp),avg(t.s.blk||0,t.gp),avg(t.s.to||0,t.gp),
       pct((t.s["2pm"]||0)+(t.s["3pm"]||0),(t.s["2pm"]||0)+(t.s["3pm"]||0)+(t.s["2px"]||0)+(t.s["3px"]||0)),pct(t.s["3pm"]||0,(t.s["3pm"]||0)+(t.s["3px"]||0)),pct(t.s.ftm||0,(t.s.ftm||0)+(t.s.ftx||0))]:
-    [t.gp,avg(t.min/60,t.gp),avg(t.pts,t.gp),...set.filter(([,,p])=>!p).map(([k])=>avg(t.s[k]||0,t.gp))];
+    [t.gp,avg(t.q,t.gp),avg(t.pts,t.gp),...set.filter(([,,p])=>!p).map(([k])=>avg(t.s[k]||0,t.gp))];
   const leader=(lbl,f)=>{const b=[...list].filter(t=>t.gp).sort((a,b)=>f(b)-f(a))[0];return b&&f(b)>0?`<div class="st-lead"><small>${lbl}</small><b>${esc(short(by[b.pid]))}</b><span>${avg(f(b)*b.gp,b.gp)}</span></div>`:"";};
   box.innerHTML=`<div class="tm-card"><h3 class="tm-h">Season stats <small>${d.tracked.length} game${d.tracked.length===1?"":"s"} tracked${d.w+d.l?` · ${d.w}–${d.l}`:""}</small></h3>
     ${d.tracked.length?`<div class="st-leads">${leader("Points per game",t=>t.pts/t.gp)}${bb?leader("Rebounds per game",t=>((t.s.oreb||0)+(t.s.dreb||0))/t.gp)+leader("Assists per game",t=>(t.s.ast||0)/t.gp)+leader("Steals per game",t=>(t.s.stl||0)/t.gp):""}
       <div class="st-lead"><small>Points per game</small><b>Team</b><span>${avg(d.pf,d.tracked.length)} – ${avg(d.pa,d.tracked.length)}</span></div></div>
       <div class="st-tablewrap"><table class="st-table"><thead><tr><th class="nm">Player</th>${head.map(h=>`<th>${h}</th>`).join("")}</tr></thead>
       <tbody>${list.map(t=>`<tr><th class="nm"><button type="button" class="linkbtn" data-st="player" data-pid="${esc(t.pid)}">${esc(pname(by[t.pid]))}</button></th>${cells(t).map(v=>`<td>${v}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
-      <p class="help">Per-game averages. Tap a player for their game-by-game log.</p>
+      <p class="help">Per-game averages. QTR = quarters played. Tap a player for their game-by-game log.</p>
       <div class="actions" style="margin:0"><button type="button" class="btn" data-st="csv">Download as a spreadsheet</button></div>`:
       `<p class="help">No games tracked yet. Track a game from the <b>Games</b> list (or the Gameplan) and every player's stats add up here.</p>`}</div>`;
 }
@@ -307,11 +305,11 @@ function renderPlayer(pid){
   box.innerHTML=`<div class="tm-card"><div class="st-head"><button type="button" class="btn" data-st="season">‹ Season stats</button></div>
     <h3 class="tm-h">${esc(pname(p))} <small>${p&&p.pos?esc(p.pos):""}</small></h3>
     ${t?`<div class="st-leads"><div class="st-lead"><small>Games</small><b>${t.gp}</b></div><div class="st-lead"><small>Points</small><b>${avg(t.pts,t.gp)}</b><span>per game</span></div>
-      <div class="st-lead"><small>Minutes</small><b>${avg(t.min/60,t.gp)}</b><span>per game</span></div>${bb?`<div class="st-lead"><small>Rebounds</small><b>${avg((t.s.oreb||0)+(t.s.dreb||0),t.gp)}</b><span>per game</span></div>`:""}</div>
+      <div class="st-lead"><small>Quarters played</small><b>${avg(t.q,t.gp)}</b><span>per game</span></div>${bb?`<div class="st-lead"><small>Rebounds</small><b>${avg((t.s.oreb||0)+(t.s.dreb||0),t.gp)}</b><span>per game</span></div>`:""}</div>
       <h4 class="gp-h">Game by game</h4>
       <div class="st-tablewrap"><table class="st-table"><thead><tr><th class="nm">Game</th>${C.map(([h])=>`<th>${h}</th>`).join("")}</tr></thead>
       <tbody>${t.log.map(x=>`<tr><th class="nm"><button type="button" class="linkbtn" data-st="open" data-date="${x.date}">${esc(T().longDay(x.date))} ${x.home?"vs":"at"} ${esc(x.opp||"")}</button></th>${C.map(([,f])=>`<td>${f(x.r)}</td>`).join("")}</tr>`).join("")}
-      <tr class="tot"><th class="nm">Season</th>${C.map(([h,f])=>`<td>${h==="MIN"?mmss(t.min):f(t)}</td>`).join("")}</tr></tbody></table></div>`:
+      <tr class="tot"><th class="nm">Season</th>${C.map(([h,f])=>`<td>${h==="QTR"?t.q:f(t)}</td>`).join("")}</tr></tbody></table></div>`:
       `<p class="help">No stats for this player yet.</p>`}</div>`;
 }
 function renderGames(){
@@ -335,9 +333,9 @@ function printRecap(date){
   doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text("Player",x0,y);C.forEach(([h],i)=>doc.text(h,x0+wn+i*wc,y));y+=4;doc.line(40,y,572,y);y+=12;
   doc.setFont("helvetica","normal");
   rows.forEach(({p,r})=>{if(y>740){doc.addPage();y=50;}doc.text(pname(p).slice(0,26),x0,y);C.forEach(([,f],i)=>doc.text(String(f(r)),x0+wn+i*wc,y));y+=14;});
-  doc.setFont("helvetica","bold");doc.text("Team",x0,y);C.forEach(([h,f],i)=>{if(h!=="MIN")doc.text(String(f(tot)),x0+wn+i*wc,y);});y+=20;
+  doc.setFont("helvetica","bold");doc.text("Team",x0,y);C.forEach(([h,f],i)=>{if(h!=="QTR")doc.text(String(f(tot)),x0+wn+i*wc,y);});y+=20;
   if(c.subs.length){doc.setFontSize(11);doc.text("Substitutions",40,y);y+=14;doc.setFont("helvetica","normal");doc.setFontSize(9);
-    c.subs.forEach(e=>{if(y>750){doc.addPage();y=50;}doc.text(`${periodLabel(g,e.p)} ${mmss(g.len-e.s)}   ${eventText(g,e,by)}`,40,y);y+=12;});}
+    c.subs.forEach(e=>{if(y>750){doc.addPage();y=50;}doc.text(`${periodLabel(g,e.p)}   ${eventText(g,e,by)}`,40,y);y+=12;});}
   if(g.notes){y+=8;doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text("Notes",40,y);y+=14;doc.setFont("helvetica","normal");doc.setFontSize(10);doc.splitTextToSize(g.notes,520).forEach(l=>{doc.text(l,40,y);y+=13;});}
   doc.save(`recap-${date}-${T().slug(gm.opponent)}.pdf`);
 }
