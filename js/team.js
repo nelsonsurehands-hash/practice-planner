@@ -439,7 +439,7 @@ function printBus(t){
 }
 
 /* ---------- game-day food sign-ups ---------- */
-const FOOD_SLOTS=[{name:"Post-game snacks",count:2},{name:"Drinks / water",count:1}];
+const FOOD_SLOTS=[{name:"Pre-game meals",count:1}];
 const FOOD_PRESETS=[["Pre-game meal",1],["Post-game snacks",2],["Drinks / water",1],["Gatorade / sports drinks",1],["Fruit",1],["Ice / cooler",1],["Paper plates & napkins",1],["Dessert",1]];
 const signupURL=id=>new URL("signup.html?s="+encodeURIComponent(id)+(HOSTED?"":"&demo=1"),location.href).href;
 const randId=()=>{const a=new Uint8Array(12);crypto.getRandomValues(a);return Array.from(a,b=>"abcdefghijkmnpqrstuvwxyz23456789"[b%32]).join("");};
@@ -477,8 +477,7 @@ function boardForm(b){
     <label class="f">Sign-up title<input name="title" value="${esc(b.title)}" required></label>
     <fieldset class="catpick"><legend>Which games</legend><div class="exp-pick">${[["all","All games"],["home","Home games only"],["away","Away games only"]].map(([v,l])=>`<label><input type="radio" name="games" value="${v}"${b.games===v?" checked":""}> ${l}</label>`).join("")}</div></fieldset>
     <fieldset class="catpick"><legend>What parents sign up for, at each game</legend><div id="fdSlots">${slotRows(b.slots)}</div>
-      <div class="fd-presets"><span>Quick add:</span>${FOOD_PRESETS.map(([n,c])=>`<button type="button" class="gp-tag" data-fdpreset="${esc(n)}" data-count="${c}">+ ${esc(n)}</button>`).join("")}</div>
-      <button class="btn" type="button" id="fdAddSlot">+ Add your own item</button>
+      <button class="btn" type="button" id="fdAddSlot">+ Add another item</button>
       <p class="help" style="margin:4px 0 0">Each item shows at every game. Spots is how many parents can sign up for that item at one game.</p></fieldset>
     <label class="f fd-hometime">Home games: food delivered by<input type="time" name="homeTime" value="${esc(((b.dropoff||{}).home)||"16:00")}"></label>
     <p class="help" style="margin:-4px 0 0">Away games each get their own time, set next to the game below.</p>
