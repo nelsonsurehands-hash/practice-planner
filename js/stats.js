@@ -342,18 +342,25 @@ function printRecap(date){
 function seasonCSV(){
   const d=seasonData(),by=Object.fromEntries(T().roster.map(p=>[p.id,p])),keys=statset().map(([k])=>k),labels=statset().map(([,l])=>l);
   const q=v=>`"${String(v).replace(/"/g,'""')}"`;
-  const lines=[["Player","Number","Games","Minutes","Points",...labels].map(q).join(",")];
-  Object.values(d.P).forEach(t=>{const p=by[t.pid]||{};lines.push([p.name||"",p.number||"",t.gp,Math.round(t.min/60),t.pts,...keys.map(k=>t.s[k]||0)].map(q).join(","));});
+  const lines=[["Player","Number","Games","Quarters played","Points",...labels].map(q).join(",")];
+  Object.values(d.P).forEach(t=>{const p=by[t.pid]||{};lines.push([p.name||"",p.number||"",t.gp,t.q||0,t.pts,...keys.map(k=>t.s[k]||0)].map(q).join(","));});
   saveFile(`${T().slug(team.name)}-season-stats.csv`,new Blob([lines.join("\n")],{type:"text/csv"}));
 }
 
 /* ---------- pane ---------- */
+/* The game the Live button should open: one already in progress, then today's game, then the next one coming up. */
+function liveTarget(){
+  const gs=games(),today=todayISO();
+  return gs.find(g=>{const s=GAMES[g.date];return s&&!s.final&&(s.events||[]).length;})
+    ||gs.find(g=>g.date===today&&!(GAMES[g.date]||{}).final)
+    ||gs.filter(g=>g.date>today&&!(GAMES[g.date]||{}).final).sort((a,b)=>a.date<b.date?-1:1)[0]||null;
+}
 function render(){
   if(!live){document.body.classList.remove("live-mode");renderLive.top=false;}
   if(T().date){openDate=T().date;T().date=null;view=GAMES[openDate]&&(GAMES[openDate].events||[]).length?"recap":"setup";}
   if(live){renderLive();return;}
   const db=T().needsDb()==="gamestats"?T().dbHelp:"";
-  const nav=`<div class="st-nav seg" role="group" aria-label="Stats views"><button type="button" data-st="season" aria-pressed="${view==="season"||view==="player"}">Season</button><button type="button" data-st="games" aria-pressed="${view==="games"||view==="recap"||view==="setup"}">Games</button></div>`;
+  const nav=`<div class="st-nav seg" role="group" aria-label="Stats views"><button type="button" data-st="season" aria-pressed="${view==="season"||view==="player"}">Season</button><button type="button" data-st="games" aria-pressed="${view==="games"||view==="recap"}">Games</button>${can()?`<button type="button" class="st-livebtn" data-st="golive" aria-pressed="${view==="setup"}"><span class="st-dot"></span>Live tracker</button>`:""}</div>`;
   $("#tm-stats").innerHTML=db+nav+`<div id="stBody"></div>`;
   const body=$("#stBody"),swap=f=>{const tmp=$("#tm-stats");const keep=tmp.innerHTML;f();const inner=tmp.innerHTML;tmp.innerHTML=db+nav+`<div id="stBody">${inner}</div>`;};
   if(view==="setup"){const g=games().find(x=>x.date===openDate);if(!g){view="games";return render();}body.innerHTML=setupForm(g);return;}
@@ -371,7 +378,10 @@ $("#tm-stats").addEventListener("click",e=>{
   if(a==="back"){view="games";render();}
   if(a==="open"){openDate=b.dataset.date;view="recap";render();}
   if(a==="player"&&b.dataset.pid){playerId=b.dataset.pid;view="player";render();}
-  if(a==="track"||a==="resume"){
+  if(a==="golive"){const g=liveTarget();
+    if(!g){view="games";render();const h=$("#tm-stats .tm-h");if(h)h.insertAdjacentHTML("afterend",`<p class="help st-nolive">No game today or coming up. Pick a game below to track it.</p>`);return;}
+    b.dataset.date=g.date;}
+  if(a==="track"||a==="resume"||a==="golive"){
     const d=b.dataset.date,saved=GAMES[d];openDate=d;
     let local=null;try{local=JSON.parse(localStorage.getItem("cpp:live:"+team.id+":"+d)||"null");}catch{}
     const best=[saved,local].filter(Boolean).sort((x,y)=>(y.events||[]).length-(x.events||[]).length)[0];

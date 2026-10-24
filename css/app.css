@@ -864,6 +864,8 @@ body.pb-full{overflow:hidden}
 .ibg input[type=color]{width:44px;height:26px;padding:0;border:1px solid var(--line);border-radius:6px}
 /* stats: live tracker, recap, season */
 .st-nav{margin:0 0 10px}
+.st-livebtn{display:inline-flex;align-items:center;gap:6px;font-weight:700}
+.st-dot{width:9px;height:9px;border-radius:50%;background:#e5484d;box-shadow:0 0 0 3px rgba(229,72,77,.18)}
 .st-head{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .st-games{list-style:none;margin:0;padding:0}
 .st-games li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--line);font-size:14.5px}
