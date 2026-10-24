@@ -175,7 +175,7 @@ $("#swMenu").addEventListener("click",e=>{
   const b=e.target.closest("[data-team]");
   if(b){const t=teams.find(x=>x.id===b.dataset.team);$("#teamSw").open=false;if(t&&t.id!==team.id){openTeam(t);setTab("plan");}return;}
   if(e.target.id==="swManage"){$("#teamSw").open=false;window.goTeam&&window.goTeam("teams");return;}
-  if(e.target.id==="swNew"){$("#teamSw").open=false;window.goTeam&&window.goTeam("teams");setTimeout(()=>{const b=document.querySelector("#tm-teams [data-addclass]:not([data-addclass=''])");if(b)b.click();},0);return;}
+  if(e.target.id==="swNew"){$("#teamSw").open=false;window.goTeam&&window.goTeam("teams");return;}
   if(e.target.id==="swJoin"){$("#teamSw").open=false;showSetup(true,e.target.id==="swJoin");}
 });
 document.addEventListener("click",e=>{const d=$("#teamSw");if(d.open&&!d.contains(e.target))d.open=false;});

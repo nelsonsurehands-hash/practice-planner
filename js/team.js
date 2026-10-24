@@ -91,33 +91,44 @@ function schoolGroups(){
     return {key:schoolKey(lead),school:st.school||lead.name,mascot:st.mascot||"",lead,list};
   }).sort((a,b)=>(b.list.some(t=>t.id===team.id))-(a.list.some(t=>t.id===team.id))||a.school.localeCompare(b.school));
 }
-let addClassFor=null;
-function addClassForm(g){
-  const same=g.list.filter(t=>canEdit(t)),src=same.find(t=>t.id===team.id)||same[0]||g.lead;
+/* Every school shows the same five classes in order. A team belongs to a class by its level name
+   ("8th Grade Girls Basketball" is 8th); anything else is listed after them. */
+const CLASSES=[{id:"7th",name:"7th",label:"7th Grade",re:/\b7(th)?\b|seventh/i},{id:"8th",name:"8th",label:"8th Grade",re:/\b8(th)?\b|eighth/i},
+  {id:"fr",name:"Freshman",label:"Freshman",re:/fresh|\b9(th)?\b|ninth/i},{id:"jv",name:"JV",label:"JV",re:/\bjv\b|junior\s*varsity/i},{id:"v",name:"Varsity",label:"Varsity",re:/varsity/i}];
+const classOf=t=>{const l=String((t.settings||{}).teamLabel||"");const c=CLASSES.find(c=>c.re.test(l));return c?c.id:null;};
+let addClassFor=null;   // {key: school, cls: class id or "other"}
+function addClassForm(g,cls){
+  const same=g.list.filter(t=>canEdit(t)),src=same.find(t=>t.id===team.id)||same[0]||g.lead,c=CLASSES.find(x=>x.id===cls);
   return `<form class="rs-form tm-addclass" data-school="${esc(g.key)}">
-    <label class="f">Grade, level or team name<input name="label" required placeholder="e.g. 7th Grade Girls, JV, 8th Grade Boys" autocomplete="off"></label>
+    ${c?`<input type="hidden" name="label" value="${esc(c.label)}"><p class="tm-addtitle">Add <b>${esc(c.name)}</b> at ${esc(g.school)}</p>`:
+      `<label class="f">Team name<input name="label" required placeholder="e.g. 8th Grade Boys, C Team" autocomplete="off"></label>`}
     <label class="f">Sport<select name="sport">${Object.keys(SPORTS).map(k=>`<option value="${k}"${((src.settings||{}).sport||"basketball")===k?" selected":""}>${esc(SPORTS[k].name)}</option>`).join("")}</select></label>
-    <label class="f">Start it from<select name="from">${g.list.map(t=>`<option value="${t.id}"${t.id===src.id?" selected":""}>${esc((t.settings||{}).teamLabel||t.name)}</option>`).join("")}<option value="">Nothing, start fresh</option></select></label>
+    ${g.list.length?`<label class="f">Start it from<select name="from">${g.list.map(t=>`<option value="${t.id}"${t.id===src.id?" selected":""}>${esc((t.settings||{}).teamLabel||t.name)}</option>`).join("")}<option value="">Nothing, start fresh</option></select></label>`:`<input type="hidden" name="from" value="">`}
     <div class="exp-pick">
       <label><input type="checkbox" name="drills" checked> Drill library</label>
       <label><input type="checkbox" name="plays" checked> Plays (same sport only)</label>
       <label><input type="checkbox" name="sched" checked> Practice days, times and season dates</label>
       <label><input type="checkbox" name="roster"> Roster</label>
     </div>
-    <p class="help" style="margin:0">The school name, team name, colors and logo carry over. Games, practice plans, calendar marks and staff start empty; staff join with the new team's own code.</p>
-    <div class="actions" style="margin:0"><button class="btn primary" type="submit">Create team</button><button class="btn" type="button" data-addclass="">Cancel</button></div>
+    <p class="help" style="margin:0">The school name, colors and logo carry over. Games, practice plans and staff start empty.</p>
+    <div class="actions" style="margin:0"><button class="btn primary" type="submit">Create ${esc(c?c.name:"team")}</button><button class="btn" type="button" data-addclass="">Cancel</button></div>
     <div class="msg" data-addmsg></div></form>`;
 }
 function renderTeams(){
   const owner=team.role==="owner"||!HOSTED,groups=schoolGroups();
+  const row=(t,title)=>{const ts=t.settings||{},on=t.id===team.id,n=(ts.games||[]).length;
+    return `<li class="tm-class${on?" on":""}"><div><b>${esc(title)}</b><small>${title!==ts.teamLabel&&ts.teamLabel?esc(ts.teamLabel)+" · ":""}${esc(sportName(t))} · ${n} game${n===1?"":"s"}</small></div>
+      ${on?`<span class="tm-badge">Open now</span>`:`<button class="btn" type="button" data-openteam="${t.id}">Open</button>`}</li>`;};
   $("#tm-teams").innerHTML=`<div class="tm-card"><h3 class="tm-h">Schools and teams <small>${teams.length} team${teams.length===1?"":"s"}</small></h3>
-    ${groups.map(g=>{const st=g.lead.settings||{};
+    ${groups.map(g=>{const st=g.lead.settings||{},mayAdd=g.list.some(t=>canEdit(t))||!HOSTED,open=c=>addClassFor&&addClassFor.key===g.key&&addClassFor.cls===c;
       const mark=st.logo?`<img class="sw-logo" src="${esc(st.logo)}" alt="">`:`<span class="sw-dot" style="background:${esc(st.color||"#5b2a86")}${st.color2?`;box-shadow:inset -8px 0 0 ${esc(st.color2)}`:""}"></span>`;
+      const others=g.list.filter(t=>!classOf(t));
       return `<section class="tm-school"><header>${mark}<div><b>${esc([g.school,g.mascot].filter(Boolean).join(" "))}</b><small>${g.list.length} team${g.list.length===1?"":"s"}</small></div></header>
-        <ul class="tm-classes">${g.list.map(t=>{const ts=t.settings||{},on=t.id===team.id,n=(ts.games||[]).length;
-          return `<li class="tm-class${on?" on":""}"><div><b>${esc(ts.teamLabel||"Main team")}</b><small>${esc(sportName(t))} · ${esc(roleName(t.role))} · ${n} game${n===1?"":"s"}</small></div>
-            ${on?`<span class="tm-badge">Open now</span>`:`<button class="btn" type="button" data-openteam="${t.id}">Open</button>`}</li>`;}).join("")}</ul>
-        ${addClassFor===g.key?addClassForm(g):g.list.some(t=>canEdit(t))||!HOSTED?`<button class="btn" type="button" data-addclass="${esc(g.key)}">+ Add a grade or team at ${esc(g.school)}</button>`:""}
+        <ul class="tm-classes">${CLASSES.map(c=>{const mine=g.list.filter(t=>classOf(t)===c.id);
+          if(mine.length)return mine.map(t=>row(t,c.name)).join("");
+          return `<li class="tm-class empty"><div><b>${esc(c.name)}</b><small>Not set up</small></div>${mayAdd&&!open(c.id)?`<button class="btn" type="button" data-addclass="${esc(g.key)}" data-cls="${c.id}">+ Add</button>`:""}</li>${open(c.id)?`<li class="tm-formrow">${addClassForm(g,c.id)}</li>`:""}`;}).join("")}
+          ${others.map(t=>row(t,(t.settings||{}).teamLabel||"Main team")).join("")}</ul>
+        ${open("other")?addClassForm(g,"other"):mayAdd?`<button class="linkbtn" type="button" data-addclass="${esc(g.key)}" data-cls="other">+ Another team (for example boys, or a C team)</button>`:""}
       </section>`;}).join("")}
     <div class="actions" style="margin:12px 0 0"><button class="btn" type="button" id="tmNew">+ Add a different school or club</button>${HOSTED?`<button class="btn" type="button" id="tmJoin">Join another staff with a code</button>`:""}</div>
     <p class="help">Each grade or level is its own team with its own practice plans, plays, drills, calendar, roster and staff. Switch between them here or from the team button at the top.</p></div>
@@ -134,6 +145,8 @@ $("#tm-teams").addEventListener("submit",async e=>{
   const label=f.label.value.trim();if(!label)return;
   const g=schoolGroups().find(x=>x.key===f.dataset.school),src=teams.find(t=>t.id===f.from.value)||null,base=(src||g.lead).settings||{};
   const sport=f.sport.value,sameSport=src&&((src.settings||{}).sport||"basketball")===sport;
+  const cls=CLASSES.find(c=>c.label===label);
+  if(cls&&g.list.some(t=>classOf(t)===cls.id)){msg(f.querySelector("[data-addmsg]"),`${g.school} already has a ${cls.name} team.`,"err");return;}
   if(teams.some(t=>schoolKey(t)===g.key&&String((t.settings||{}).teamLabel||"").trim().toLowerCase()===label.toLowerCase())){msg(f.querySelector("[data-addmsg]"),`${g.school} already has a team called ${label}.`,"err");return;}
   const settings={...DEFAULT_SETTINGS,sport,school:base.school||"",mascot:base.mascot||"",teamLabel:label,color:base.color||"#5b2a86"};
   ["color2","logo","appIcon","quickAdds"].forEach(k=>{if(base[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(base[k]));});
@@ -159,7 +172,8 @@ $("#tm-teams").addEventListener("click",async e=>{
   if(e.target.closest("[data-tab-go]")){setTab(e.target.closest("[data-tab-go]").dataset.tabGo);return;}
   if(e.target.id==="tmNew"||e.target.id==="tmJoin"){showSetup(true,e.target.id==="tmJoin");return;}
   const ac=e.target.closest("[data-addclass]");
-  if(ac){addClassFor=ac.dataset.addclass||null;renderTeams();const f=document.querySelector(".tm-addclass [name=label]");if(f)f.focus();return;}
+  if(ac){addClassFor=ac.dataset.addclass?{key:ac.dataset.addclass,cls:ac.dataset.cls||"other"}:null;renderTeams();
+    const f=document.querySelector(".tm-addclass");if(f){f.scrollIntoView({behavior:"smooth",block:"nearest"});const i=f.querySelector("input[name=label]:not([type=hidden])");if(i)i.focus();}return;}
   if(e.target.id==="tmDel"){
     if($("#tmDelName").value.trim().toLowerCase()!==team.name.trim().toLowerCase()){msg($("#tmDelMsg"),"Type the team name exactly to confirm.","err");return;}
     e.target.disabled=true;msg($("#tmDelMsg"),"Deleting…");

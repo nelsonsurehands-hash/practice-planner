@@ -756,3 +756,10 @@ body.pb-full{overflow:hidden}
 .tm-class.on{border-color:var(--accent);box-shadow:inset 4px 0 0 var(--accent)}
 .tm-class b{display:block;font-size:15.5px}.tm-class small{font-size:12.5px;color:var(--muted)}
 .tm-addclass .exp-pick{display:flex;flex-direction:column;gap:4px;font-size:14px}
+.tm-class.empty{background:transparent;border-style:dashed}
+.tm-class.empty b{color:var(--muted)}
+.tm-formrow{list-style:none}
+.tm-formrow .rs-form{margin:0}
+.tm-addtitle{margin:0;font-size:15px}
+.tm-school>.linkbtn{margin-top:2px}
+.tm-class>div{text-align:left;min-width:0}.tm-school>.linkbtn{text-align:left}
