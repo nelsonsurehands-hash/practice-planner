@@ -20,60 +20,30 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <link rel="stylesheet" href="css/app.css">
 <style>
-/* Parents' calendar: team header, what's next, then the season as a list or a month grid */
-body{max-width:680px}
-.sc-head{border-bottom:4px solid var(--accent);padding-bottom:12px;margin-bottom:12px;display:flex;gap:12px;align-items:center}
-.sc-head img{width:56px;height:56px;object-fit:contain;flex:none}
-.sc-head h1{font-size:clamp(30px,8.5vw,44px);font-weight:800;line-height:.95;text-transform:uppercase}
-.sc-live{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--muted);margin:0 0 12px}
+/* Parents' calendar: the same full calendar coaches see in the app (colored days, legend,
+   month by month or the whole season, game list), plus what's next and a phone-calendar button. */
+.sc-top{display:flex;gap:12px;align-items:center;margin:0 0 12px}
+.sc-top img{width:56px;height:56px;object-fit:contain;flex:none}
+.sc-live{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--muted);margin:10px 0 12px}
 .sc-live i{width:8px;height:8px;border-radius:50%;background:var(--good);flex:none;box-shadow:0 0 0 3px var(--good-soft)}
-.sc-next{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:0 0 14px}
+.sc-next{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:0 0 12px}
 .sc-nx{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:12px;padding:12px 14px}
 .sc-nx small{display:block;font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .sc-nx b{display:block;font-family:var(--display);font-size:23px;text-transform:uppercase;line-height:1.05;margin:2px 0}
 .sc-nx span{font-size:14.5px}
-.sc-nx.game{border-left-color:var(--game,#c0392b)}
-.sc-cal{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
-.sc-cal .btn{min-height:44px}
-.sc-calhelp{font-size:13px;color:var(--muted);margin:-6px 0 14px}
-.sc-bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin:0 0 10px}
-.sc-month{font-family:var(--display);font-size:22px;text-transform:uppercase;margin:18px 0 6px;border-bottom:2px solid var(--line);padding-bottom:2px}
-.sc-day{display:grid;grid-template-columns:52px minmax(0,1fr);gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 8px}
-.sc-day.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
-.sc-day.past{opacity:.62}
-.sc-date{text-align:center;border-radius:8px;background:var(--sunk);padding:4px 0 5px;line-height:1}
-.sc-date small{display:block;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.sc-date b{display:block;font-family:var(--display);font-size:24px;font-weight:800}
-.sc-day.has-game .sc-date{background:var(--accent);color:var(--accent-ink)}
-.sc-day.has-game .sc-date small{color:inherit;opacity:.85}
-.sc-ev{display:flex;flex-direction:column;gap:5px;min-width:0}
-.sc-e{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:15px}
-.sc-e b{font-weight:600}
-.sc-e small{color:var(--muted);font-size:13.5px}
-.sc-pill{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:20px;padding:2px 8px;white-space:nowrap}
-.p-game{background:var(--accent);color:var(--accent-ink)}
-.p-away{background:#7a4b00;color:#fff}
-.p-prac{background:var(--accent-soft);color:var(--accent)}
-.p-off{background:var(--sunk);color:var(--muted)}
-.p-note{background:#fff3c4;color:#6b5100}
-.sc-earlier{display:block;margin:4px auto 10px}
+.sc-cal{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 4px}
+.sc-calhelp{font-size:13px;color:var(--muted);margin:4px 0 14px}
 .sc-empty{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:24px;text-align:center;color:var(--muted);margin-top:10vh}
-.sc-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
-.sc-grid .h{font-size:11px;font-weight:600;text-align:center;color:var(--muted);text-transform:uppercase;padding:2px 0}
-.sc-c{min-height:58px;border:1px solid var(--line);border-radius:7px;background:var(--surface);padding:3px;font-size:11px;text-align:left;color:inherit;display:flex;flex-direction:column;gap:2px;overflow:hidden}
-.sc-c.blank{background:none;border-color:transparent}
-.sc-c .n{font-weight:700;font-size:12px}
-.sc-c.today{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-.sc-c.sel{background:var(--accent-soft)}
-.sc-c i{font-style:normal;border-radius:4px;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-.sc-c i.g{background:var(--accent);color:var(--accent-ink)}
-.sc-c i.p{background:var(--accent-soft);color:var(--accent)}
-.sc-c i.o{background:var(--sunk);color:var(--muted)}
-.sc-mnav{display:flex;align-items:center;gap:10px;justify-content:center;margin:0 0 8px}
-.sc-mnav b{font-family:var(--display);font-size:22px;text-transform:uppercase;min-width:170px;text-align:center}
-.sc-pick{margin-top:10px}
 .sc-foot{margin-top:24px;font-size:12px;color:var(--muted);text-align:center}
-@media (max-width:380px){.sc-c{min-height:50px}.sc-c i{font-size:10px}}
+#scDay .dlg{max-width:420px}
+.sc-dl{list-style:none;margin:8px 0 14px;padding:0;display:flex;flex-direction:column;gap:8px}
+.sc-dl li{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;font-size:15.5px}
+.sc-dl small{color:var(--muted);font-size:13.5px}
+.sc-pill{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:20px;padding:2px 8px;white-space:nowrap}
+.p-home{background:var(--accent);color:var(--accent-ink)}.p-away{background:#7a4b00;color:#fff}
+.p-prac{background:var(--accent-soft);color:var(--accent)}.p-off{background:var(--sunk);color:var(--muted)}.p-note{background:#fff3c4;color:#6b5100}
+.cal-cell{cursor:pointer}
+.cal-list-wrap{margin-top:22px}
 </style>
 </head>
 <body>
@@ -81,18 +51,28 @@ body{max-width:680px}
 <div id="scError" class="sc-empty" hidden></div>
 <div id="scDemo" class="demo-bar" hidden><b>Preview.</b> This calendar is in demo mode, so it only works on this device. Once the app is connected to Supabase, the link works on any phone.</div>
 <main id="scApp" hidden>
-  <header class="sc-head"><img id="scLogo" alt="" hidden><div><div class="eyebrow" id="scEyebrow"></div><h1 id="scTitle">Schedule</h1></div></header>
-  <p class="sc-live"><i aria-hidden="true"></i><span>Always up to date. Changes from the coach show up here automatically. <span id="scChecked"></span></span></p>
+  <div class="cal-head">
+    <div class="sc-top"><img id="scLogo" alt="" hidden><div><div class="eyebrow" id="scEyebrow"></div><h1 class="cal-title" id="scTitle">Practice &amp; Game Calendar</h1></div></div>
+    <div class="cal-season" id="scSeason"></div>
+  </div>
+  <p class="sc-live"><i aria-hidden="true"></i><span>Always up to date: changes from the coach show up here automatically. <span id="scChecked"></span></span></p>
   <div class="sc-next" id="scNext"></div>
   <div class="sc-cal" id="scCal"></div>
   <p class="sc-calhelp" id="scCalHelp"></p>
-  <div class="sc-bar">
-    <div class="seg" role="group" aria-label="Show"><button type="button" data-f="all" aria-pressed="true">Everything</button><button type="button" data-f="games" aria-pressed="false">Games</button><button type="button" data-f="practice" aria-pressed="false">Practices</button></div>
-    <div class="seg" role="group" aria-label="View"><button type="button" data-v="list" aria-pressed="true">List</button><button type="button" data-v="month" aria-pressed="false">Month</button></div>
+  <div class="cal-legend" aria-label="Legend" id="scLegend">
+    <span><i class="sw game"></i>Game</span><span><i class="sw tryout"></i>Tryouts</span><span><i class="sw practice"></i>Practice</span>
+    <span><i class="sw meeting"></i>Meeting</span><span><i class="sw bus"></i>Bus</span><span><i class="sw holiday"></i>Holiday / no school</span><span><i class="sw nopr"></i>No practice</span>
   </div>
-  <div id="scBody"></div>
-  <p class="sc-foot">Questions about the schedule? Contact your coach.</p>
+  <div class="cal-viewbar">
+    <div class="seg" role="group" aria-label="Calendar view"><button type="button" data-v="month" aria-pressed="true">Month</button><button type="button" data-v="all" aria-pressed="false">Full season</button></div>
+    <div class="cal-nav" id="calNav"><button class="btn" type="button" id="calPrev" aria-label="Previous month">‹</button><b id="calNavLabel"></b><button class="btn" type="button" id="calNext" aria-label="Next month">›</button></div>
+  </div>
+  <div id="calMonths"></div>
+  <div class="cal-list-wrap"><table class="cal-list" id="calGames"></table></div>
+  <p class="help cal-foot" id="calFoot"></p>
+  <p class="sc-foot">Tap any day for details. Questions about the schedule? Contact your coach.</p>
 </main>
+<dialog id="scDay" aria-labelledby="scDayTitle"><div class="dlg"><h2 id="scDayTitle"></h2><ul class="sc-dl" id="scDayList"></ul><div class="actions" style="margin:0"><button class="btn" type="button" id="scDayClose">Close</button></div></div></dialog>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.0/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
 <script src="js/schedule-core.js"></script>
