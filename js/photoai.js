@@ -64,7 +64,7 @@ async function read(){
     else{
       const {data,error}=await sb.functions.invoke("photo-import",{body:{kind:job.kind,team:team.id,images:job.photos.map(p=>({data:p.data,type:p.type})),context}});
       if(error){let m=error.message||"",status=error.context&&error.context.status;try{const j=await error.context.json();m=j.error||j.message||m;}catch{}
-        if(status===404||/not found|Failed to send|FunctionsFetchError|Failed to fetch/i.test(m+" "+(error.name||"")))throw Object.assign(new Error("The photo reader isn't turned on yet."),{setup:true});
+        if(status===404||(!status&&/not found|Failed to send|FunctionsFetchError|Failed to fetch/i.test(m+" "+(error.name||""))&&!/server|key/i.test(m)))throw Object.assign(new Error("The photo reader isn't turned on yet."),{setup:true});
         throw new Error(m||"Couldn't read the photo.");}
       r=data;
     }

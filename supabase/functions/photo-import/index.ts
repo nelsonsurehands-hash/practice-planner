@@ -6,7 +6,7 @@
 // part of the app; and the team is under its monthly photo limit (PHOTO_LIMIT, default 150).
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const MODEL = Deno.env.get("PHOTO_MODEL") || "claude-sonnet-5-5";
+const MODEL = Deno.env.get("PHOTO_MODEL") || "claude-sonnet-5";
 const LIMIT = parseInt(Deno.env.get("PHOTO_LIMIT") || "150", 10);
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -162,10 +162,17 @@ const TOOLS: Record<string, { area: string; tool: Record<string, unknown>; promp
 };
 
 Deno.serve(async (req) => {
+  try { return await handle(req); }
+  catch (e) { console.error(e); return reply(500, { error: "The photo reader hit a problem on the server. Try again in a minute." }); }
+});
+async function handle(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return reply(405, { error: "Use POST." });
-  const key = Deno.env.get("ANTHROPIC_API_KEY");
+  // A key pasted into Supabase can pick up a space, a line break or "smart quotes": strip anything
+  // that can't be in a key, then check it looks like one.
+  const key = (Deno.env.get("ANTHROPIC_API_KEY") || "").replace(/[^\x21-\x7e]/g, "").replace(/^["']+|["']+$/g, "");
   if (!key) return reply(500, { error: "The photo reader isn't set up: add the ANTHROPIC_API_KEY secret in Supabase." });
+  if (!/^sk-ant-[A-Za-z0-9_-]{20,}$/.test(key)) return reply(500, { error: "The photo reader's key in Supabase doesn't look right. In Supabase → Edge Functions → Secrets, paste the ANTHROPIC_API_KEY again (it starts with sk-ant-)." });
 
   let body: { kind?: string; team?: string; images?: { data: string; type: string }[]; context?: Record<string, unknown> };
   try { body = await req.json(); } catch { return reply(400, { error: "Bad request." }); }
@@ -224,4 +231,4 @@ Deno.serve(async (req) => {
 
   await admin.from("ai_usage").insert({ team_id: body.team, user_id: user.id, kind: body.kind, photos: images.length });
   return reply(200, { result: use.input, used: used + images.length, limit: LIMIT });
-});
+}
