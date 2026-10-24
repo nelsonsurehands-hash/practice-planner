@@ -4,8 +4,13 @@
    If you're in the middle of something unsaved, it waits and shows an "Update now" bar instead. */
 (function(){
   const CURRENT=window.APP_VERSION||"";
-  let pending=null,checking=false;
+  let pending=null,checking=false,lastTyped=0;const typed=new Set();
+  document.addEventListener("input",e=>{const el=e.target;if(!el||!/INPUT|TEXTAREA/.test(el.tagName)||/^(search|checkbox|radio|file|range)$/.test(el.type))return;typed.add(el);lastTyped=Date.now();},true);
+  /* A form that's been submitted or reset is saved (or thrown away): stop holding the update for it. */
+  document.addEventListener("submit",e=>{e.target.querySelectorAll&&e.target.querySelectorAll("input,textarea").forEach(el=>typed.delete(el));},true);
+  document.addEventListener("reset",e=>{e.target.querySelectorAll&&e.target.querySelectorAll("input,textarea").forEach(el=>typed.delete(el));},true);
 
+  window.__updBusy=()=>busy();
   function busy(){
     try{
       if(typeof pdirty!=="undefined"&&pdirty)return true;                       // unsaved play
@@ -13,7 +18,16 @@
       const st=document.getElementById("sStatus");if(st&&/unsaved|saving/i.test(st.textContent))return true;
       if(document.querySelector("dialog[open]"))return true;                     // a popup is open
       if(typeof anim!=="undefined"&&anim&&!anim.paused)return true;              // a play is running
-      const a=document.activeElement;if(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)&&a.value)return true;   // typing
+      if(document.body.classList.contains("live-mode"))return true;               // tracking a game live
+      /* Anything typed that hasn't been saved yet (a new drill, a roster paste, a note…), even if
+         you've tapped away from it: wait, so nothing gets lost. Fields that save as you type only
+         count for a minute after the last keystroke. */
+      const recent=Date.now()-lastTyped<60000;
+      for(const el of typed){
+        if(!el.isConnected||el.readOnly||el.disabled)continue;
+        if(el.value===el.defaultValue)continue;
+        if(recent||el.closest("form,dialog,[data-keepdraft]"))return true;
+      }
     }catch{}
     return false;
   }
