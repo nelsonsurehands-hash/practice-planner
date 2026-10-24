@@ -28,8 +28,12 @@ const showBoxes=(sh,dis)=>`<fieldset class="catpick"><legend>Parents see</legend
   <label><input type="checkbox" data-cs="practices"${sh.practices!==false?" checked":""}${dis}> Practices and tryouts</label>
   <label><input type="checkbox" data-cs="off"${sh.off!==false?" checked":""}${dis}> Days off, holidays and notes (meetings, bus times)</label></div></fieldset>`;
 
+/* Shown in two places: the Calendar tab's "Parent link" button (a dialog) and Team → Parent Admin. */
+const inDlg=()=>$("#calShareDlg").open;
+const box=()=>inDlg()?$("#csBody"):$("#tm-plink");
 function render(){
-  const box=$("#csBody"),ed=canMake(),dis=ed?"":" disabled";
+  const ed=canMake(),dis=ed?"":" disabled",dlg=inDlg();
+  (dlg?$("#tm-plink"):$("#csBody")).innerHTML="";
   let body="";
   if(state==="loading")body=`<p class="help">Loading…</p>`;
   else if(state==="nodb")body=`<p class="help">The parent link needs one more database step. In Supabase, open SQL Editor, paste <b>supabase/team-tools.sql</b> and tap Run. Then try again.</p>`;
@@ -45,11 +49,12 @@ function render(){
       `<p class="help" style="margin-top:0">The link is off. Parents who open it see that the calendar isn't shared. Turn it back on and the same link works again.</p>`;
     if(ed)body+=`<div class="actions" style="margin:8px 0 0"><button class="btn${share.active?" danger":""}" type="button" data-csact="toggle">${share.active?"Turn off the link":"Turn the link back on"}</button></div>`;
   }
-  box.innerHTML=`<h2 id="csTitle">Parent calendar link</h2><p class="eyebrow" style="margin:-4px 0 10px">${esc(teamLine())}</p>${body}
-    <div class="msg" id="csMsg" aria-live="polite"></div><div class="actions" style="margin:0"><button class="btn" type="button" data-csact="close">Close</button></div>`;
+  box().innerHTML=dlg?`<h2 id="csTitle">Parent calendar link</h2><p class="eyebrow" style="margin:-4px 0 10px">${esc(teamLine())}</p>${body}
+    <div class="msg" id="csMsg" aria-live="polite"></div><div class="actions" style="margin:0"><button class="btn" type="button" data-csact="close">Close</button></div>`:
+    `<div class="tm-card fd-link"><h3 class="tm-h">Parent calendar link</h3>${body}<div class="msg" id="csMsg" aria-live="polite"></div></div>`;
 }
-async function open(){
-  share=null;state="loading";render();$("#calShareDlg").showModal();
+async function open(asPane){
+  share=null;state="loading";if(!asPane&&!inDlg())$("#calShareDlg").showModal();render();
   try{share=await API().load();state="ready";}catch(e){state=missing(e)?"nodb":"ready";if(state==="ready")setTimeout(()=>msg($("#csMsg"),"Couldn't load the link: "+(e.message||"check your connection"),"err"));}
   render();
 }
@@ -57,10 +62,12 @@ async function save(v,ok){
   try{share=share?await API().update(share.id,v):await API().create({id:randId(),show:SHOW_DEFAULT,...v});state="ready";render();if(ok)msg($("#csMsg"),ok,"ok");}
   catch(e){if(missing(e)){state="nodb";render();}else msg($("#csMsg"),"Not saved: "+(e.message||"check your connection"),"err");}
 }
-const readShow=()=>{const o={};document.querySelectorAll("#csBody [data-cs]").forEach(x=>o[x.dataset.cs]=x.checked);return o;};
+const readShow=()=>{const o={};box().querySelectorAll("[data-cs]").forEach(x=>o[x.dataset.cs]=x.checked);return o;};
 
-$("#calShare").addEventListener("click",open);
-$("#calShareDlg").addEventListener("click",async e=>{
+$("#calShare").addEventListener("click",()=>open(false));
+$("#calShareDlg").addEventListener("close",()=>{$("#csBody").innerHTML="";});
+if(window.TM)TM.panes.plink=()=>{if(!inDlg())open(true);};
+async function onClick(e){
   if(e.target===$("#calShareDlg")){$("#calShareDlg").close();return;}
   const a=e.target.closest("[data-csact]");if(!a)return;const k=a.dataset.csact;
   const url=share?linkURL(share.id):"";
@@ -76,10 +83,12 @@ $("#calShareDlg").addEventListener("click",async e=>{
     if(share.active&&a.dataset.armed!=="1"){a.dataset.armed="1";a.textContent="Tap again: parents lose access";return;}
     await save({active:!share.active},share.active?"Link turned off.":"Link is back on.");
   }
-});
-$("#calShareDlg").addEventListener("change",e=>{
+}
+$("#calShareDlg").addEventListener("click",onClick);$("#tm-plink").addEventListener("click",onClick);
+function onChange(e){
   if(!e.target.closest("[data-cs]")||!share||!canMake())return;
   const v=readShow();if(!v.games&&!v.practices&&!v.off){e.target.checked=true;msg($("#csMsg"),"Parents need to see at least one thing.","err");return;}
   save({show:v},"Saved. Parents see this next time they open the link.");
-});
+}
+$("#calShareDlg").addEventListener("change",onChange);$("#tm-plink").addEventListener("change",onChange);
 })();

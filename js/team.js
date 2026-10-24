@@ -21,10 +21,29 @@ function busDefault(iso){const g=(SETTINGS.games||[]).find(x=>x.date===iso);if(!
 const tel=s=>String(s||"").replace(/[^\d+]/g,"");
 
 /* ---------- navigation ---------- */
+/* Bus list, Game-day food and the parent calendar link sit together under "Parent Admin". */
+const PARENT_PANES={bus:"Bus list",food:"Game-day food",plink:"Calendar link"};
+function syncNav(){
+  document.querySelectorAll(".tm-nav [data-tm]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tm===pane));
+  const pb=$("#tmParentBtn");if(pb){pb.setAttribute("aria-selected",!!PARENT_PANES[pane]);$("#tmParentSub").textContent=PARENT_PANES[pane]?": "+PARENT_PANES[pane]:"";}
+  document.querySelectorAll("#tmParentMenu [data-tm]").forEach(b=>b.classList.toggle("on",b.dataset.tm===pane));
+  document.querySelectorAll("#view-team .tm-pane").forEach(x=>x.hidden=x.id!=="tm-"+pane);
+}
+function parentMenu(open){
+  const m=$("#tmParentMenu"),b=$("#tmParentBtn");if(!m||!b)return;
+  if(open===undefined)open=m.hidden;
+  m.hidden=!open;b.setAttribute("aria-expanded",open);
+  if(open){const r=b.getBoundingClientRect(),w=Math.min(300,innerWidth-24);
+    m.style.width=w+"px";m.style.left=Math.max(12,Math.min(r.left,innerWidth-w-12))+"px";m.style.top=(r.bottom+6)+"px";}
+}
+$("#tmParentBtn").addEventListener("click",e=>{e.stopPropagation();parentMenu();});
+$("#tmParentMenu").addEventListener("click",e=>{const b=e.target.closest("[data-tm]");if(b){parentMenu(false);showPane(b.dataset.tm);}});
+document.addEventListener("click",e=>{if(!e.target.closest("#tmParentMenu,#tmParentBtn"))parentMenu(false);});
+addEventListener("scroll",()=>parentMenu(false),{passive:true});$(".tm-nav").addEventListener("scroll",()=>parentMenu(false),{passive:true});addEventListener("resize",()=>parentMenu(false));
+document.addEventListener("keydown",e=>{if(e.key==="Escape")parentMenu(false);});
 function showPane(p){
   pane=p||pane;try{localStorage.setItem("cpp:tmPane",pane);}catch{}
-  document.querySelectorAll(".tm-nav [data-tm]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tm===pane));
-  document.querySelectorAll("#view-team .tm-pane").forEach(x=>x.hidden=x.id!=="tm-"+pane);
+  syncNav();
   render();
   if(pane==="food"&&food&&!$("#view-team").hidden)loadFood();   // pick up new sign-ups
 }
@@ -35,8 +54,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-goteam]");
 function render(){
   if(typeof team==="undefined"||!team||$("#view-team").hidden)return;
   /* Keep the visible section in step with the remembered one (the app can open straight onto the Team tab). */
-  document.querySelectorAll(".tm-nav [data-tm]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tm===pane));
-  document.querySelectorAll("#view-team .tm-pane").forEach(x=>x.hidden=x.id!=="tm-"+pane);
+  syncNav();
   $("#tmEyebrow").textContent=[team.name,(team.settings||{}).teamLabel].filter(Boolean).join(" · ");
   if(pane==="teams")renderTeams();
   if(pane==="roster")renderRoster();

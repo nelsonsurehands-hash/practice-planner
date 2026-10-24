@@ -341,12 +341,11 @@
   <nav class="tm-nav" role="tablist" aria-label="Team sections">
     <button type="button" role="tab" data-tm="teams" aria-selected="true">My teams</button>
     <button type="button" role="tab" data-tm="roster" aria-selected="false">Roster</button>
-    <button type="button" role="tab" data-tm="staff" aria-selected="false">Staff</button>
     <button type="button" role="tab" data-tm="game" aria-selected="false">Gameplan</button>
     <button type="button" role="tab" data-tm="scout" aria-selected="false">Scouting report</button>
     <button type="button" role="tab" data-tm="stats" aria-selected="false">Stats</button>
-    <button type="button" role="tab" data-tm="bus" aria-selected="false">Bus list</button>
-    <button type="button" role="tab" data-tm="food" aria-selected="false">Game-day food</button>
+    <button type="button" class="tm-group" id="tmParentBtn" aria-haspopup="menu" aria-expanded="false" aria-selected="false">Parent Admin<span class="tm-sub" id="tmParentSub"></span> ▾</button>
+    <button type="button" role="tab" data-tm="staff" aria-selected="false">Staff</button>
   </nav>
   <div class="tm-pane" id="tm-teams"></div>
   <div class="tm-pane" id="tm-roster" hidden></div>
@@ -355,6 +354,7 @@
   <div class="tm-pane" id="tm-scout" hidden></div>
   <div class="tm-pane" id="tm-stats" hidden></div>
   <div class="tm-pane" id="tm-bus" hidden></div>
+  <div class="tm-pane" id="tm-plink" hidden></div>
   <div class="tm-pane" id="tm-food" hidden></div>
 </section>
 
@@ -473,6 +473,11 @@
   </div>
 </dialog>
 
+<div class="tm-menu" id="tmParentMenu" role="menu" hidden>
+  <button type="button" role="menuitem" data-tm="bus">🚌 Bus list<small>Who's riding, departure times</small></button>
+  <button type="button" role="menuitem" data-tm="food">🍕 Game-day food<small>Parent sign-up sheet</small></button>
+  <button type="button" role="menuitem" data-tm="plink">🔗 Parent calendar link<small>Always-current schedule for parents</small></button>
+</div>
 <dialog id="calShareDlg" aria-labelledby="csTitle">
   <div class="dlg" id="csBody"></div>
 </dialog>
@@ -522,8 +527,8 @@
 <script src="js/app.js"></script>
 <script src="js/boot.js"></script>
 <script src="js/calendar.js"></script>
-<script src="js/calshare.js"></script>
 <script src="js/team.js"></script>
+<script src="js/calshare.js"></script>
 <script src="js/gameplan.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/playhelp.js"></script>

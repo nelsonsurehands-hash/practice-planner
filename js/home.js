@@ -110,7 +110,7 @@ document.getElementById("view-home").addEventListener("click",e=>{
   if(k==="bus")window.goTeam("bus",{date:d});
   if(k==="roster")window.goTeam("roster");
   if(k==="food")window.goTeam("food");
-  if(k==="parentlink"){setTab("cal");setTimeout(()=>{const x=document.getElementById("calShare");if(x)x.click();},0);}
+  if(k==="parentlink")window.goTeam("plink");
   if(k!=="practice")scrollTo(0,0);
 });
 /* Redraw when the schedule, plans or scores change, and at midnight-ish when "today" moves on. */

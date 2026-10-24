@@ -1030,3 +1030,14 @@ body.pb-full{overflow:hidden}
 .cal-cell.today .tag{background:var(--bg);color:var(--tc)!important}
 .cal-cell.today b{font-weight:800}
 @media (max-width:520px){.cal-cell.today .d::after{content:none}}
+
+/* Team → Parent Admin drop-down */
+.tm-nav .tm-group{flex:1 0 auto;border:0;background:transparent;padding:9px 14px;border-radius:6px;font-weight:600;color:var(--muted);white-space:nowrap;min-height:40px}
+.tm-nav .tm-group[aria-selected="true"],.tm-nav .tm-group[aria-expanded="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.tm-sub{font-weight:500}
+.tm-menu{position:fixed;z-index:60;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:6px;display:flex;flex-direction:column;gap:2px}
+.tm-menu[hidden]{display:none}
+.tm-menu button{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;border:0;background:none;color:var(--ink);font-weight:600;font-size:15px;padding:10px 12px;border-radius:8px;min-height:44px}
+.tm-menu button small{font-weight:400;font-size:12.5px;color:var(--muted);padding-left:1.6em}
+.tm-menu button:hover,.tm-menu button.on{background:var(--accent-soft)}
+.tm-menu button.on{color:var(--accent)}
