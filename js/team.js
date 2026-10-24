@@ -97,11 +97,13 @@ const CLASSES=[{id:"7th",name:"7th",label:"7th Grade",re:/\b7(th)?\b|seventh/i},
   {id:"fr",name:"Freshman",label:"Freshman",re:/fresh|\b9(th)?\b|ninth/i},{id:"jv",name:"JV",label:"JV",re:/\bjv\b|junior\s*varsity/i},{id:"v",name:"Varsity",label:"Varsity",re:/varsity/i}];
 const classOf=t=>{const l=String((t.settings||{}).teamLabel||"");const c=CLASSES.find(c=>c.re.test(l));return c?c.id:null;};
 let addClassFor=null;   // {key: school, cls: class id or "other"}
-function addClassForm(g,cls){
-  const same=g.list.filter(t=>canEdit(t)),src=same.find(t=>t.id===team.id)||same[0]||g.lead,c=CLASSES.find(x=>x.id===cls);
+function addClassForm(g){
+  const same=g.list.filter(t=>canEdit(t)),src=same.find(t=>t.id===team.id)||same[0]||g.lead,have=new Set(g.list.map(classOf));
+  const first=CLASSES.find(c=>!have.has(c.id));
   return `<form class="rs-form tm-addclass" data-school="${esc(g.key)}">
-    ${c?`<input type="hidden" name="label" value="${esc(c.label)}"><p class="tm-addtitle">Add <b>${esc(c.name)}</b> at ${esc(g.school)}</p>`:
-      `<label class="f">Team name<input name="label" required placeholder="e.g. 8th Grade Boys, C Team" autocomplete="off"></label>`}
+    <p class="tm-addtitle">Add a team at <b>${esc(g.school)}</b></p>
+    <label class="f">Grade or level<select name="cls">${CLASSES.map(c=>`<option value="${c.id}"${have.has(c.id)?" disabled":""}${first&&first.id===c.id?" selected":""}>${esc(c.name)}${have.has(c.id)?" (already set up)":""}</option>`).join("")}<option value="other"${first?"":" selected"}>Other…</option></select></label>
+    <label class="f" data-otherwrap${first?" hidden":""}>Team name<input name="label" placeholder="e.g. 8th Grade Boys, C Team" autocomplete="off"></label>
     <label class="f">Sport<select name="sport">${Object.keys(SPORTS).map(k=>`<option value="${k}"${((src.settings||{}).sport||"basketball")===k?" selected":""}>${esc(SPORTS[k].name)}</option>`).join("")}</select></label>
     ${g.list.length?`<label class="f">Start it from<select name="from">${g.list.map(t=>`<option value="${t.id}"${t.id===src.id?" selected":""}>${esc((t.settings||{}).teamLabel||t.name)}</option>`).join("")}<option value="">Nothing, start fresh</option></select></label>`:`<input type="hidden" name="from" value="">`}
     <div class="exp-pick">
@@ -111,7 +113,7 @@ function addClassForm(g,cls){
       <label><input type="checkbox" name="roster"> Roster</label>
     </div>
     <p class="help" style="margin:0">The school name, colors and logo carry over. Games, practice plans and staff start empty.</p>
-    <div class="actions" style="margin:0"><button class="btn primary" type="submit">Create ${esc(c?c.name:"team")}</button><button class="btn" type="button" data-addclass="">Cancel</button></div>
+    <div class="actions" style="margin:0"><button class="btn primary" type="submit">Create team</button><button class="btn" type="button" data-addclass="">Cancel</button></div>
     <div class="msg" data-addmsg></div></form>`;
 }
 function renderTeams(){
@@ -120,15 +122,11 @@ function renderTeams(){
     return `<li class="tm-class${on?" on":""}"><div><b>${esc(title)}</b><small>${title!==ts.teamLabel&&ts.teamLabel?esc(ts.teamLabel)+" · ":""}${esc(sportName(t))} · ${n} game${n===1?"":"s"}</small></div>
       ${on?`<span class="tm-badge">Open now</span>`:`<button class="btn" type="button" data-openteam="${t.id}">Open</button>`}</li>`;};
   $("#tm-teams").innerHTML=`<div class="tm-card"><h3 class="tm-h">Schools and teams <small>${teams.length} team${teams.length===1?"":"s"}</small></h3>
-    ${groups.map(g=>{const st=g.lead.settings||{},mayAdd=g.list.some(t=>canEdit(t))||!HOSTED,open=c=>addClassFor&&addClassFor.key===g.key&&addClassFor.cls===c;
+    ${groups.map(g=>{const st=g.lead.settings||{},mayAdd=g.list.some(t=>canEdit(t))||!HOSTED,open=addClassFor&&addClassFor.key===g.key;
       const mark=st.logo?`<img class="sw-logo" src="${esc(st.logo)}" alt="">`:`<span class="sw-dot" style="background:${esc(st.color||"#5b2a86")}${st.color2?`;box-shadow:inset -8px 0 0 ${esc(st.color2)}`:""}"></span>`;
-      const others=g.list.filter(t=>!classOf(t));
       return `<section class="tm-school"><header>${mark}<div><b>${esc([g.school,g.mascot].filter(Boolean).join(" "))}</b><small>${g.list.length} team${g.list.length===1?"":"s"}</small></div></header>
-        <ul class="tm-classes">${CLASSES.map(c=>{const mine=g.list.filter(t=>classOf(t)===c.id);
-          if(mine.length)return mine.map(t=>row(t,c.name)).join("");
-          return `<li class="tm-class empty"><div><b>${esc(c.name)}</b><small>Not set up</small></div>${mayAdd&&!open(c.id)?`<button class="btn" type="button" data-addclass="${esc(g.key)}" data-cls="${c.id}">+ Add</button>`:""}</li>${open(c.id)?`<li class="tm-formrow">${addClassForm(g,c.id)}</li>`:""}`;}).join("")}
-          ${others.map(t=>row(t,(t.settings||{}).teamLabel||"Main team")).join("")}</ul>
-        ${open("other")?addClassForm(g,"other"):mayAdd?`<button class="linkbtn" type="button" data-addclass="${esc(g.key)}" data-cls="other">+ Another team (for example boys, or a C team)</button>`:""}
+        <ul class="tm-classes">${[...g.list].sort((x,y)=>{const i=t=>{const c=classOf(t);return c?CLASSES.findIndex(k=>k.id===c):99;};return i(x)-i(y);}).map(t=>{const c=CLASSES.find(k=>k.id===classOf(t));return row(t,c&&(t.settings||{}).teamLabel===c.label?c.name:(t.settings||{}).teamLabel||(c?c.name:"Main team"));}).join("")}</ul>
+        ${open?addClassForm(g):mayAdd?`<button class="btn" type="button" data-addclass="${esc(g.key)}">+ Add a team at ${esc(g.school)}</button>`:""}
       </section>`;}).join("")}
     <div class="actions" style="margin:12px 0 0"><button class="btn" type="button" id="tmNew">+ Add a different school or club</button>${HOSTED?`<button class="btn" type="button" id="tmJoin">Join another staff with a code</button>`:""}</div>
     <p class="help">Each grade or level is its own team with its own practice plans, plays, drills, calendar, roster and staff. Switch between them here or from the team button at the top.</p></div>
@@ -140,9 +138,13 @@ function renderTeams(){
       <label class="f">Type the team name to confirm<input id="tmDelName" autocomplete="off" placeholder="${esc(team.name)}"></label>
       <button class="btn danger" type="button" id="tmDel">Delete team forever</button><div class="msg" id="tmDelMsg"></div></details>`:""}</div>`;
 }
+$("#tm-teams").addEventListener("change",e=>{
+  if(e.target.name==="cls"){const w=e.target.form.querySelector("[data-otherwrap]");w.hidden=e.target.value!=="other";if(!w.hidden)w.querySelector("input").focus();}
+});
 $("#tm-teams").addEventListener("submit",async e=>{
   const f=e.target.closest(".tm-addclass");if(!f)return;e.preventDefault();
-  const label=f.label.value.trim();if(!label)return;
+  const pick=CLASSES.find(c=>c.id===f.cls.value),label=pick?pick.label:f.label.value.trim();
+  if(!label){msg(f.querySelector("[data-addmsg]"),"Type a name for the team.","err");f.label.focus();return;}
   const g=schoolGroups().find(x=>x.key===f.dataset.school),src=teams.find(t=>t.id===f.from.value)||null,base=(src||g.lead).settings||{};
   const sport=f.sport.value,sameSport=src&&((src.settings||{}).sport||"basketball")===sport;
   const cls=CLASSES.find(c=>c.label===label);
@@ -172,8 +174,8 @@ $("#tm-teams").addEventListener("click",async e=>{
   if(e.target.closest("[data-tab-go]")){setTab(e.target.closest("[data-tab-go]").dataset.tabGo);return;}
   if(e.target.id==="tmNew"||e.target.id==="tmJoin"){showSetup(true,e.target.id==="tmJoin");return;}
   const ac=e.target.closest("[data-addclass]");
-  if(ac){addClassFor=ac.dataset.addclass?{key:ac.dataset.addclass,cls:ac.dataset.cls||"other"}:null;renderTeams();
-    const f=document.querySelector(".tm-addclass");if(f){f.scrollIntoView({behavior:"smooth",block:"nearest"});const i=f.querySelector("input[name=label]:not([type=hidden])");if(i)i.focus();}return;}
+  if(ac){addClassFor=ac.dataset.addclass?{key:ac.dataset.addclass}:null;renderTeams();
+    const f=document.querySelector(".tm-addclass");if(f)f.scrollIntoView({behavior:"smooth",block:"nearest"});return;}
   if(e.target.id==="tmDel"){
     if($("#tmDelName").value.trim().toLowerCase()!==team.name.trim().toLowerCase()){msg($("#tmDelMsg"),"Type the team name exactly to confirm.","err");return;}
     e.target.disabled=true;msg($("#tmDelMsg"),"Deleting…");

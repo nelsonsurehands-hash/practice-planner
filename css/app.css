@@ -763,3 +763,4 @@ body.pb-full{overflow:hidden}
 .tm-addtitle{margin:0;font-size:15px}
 .tm-school>.linkbtn{margin-top:2px}
 .tm-class>div{text-align:left;min-width:0}.tm-school>.linkbtn{text-align:left}
+[data-otherwrap][hidden]{display:none}
