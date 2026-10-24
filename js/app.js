@@ -5,12 +5,24 @@ const AREAS=["plans","plays","drills","schedule","share","staff"];
 let PERM={plans:true,plays:true,drills:true,schedule:true,share:true,staff:true};
 function ago(ts){if(!ts)return "";const m=Math.round((Date.now()-ts)/60000);if(m<1)return "just now";if(m<60)return m+" min ago";const h=Math.round(m/60);if(h<24)return h+" hr ago";const d=Math.round(h/24);return d<7?d+" day"+(d>1?"s":"")+" ago":new Date(ts).toLocaleDateString("en-US",{month:"short",day:"numeric"});}
 function setReadOnly(flag){setPerms(Object.fromEntries(AREAS.map(a=>[a,!flag])));}
+/* View mode for saved plays: opening a play shows it locked so nothing changes by accident.
+   Tap Edit play to unlock the board and fields; Done locks it again. New plays open unlocked. */
+let PLAY_LOCK=false;
+function applyPlayLock(){
+  const canP=typeof PERM!=="undefined"&&PERM.plays,locked=!canP||PLAY_LOCK;
+  ["#pName","#pType","#pCaption","#pNotes","#pOptName","#pForm"].forEach(q=>{const el=$(q);if(el)el.disabled=locked;});
+  document.body.classList.toggle("play-locked",!!(canP&&PLAY_LOCK));
+  const e=$("#pEditBtn"),d=$("#pDoneBtn");
+  if(e)e.hidden=!(canP&&PLAY_LOCK);
+  if(d)d.hidden=!(canP&&!PLAY_LOCK&&play&&play.id);
+}
+function lockPlay(on){PLAY_LOCK=!!on;if(on&&typeof tool!=="undefined"&&tool!=="move"){tool="move";if(typeof setTool==="function")setTool("move");}applyPlayLock();renderEditor();}
 function setPerms(p){
   PERM={...p};READONLY=!AREAS.some(a=>PERM[a]);
   document.body.classList.toggle("readonly",READONLY);
   AREAS.forEach(a=>document.body.classList.toggle("no-"+a,!PERM[a]));
   ["#planStart","#planEnd","#planFocus"].forEach(q=>{const el=$(q);if(el)el.disabled=!PERM.plans;});
-  ["#pName","#pType","#pCaption","#pNotes","#pOptName"].forEach(q=>{const el=$(q);if(el)el.disabled=!PERM.plays;});
+  applyPlayLock();
   if(cur)renderPlan();
   if(typeof renderPlayLib==="function")renderPlayLib();
 }
@@ -608,7 +620,8 @@ function renderEditor(){
   $("#pName").value=play.name;$("#pType").value=play.type;$("#pNotes").value=play.notes||"";fsName();
   renderSteps();renderBoard();
   $("#pStatus").textContent=pdirty?"Unsaved changes":(play.id?"Saved":"");
-  $("#pEditTitle").textContent=play.id?(!PERM.plays?play.name||"Play":"Edit play"):"New play";
+  $("#pEditTitle").textContent=play.id?(!PERM.plays||PLAY_LOCK?play.name||"Play":"Edit play"):"New play";
+  applyPlayLock();
 }
 function setTool(t){tool=t;document.querySelectorAll("#ptools [data-tool]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.tool===t));$("#pHint").textContent=hints(t);$("#labelBox").hidden=true;}
 function pflash(t){$("#pHint").textContent=t;clearTimeout(hintTimer);hintTimer=setTimeout(()=>$("#pHint").textContent=hints(tool),3000);}
@@ -690,7 +703,7 @@ function hitAct(p){let best=null,bd=12;frame().actions.forEach(a=>{samples(a).fo
 
 const board=$("#board");
 board.addEventListener("pointerdown",e=>{
-  if(!play||anim||!PERM.plays)return;
+  if(!play||anim||!PERM.plays||PLAY_LOCK)return;
   const p=svgPt(e), fr=frame();
   if(tool==="move"){
     const t=hitTok(p);if(!t)return;
@@ -961,7 +974,7 @@ $("#pSave").addEventListener("click",()=>savePlay());
 let newArmed=false;
 $("#pNew").addEventListener("click",e=>{
   if(window.guardPlay&&!guardPlay(()=>$("#pNew").click()))return;
-  play=blankPlay();fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();$("#pName").focus();
+  play=blankPlay();fi=0;hist=[];pdirty=false;PLAY_LOCK=false;renderEditor();renderPlayLib();$("#pName").focus();
 });
 function playSummary(frames){const L=playLines(frames),n=L.main.length,k=L.options.length;return `${n} step${n>1?"s":""}${k?` · <b class="optcount">${k} option${k>1?"s":""}</b>`:""}`;}
 function renderPlayLib(){
@@ -971,7 +984,7 @@ function renderPlayLib(){
   $("#plList").innerHTML=list.length?list.map(p=>`<article class="pcard${play&&play.id===p.id?" open":""}" data-card="${p.id}">
       <div class="pthumb">${boardSVG(p.frames[0],"screen")}</div>
       <div style="min-width:0"><b>${esc(p.name)}</b>${p.draft?` <span class="draft-tag">Draft</span>`:p.draftCopy?` <span class="draft-tag">Draft changes</span>`:""}<span>${esc(p.type)} · ${playSummary(p.frames)}</span>
-      <div class="actions"><button class="btn" data-open="${p.id}">${!PERM.plays?"View":"View / edit"}</button><button class="btn edit-only" data-copy="plays" data-id="${p.id}">Copy</button><button class="btn danger edit-only" data-pdel="${p.id}">Delete</button></div></div></article>`).join("")
+      <div class="actions"><button class="btn" data-open="${p.id}">${!PERM.plays?"View":"Open"}</button><button class="btn edit-only" data-copy="plays" data-id="${p.id}">Copy</button><button class="btn danger edit-only" data-pdel="${p.id}">Delete</button></div></div></article>`).join("")
     :`<div class="empty">${plays.length?"No plays match.":"No plays saved yet. Draw a play on the board, name it, and tap Save play."}</div>`;
 }
 $("#plSearch").addEventListener("input",renderPlayLib);
@@ -989,7 +1002,7 @@ function enterFull(){
     <div class="fs-row fs-scroll" id="fsTools"></div><div class="fs-row fs-scroll" id="fsSteps"></div><div class="fs-row fs-scroll" id="fsPlay"></div>`;
   card.insertBefore(bar,card.firstChild);
   const head=bar.querySelector(".fs-head");
-  fsMove($("#pSave"),head);fsMove($("#pStatus"),head);fsMove($("#pHelp"),head);
+  fsMove($("#pEditBtn"),head);fsMove($("#pDoneBtn"),head);fsMove($("#pSave"),head);fsMove($("#pStatus"),head);fsMove($("#pHelp"),head);
   fsMove($("#ptools"),$("#fsTools"));fsMove(document.querySelector("#view-plays .toolbar.edit-only:not(#ptools)"),$("#fsTools"));
   fsMove($("#pSteps").parentNode,$("#fsSteps"));
   fsMove(document.querySelector("#view-plays .player"),$("#fsPlay"));fsMove($("#pLines"),$("#fsPlay"));
@@ -1019,7 +1032,7 @@ $("#plList").addEventListener("click",async e=>{
   if(o){
     const pid=o.dataset.open;
     if(window.guardPlay&&!guardPlay(()=>{const b=document.querySelector(`#plList [data-open="${CSS.escape(pid)}"]`);if(b)b.click();}))return;
-    const p=plays.find(x=>x.id===pid);play=window.playFromSaved?playFromSaved(p):clone(p);fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();
+    const p=plays.find(x=>x.id===pid);play=window.playFromSaved?playFromSaved(p):clone(p);fi=0;hist=[];pdirty=false;PLAY_LOCK=true;renderEditor();renderPlayLib();
     document.querySelector("#view-plays .board-card").scrollIntoView({behavior:"smooth",block:"start"});
   }
   if(d){

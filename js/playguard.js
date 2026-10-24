@@ -50,7 +50,7 @@ dlg.addEventListener("click",async e=>{
   if(a==="discard"){
     if(b.dataset.armed!=="1"){b.dataset.armed="1";b.firstChild.textContent="Tap again to discard";return;}
     const saved=play.id&&plays.find(x=>x.id===play.id);
-    play=saved?playFromSaved(saved):blankPlay();fi=0;hist=[];pdirty=false;clearPlayBackup();renderEditor();renderPlayLib();
+    play=saved?playFromSaved(saved):blankPlay();fi=0;hist=[];pdirty=false;PLAY_LOCK=!!saved;clearPlayBackup();renderEditor();renderPlayLib();
     done();
   }
 });
@@ -129,10 +129,13 @@ renderEditor=function(){_renderEditor();updateBar();if(play&&(play.draftOf||play
 bar.addEventListener("click",async e=>{
   const b=e.target.closest("[data-dbar]");if(!b)return;
   const a=b.dataset.dbar;
-  if(a==="restore"){const bk=readBackup();if(!bk)return;offered=bk.at;play=bk.play;fi=0;hist=[];pdirty=true;renderEditor();renderPlayLib();$("#pStatus").textContent="Restored: unsaved changes";return;}
+  if(a==="restore"){const bk=readBackup();if(!bk)return;offered=bk.at;play=bk.play;fi=0;hist=[];pdirty=true;PLAY_LOCK=false;renderEditor();renderPlayLib();$("#pStatus").textContent="Restored: unsaved changes";return;}
   if(a==="forget"){const bk=readBackup();offered=bk&&bk.at;clearPlayBackup();updateBar();return;}
   if(a==="drop"){if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent=play.draft?"Tap again to delete":"Tap again to discard";return;}await discardDraft();}
 });
+/* View mode buttons. Done with unsaved changes asks first, like leaving the play. */
+$("#pEditBtn").addEventListener("click",()=>{lockPlay(false);pflash("Editing. Tap Save play when you're done, or Done to lock it again.");});
+$("#pDoneBtn").addEventListener("click",()=>{if(!guardPlay(()=>lockPlay(true)))return;lockPlay(true);});
 /* Check for a left-behind copy whenever the play designer is opened. */
 const _setTab=setTab;
 setTab=function(t){_setTab(t);if(t==="plays")updateBar();};

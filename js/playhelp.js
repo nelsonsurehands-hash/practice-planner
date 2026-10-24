@@ -71,7 +71,7 @@ function build(){
   ]);
   const save=section("save","Save, print and share","",[
     step(1,"Save play","Saves it to your team's play library. Your staff sees it right away. If you tap New play or open another play with unsaved changes, the app asks before throwing them away."),
-    step(2,"Open, copy or delete","Your plays are in the <b>Play Library</b> (on a phone, tap <b>All plays</b>). Tap <b>View / edit</b> to open one, <b>Copy</b> to send it to another team you coach."),
+    step(2,"Open, copy or delete","Your plays are in the <b>Play Library</b> (on a phone, tap <b>All plays</b>). Tap <b>Open</b> to see one: saved plays open in view mode so nothing changes by accident. Tap <b>✏️ Edit play</b> to change it and <b>✓ Done</b> to lock it again. <b>Copy</b> sends a play to another team you coach."),
     step(3,"New play","Starts a blank play."),
     step(4,"Printable PDF","Prints every step and option, with captions and notes, for a binder or the bench."),
     step(5,"Share with players","Makes a link players open on their phones to step through and watch your plays. No account needed."),

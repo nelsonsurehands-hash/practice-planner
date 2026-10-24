@@ -810,3 +810,13 @@ body.pb-full{overflow:hidden}
 .draft-acts{display:flex;gap:6px}
 .draft-acts .btn{padding:5px 11px;font-size:13px}
 .draft-tag{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:1px 8px;vertical-align:2px}
+/* play view mode: editing controls hidden until Edit play */
+.play-locked #view-plays .board-card .edit-only:not(#pNew):not([data-photo]),
+.play-locked #fsBar .edit-only:not(#pNew):not([data-photo]){display:none!important}
+.play-locked #view-plays .pmeta select:disabled,.play-locked #view-plays .board-card input:disabled,.play-locked #view-plays .board-card textarea:disabled{background:transparent;border-color:transparent;color:var(--ink);opacity:1;-webkit-text-fill-color:var(--ink);padding-left:0}
+.play-locked #view-plays .pmeta label:has(#pForm){display:none}
+.play-locked #view-plays .board-card textarea:disabled{resize:none}
+.edit-toggle[hidden]{display:none!important}
+.play-locked #view-plays .board-head [data-photo]{display:none!important}
+.play-locked #pFull:not(.fs-on){background:var(--surface);color:var(--ink);border-color:var(--line)}
+.play-locked #view-plays .pmeta .f-name{display:none}

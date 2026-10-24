@@ -182,7 +182,7 @@ function reviewPlay(){
 function applyPlay(){
   dlg.close();
   if(window.guardPlay&&!guardPlay(applyPlay))return;setTab("plays");
-  play=job.play;fi=0;hist=[];pdirty=true;renderEditor();renderPlayLib();
+  play=job.play;fi=0;hist=[];pdirty=true;PLAY_LOCK=false;renderEditor();renderPlayLib();
   $("#pStatus").textContent="Unsaved: drawn from your photo";
   document.querySelector("#view-plays .board-card").scrollIntoView({behavior:"smooth",block:"start"});
 }
