@@ -63,21 +63,22 @@ function applyBrand(st){
    Phones take the icon when the app is added to the home screen, so a coach who changes it
    re-adds the app once to see the new icon. */
 function appIconMode(st){return st.appIcon||(st.color&&st.color.toLowerCase()!=="#5b2a86"?"colors":"classic");}
+/* Half court in a 336-unit box, true to a real court: lane with free-throw line, the full
+   free-throw circle, and a symmetric 3-point line (straight corners joined by an arc around the basket). */
 function drawCourtIcon(ctx,N,o){
-  const pad=N*(o.pad||88)/512,k=(N-2*pad)/336,P=(x,y)=>[pad+x*k,pad+y*k],w=14*k;
+  const pad=N*(o.pad||88)/512,k=(N-2*pad)/336,X=x=>pad+x*k,Y=y=>pad+y*k;
   ctx.fillStyle=o.bg;
   if(o.round){const r=N*.22;ctx.beginPath();ctx.moveTo(r,0);ctx.arcTo(N,0,N,N,r);ctx.arcTo(N,N,0,N,r);ctx.arcTo(0,N,0,0,r);ctx.arcTo(0,0,N,0,r);ctx.closePath();ctx.fill();}
   else ctx.fillRect(0,0,N,N);
-  ctx.strokeStyle=o.line;ctx.lineWidth=w;ctx.lineCap="butt";
-  const rect=(x0,y0,x1,y1)=>{const a=P(x0,y0),b=P(x1,y1);ctx.strokeRect(a[0],a[1],b[0]-a[0],b[1]-a[1]);};
-  const circ=(cx,cy,r,lw)=>{const c=P(cx,cy);ctx.lineWidth=lw||w;ctx.beginPath();ctx.arc(c[0],c[1],r*k,0,Math.PI*2);ctx.stroke();ctx.lineWidth=w;};
-  const line=(x0,y0,x1,y1)=>{const a=P(x0,y0),b=P(x1,y1);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();};
-  rect(0,0,336,336);rect(112,0,224,105);circ(168,105,40);
-  const bx=168,by=40,xL=30,xR=306,yc=58,R=Math.hypot(bx-xL,yc-by),a0=Math.atan2(yc-by,xR-bx);
-  line(xL,0,xL,yc);line(xR,0,xR,yc);
-  const c=P(bx,by);ctx.beginPath();ctx.arc(c[0],c[1],R*k,a0,Math.PI-a0);ctx.stroke();
-  line(138,22,198,22);circ(168,40,12,10*k);
-  const bc=P(242,268);ctx.fillStyle=o.ball;ctx.beginPath();ctx.arc(bc[0],bc[1],38*k,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle=o.line;ctx.lineWidth=12*k;ctx.lineJoin="miter";ctx.lineCap="butt";
+  const CX=168,BK=35,R3=160,XC=20,YJ=BK+Math.sqrt(R3*R3-(CX-XC)**2),A=Math.atan2(YJ-BK,CX-XC);
+  ctx.strokeRect(X(0),Y(0),336*k,336*k);                                                       // court edge
+  ctx.beginPath();ctx.moveTo(X(114),Y(0));ctx.lineTo(X(114),Y(128));ctx.lineTo(X(222),Y(128));ctx.lineTo(X(222),Y(0));ctx.stroke();   // lane + free-throw line
+  ctx.beginPath();ctx.arc(X(CX),Y(128),40*k,0,Math.PI*2);ctx.stroke();                          // full free-throw circle
+  ctx.beginPath();ctx.moveTo(X(XC),Y(0));ctx.lineTo(X(XC),Y(YJ));ctx.arc(X(CX),Y(BK),R3*k,Math.PI-A,A,true);ctx.lineTo(X(336-XC),Y(0));ctx.stroke();   // 3-point line
+  ctx.beginPath();ctx.moveTo(X(CX-22),Y(24));ctx.lineTo(X(CX+22),Y(24));ctx.stroke();           // backboard
+  ctx.lineWidth=8*k;ctx.beginPath();ctx.arc(X(CX),Y(BK+3),9*k,0,Math.PI*2);ctx.stroke();         // rim
+  ctx.fillStyle=o.ball;ctx.beginPath();ctx.arc(X(250),Y(272),34*k,0,Math.PI*2);ctx.fill();      // ball
 }
 function iconCanvas(st,N,opts){
   const c=document.createElement("canvas");c.width=c.height=N;const x=c.getContext("2d");
