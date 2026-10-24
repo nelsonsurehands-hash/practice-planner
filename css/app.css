@@ -1016,3 +1016,17 @@ body.pb-full{overflow:hidden}
 .hm-wd.game .hm-wdate small{color:inherit}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .hm-pill.note{background:#3a3214;color:#f2d98a}}
 :root[data-theme="dark"] .hm-pill.note{background:#3a3214;color:#f2d98a}
+
+/* Today on the calendars: filled with the day's color at full strength, a glow and a TODAY tag. */
+.cal-cell.today{position:relative;z-index:1;--tc:var(--accent);background:var(--tc);color:var(--bg);box-shadow:0 0 0 3px var(--tc),0 4px 14px color-mix(in srgb,var(--tc) 55%,transparent)}
+.cal-cell.today.game{--tc:var(--cal-game)}
+.cal-cell.today.practice{--tc:var(--cal-prac)}
+.cal-cell.today.tryout{--tc:var(--cal-try)}
+.cal-cell.today.holiday{--tc:var(--cal-hol)}
+.cal-cell.today.nopr{--tc:var(--muted)}
+.cal-cell.today *,.cal-cell.today small,.cal-cell.today .ev small{color:inherit!important}
+.cal-cell.today .d,.cal-cell.today.game .d,.cal-cell.today.practice .d,.cal-cell.today.tryout .d,.cal-cell.today.holiday .d,.cal-cell.today.nopr .d{background:var(--bg);color:var(--tc)!important;border-radius:10px;padding:0 7px;align-self:flex-start;font-weight:800;display:inline-flex;gap:5px;align-items:center}
+.cal-cell.today .d::after{content:"Today";font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:800}
+.cal-cell.today .tag{background:var(--bg);color:var(--tc)!important}
+.cal-cell.today b{font-weight:800}
+@media (max-width:520px){.cal-cell.today .d::after{content:none}}
