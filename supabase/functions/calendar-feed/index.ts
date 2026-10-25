@@ -41,7 +41,7 @@ function practices(st){
 function days(st){
   st=st||{};const out={},get=d=>out[d]||(out[d]={date:d,notes:[]}),sp=byDate(st);
   practices(st).forEach(d=>{get(d).practice={...practiceTimes(d,st),notes:notesOf(sp[d])};});
-  (st.games||[]).forEach(g=>{if(g.date)get(g.date).game={opponent:g.opponent||"",time:g.time||"",home:g.home!==false,location:g.location||""};});
+  (st.games||[]).forEach(g=>{if(g.date)get(g.date).game={opponent:g.opponent||"",time:g.time||"",home:g.home!==false,location:g.location||"",event:g.event||""};});
   Object.entries(sp).forEach(([d,l])=>{
     const offs=l.filter(x=>x.kind==="off");
     if(offs.length){const names=offs.map(x=>x.note).filter(Boolean);get(d).off={note:names.filter(n=>!/^no practice$/i.test(n)).join(" · ")||"No practice"};}
@@ -66,7 +66,7 @@ function ics(list,o){
     else{L.push("DTSTART;VALUE=DATE:"+d.replace(/-/g,""),"DTEND;VALUE=DATE:"+addDays(d,1).replace(/-/g,""));}
     L.push("SUMMARY:"+esc(title));if(desc)L.push("DESCRIPTION:"+esc(desc));if(loc)L.push("LOCATION:"+esc(loc));L.push("END:VEVENT");};
   list.forEach(x=>{
-    if(show.games!==false&&x.game){const g=x.game;ev("game",x.date,`${g.home?"vs":"at"} ${g.opponent||"Game"}${g.time?"":" (time TBD)"}`,g.time,"",[g.home?"Home game":"Away game",...x.notes].join(" · "),g.location);}
+    if(show.games!==false&&x.game){const g=x.game;ev("game",x.date,`${g.event?g.event+": ":""}${g.home?"vs":"at"} ${g.opponent||"Game"}${g.time?"":" (time TBD)"}`,g.time,"",[g.event,g.home?"Home game":"Away game",...x.notes].filter(Boolean).join(" · "),g.location);}
     if(show.practices!==false&&x.practice){const p=x.practice;ev("practice",x.date,/tryout/i.test(p.notes.join(" "))?"Tryouts":"Practice",p.start,p.end,[early&&p.start?`Players arrive by ${am(arriveAt(p.start,early))}`:"",(/^players arrive \d+ min(ute)?s? (before|early)/i.test(o.note||"")?"":(o.note||"")),...p.notes].filter(Boolean).join(" · "));}
     if(show.off!==false&&x.off)ev("off",x.date,x.off.note==="No practice"?"No practice":x.off.note+" (no practice)","","","");
     if(show.off!==false&&!x.practice&&!x.game&&x.notes.length)ev("note",x.date,x.notes.join(" · "),"","","");

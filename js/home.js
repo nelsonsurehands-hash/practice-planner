@@ -41,9 +41,9 @@ function nextGameCard(){
   const g=(SETTINGS.games||[]).filter(x=>x.date>=t).sort((a,b)=>a.date<b.date?-1:1)[0];
   if(!g)return `<div class="hm-card hm-next"><small class="hm-k">Next game</small><p class="hm-help">No games coming up. Add games in the Calendar tab.</p></div>`;
   const n=daysUntil(g.date),bus=(SETTINGS.special||[]).find(x=>x.date===g.date&&/^bus\b/i.test(x.note||""));
-  return `<div class="hm-card hm-next"><small class="hm-k">Next game · ${n===0?"Today":n===1?"Tomorrow":`in ${n} days`}</small>
+  return `<div class="hm-card hm-next"><small class="hm-k">Next game · ${n===0?"Today":n===1?"Tomorrow":`in ${n} days`}${g.event?` · ${esc(g.event)}`:""}</small>
     <b class="hm-opp">${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")}</b>
-    <p class="hm-meta">${[fullDay(g.date),g.time?ampm(g.time):"Time TBD",g.home===false?"Away":"Home"].filter(Boolean).join(" · ")}${bus?`<br>${esc(bus.note)}`:""}</p>
+    <p class="hm-meta">${[fullDay(g.date),g.time?ampm(g.time):"Time TBD",g.home===false?"Away":"Home",g.location].filter(Boolean).map(esc).join(" · ")}${bus?`<br>${esc(bus.note)}`:""}</p>
     <div class="hm-mini">${typeof hasFeature!=="function"||hasFeature("game")?`<button type="button" class="btn" data-hm="gameplan" data-date="${g.date}">Gameplan</button>`:""}${g.home===false&&(typeof hasFeature!=="function"||hasFeature("bus"))?`<button type="button" class="btn" data-hm="bus" data-date="${g.date}">Bus list</button>`:""}</div></div>`;
 }
 function planLine(iso){
