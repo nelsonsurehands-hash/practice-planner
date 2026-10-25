@@ -90,7 +90,7 @@ function render(){
     return `<article class="su-g ${cls}${on?" on":""}">
       <button type="button" class="su-row" data-g="${g.date}" aria-expanded="${on}"${can?"":" disabled"}>
         <span class="su-date"><small>${d.toLocaleDateString("en-US",{month:"short"})}</small><b>${d.getDate()}</b><small>${d.toLocaleDateString("en-US",{weekday:"short"})}</small></span>
-        <span class="su-opp"><b>${g.home?"vs":"at"} ${esc(g.opponent||"Game")}</b><small>${g.time?ampm(g.time)+" · ":""}${g.home?"Home":"Away"}</small>${g.past?"":`<span class="su-drop${dropOf(g)?"":" tba"}">${dropOf(g)?`🍎 Food by ${ampm(dropOf(g))}`:"Food drop-off time coming soon"}</span>`}</span>
+        <span class="su-opp"><b>${g.home?"vs":"at"} ${esc(g.opponent||"Game")}</b><small>${g.time?ampm(g.time):"Time TBD"} · ${g.home?"Home":"Away"}</small>${g.past?"":`<span class="su-drop${dropOf(g)?"":" tba"}">${dropOf(g)?`🍎 Food by ${ampm(dropOf(g))}`:"Food drop-off time coming soon"}</span>`}</span>
         <span class="su-st">${st}</span>${can?`<span class="su-chev" aria-hidden="true">›</span>`:""}
       </button>
       ${on?`<div class="su-slots"><p class="su-pickhelp">${dropOf(g)?`Please have food there by <b>${ampm(dropOf(g))}</b>${g.home?"":" (away game)"}. `:"The coach will post the drop-off time soon. "}Pick what you'll bring:</p>${(SHEET.slots||[]).map(x=>{const list=by[g.date+"|"+x.name]||[],l=x.count-list.length;

@@ -47,7 +47,7 @@ function cellHTML(iso,d){
   const tagsHTML=list=>list.filter(n=>!isTryout(n)&&!isMeeting(n)&&!isBus(n)).map(n=>`<span class="tag holiday">${esc(n)}</span>`).join("");
   if(d.game){
     const g=d.game;cls="game";
-    body+=`<span class="tag ${g.home===false?"away":"home"}">${g.home===false?"Away":"Home"}</span><span class="ev"><b>${g.home===false?"at ":""}${esc(g.opponent||"Game")}</b><small>${ampm(g.time)}</small></span>`;
+    body+=`<span class="tag ${g.home===false?"away":"home"}">${g.home===false?"Away":"Home"}</span><span class="ev"><b>${g.home===false?"at ":""}${esc(g.opponent||"Game")}</b><small>${g.time?ampm(g.time):"Time TBD"}</small></span>`;
   }
   let after="";
   if(d.off&&d.off.note){const np=/^no practice$/i.test(d.off.note);cls=cls||(np?"nopr":"holiday");after+=np?`<span class="ev nopr"><b>No practice</b></span>`:`<span class="ev holiday"><b>${esc(d.off.note)}</b><small>No practice</small></span>`;}
@@ -120,7 +120,7 @@ function render(){
   $("#calMonths").classList.toggle("one-month",one);
   $("#calMonths").innerHTML=(one?[months[idx]]:months).map(([y,m])=>monthHTML(y,m,days)).join("");
   $("#calGames").innerHTML=games.length?`<caption>Game list</caption><thead><tr><th>Date</th><th>Opponent</th><th>Time</th><th>Location</th></tr></thead><tbody>`+
-    games.map(g=>`<tr data-day="${g.date}"><td>${longDay(g.date)}</td><td class="opp">${esc(g.opponent||"")}</td><td>${ampm(g.time)}</td><td>${g.home===false?"Away":"Home"}</td></tr>`).join("")+`</tbody>`:"";
+    games.map(g=>`<tr data-day="${g.date}"><td>${longDay(g.date)}</td><td class="opp">${esc(g.opponent||"")}</td><td>${g.time?ampm(g.time):"TBD"}</td><td>${g.home===false?"Away":"Home"}</td></tr>`).join("")+`</tbody>`:"";
   $("#calFoot").textContent=`Practices ${span(st.weekdayStart,st.weekdayEnd)} weekdays${st.weekendStart?`, ${span(st.weekendStart,st.weekendEnd)} weekends`:""}. Change the season, practice days and times in Settings.`;
 }
 window.onCalChange=()=>{if(!$("#view-cal").hidden)render();};
@@ -184,7 +184,7 @@ function renderDay(){
         <p class="help" id="mdPreview"></p></div>`;}
   }
   if(d.game){const g=d.game;
-    h+=`<div class="day-ev game"><b>${g.home===false?"at ":"vs "}${esc(g.opponent||"Game")}</b><span>${ampm(g.time)} · ${g.home===false?"Away":"Home"}</span>${ed?delBtn("delGame","Delete game"):""}</div>`;
+    h+=`<div class="day-ev game"><b>${g.home===false?"at ":"vs "}${esc(g.opponent||"Game")}</b><span>${g.time?ampm(g.time):"Time TBD"} · ${g.home===false?"Away":"Home"}</span>${ed?delBtn("delGame","Delete game"):""}</div>`;
     h+=`<div class="actions day-bus"><button class="btn" type="button" data-act="gamePlan">Gameplan</button><button class="btn" type="button" data-act="scoutRep">Scouting report</button>${g.home===false?`<button class="btn" type="button" data-act="busList">Bus list</button>`:""}</div>`;
     if(ed)h+=`<details class="day-edit"><summary>Edit this game</summary>${gameForm(g)}</details>`;
   }
@@ -240,6 +240,7 @@ function mdDays(){
 function mdPreview(){const p=$("#mdPreview");if(!p)return;const l=mdDays();
   p.textContent=l.length?`${l.length} more day${l.length>1?"s":""}: ${longDay(l[0])}${l.length>1?" to "+longDay(l[l.length-1]):""}.`:"Pick a later date.";}
 $("#dayBody").addEventListener("change",e=>{
+  if(e.target.id==="dgTbd"){const t=$("#dgTime");t.disabled=e.target.checked;if(e.target.checked)t.value="";else t.focus();return;}
   if(e.target.id==="mdTo"||e.target.id==="mdOnly"){mdPreview();return;}
   if(e.target.dataset.mdday){mdCount();return;}
   if(e.target.id==="dpBus"){const t=e.target.value;if(!t)return;
@@ -259,7 +260,7 @@ $("#dayBody").addEventListener("focusout",e=>{
 const delBtn=(act,label)=>`<button class="btn danger day-del" type="button" data-act="${act}" data-label="${label}">${label}</button>`;
 function gameForm(g){
   return `<div class="day-game" data-orig="${esc(g.date||"")}"><label class="f">Opponent<input id="dgOpp" value="${esc(g.opponent||"")}" placeholder="e.g. Waynesville"></label>
-    <div class="grid2"><label class="f">Date<input type="date" id="dgDate" value="${esc(g.date||dayIso)}"></label><label class="f">Time<input type="time" id="dgTime" value="${esc(g.time||"")}"></label></div>
+    <div class="grid2"><label class="f">Date<input type="date" id="dgDate" value="${esc(g.date||dayIso)}"></label><div class="f">Time<span class="tbd-wrap"><input type="time" id="dgTime" aria-label="Game time" value="${esc(g.tbd?"":g.time||"")}"${g.tbd?" disabled":""}><label class="tbd"><input type="checkbox" id="dgTbd"${g.tbd?" checked":""}> TBD</label></span></div></div>
     <label class="f">Where<select id="dgHome"><option value="1"${g.home!==false?" selected":""}>Home</option><option value="0"${g.home===false?" selected":""}>Away</option></select></label>
     <div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="saveGame">Save game</button></div></div>`;
 }
@@ -324,7 +325,8 @@ $("#dayBody").addEventListener("click",e=>{
   if(a==="saveGame"){
     const box=b.closest(".day-game"),orig=box.dataset.orig,date=$("#dgDate").value,opp=$("#dgOpp").value.trim();
     if(!date||!opp){msg($("#dayMsg"),"Add the opponent and date.","err");return;}
-    const g={date,opponent:opp,time:$("#dgTime").value,home:$("#dgHome").value==="1"};
+    const tbd=$("#dgTbd").checked,g={date,opponent:opp,time:tbd?"":$("#dgTime").value,home:$("#dgHome").value==="1"};
+    if(tbd||!g.time)g.tbd=true;
     change(st=>{st.games=st.games.filter(x=>x.date!==orig&&x.date!==date);st.games.push(g);},"Game saved");
     if(date!==iso)dayIso=date;
   }

@@ -64,7 +64,7 @@ function ics(list,o){
     else{L.push("DTSTART;VALUE=DATE:"+d.replace(/-/g,""),"DTEND;VALUE=DATE:"+addDays(d,1).replace(/-/g,""));}
     L.push("SUMMARY:"+esc(title));if(desc)L.push("DESCRIPTION:"+esc(desc));if(loc)L.push("LOCATION:"+esc(loc));L.push("END:VEVENT");};
   list.forEach(x=>{
-    if(show.games!==false&&x.game){const g=x.game;ev("game",x.date,`${g.home?"vs":"at"} ${g.opponent||"Game"}`,g.time,"",[g.home?"Home game":"Away game",...x.notes].join(" · "),g.location);}
+    if(show.games!==false&&x.game){const g=x.game;ev("game",x.date,`${g.home?"vs":"at"} ${g.opponent||"Game"}${g.time?"":" (time TBD)"}`,g.time,"",[g.home?"Home game":"Away game",...x.notes].join(" · "),g.location);}
     if(show.practices!==false&&x.practice){const p=x.practice;ev("practice",x.date,/tryout/i.test(p.notes.join(" "))?"Tryouts":"Practice",p.start,p.end,p.notes.join(" · "));}
     if(show.off!==false&&x.off)ev("off",x.date,x.off.note==="No practice"?"No practice":x.off.note+" (no practice)","","","");
     if(show.off!==false&&!x.practice&&!x.game&&x.notes.length)ev("note",x.date,x.notes.join(" · "),"","","");

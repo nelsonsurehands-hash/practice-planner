@@ -402,7 +402,7 @@ function renderSched(){
     return `<article class="sch-row${past?" past":""}${isAway?" away":" home"}${g.date===today?" today":""}">
       <div class="sch-date"><small>${DOWS[d.getDay()]}</small><b>${d.getDate()}</b><small>${MONS[d.getMonth()]}</small></div>
       <div class="sch-main"><div class="sch-top"><span class="sch-pill">${isAway?"Away":"Home"}</span><b class="sch-opp">${isAway?"at":"vs"} ${esc(g.opponent||"Game")}</b>${res?`<span class="sch-res ${res[0]}">${res}</span>`:""}</div>
-        <div class="sch-meta">${g.time?`Game ${hm(g.time)}`:"Game time not set"}${g.date===today?" · <b>Today</b>":""}</div>
+        <div class="sch-meta">${g.time?`Game ${hm(g.time)}`:"Game time TBD"}${g.date===today?" · <b>Today</b>":""}</div>
         ${bus}${fb}
         <div class="sch-links"><button type="button" class="linkbtn" data-schgp="${g.date}">Gameplan</button>${g.date>=today||res?"":`<button type="button" class="linkbtn" data-schgp="${g.date}">Add the score</button>`}</div></div></article>`;};
   box.innerHTML=(needsDb==="trips"?DB_HELP:"")+`<div class="tm-card sch-head"><h3 class="tm-h">Schedule <small>${all.length} games · ${away.length} away</small></h3>
@@ -419,7 +419,7 @@ const schedFood=g=>{const b=food&&food.board;if(!b||!b.active||(b.skip||[]).incl
 function schedLines(){
   return allGames().map(g=>{const t=g.home===false?tripFor(g.date):null;
     const ft=schedFood(g);
-    return `${longDay(g.date)}: ${g.home===false?"at":"vs"} ${g.opponent||"Game"}${g.time?", game "+hm(g.time):""}${t?` · bus leaves ${hm(t.depart)}${t.return?", back about "+hm(t.return):""}${t.from?" from "+t.from:""}`:" (home)"}${ft?` · food by ${hm(ft)}`:""}`;});
+    return `${longDay(g.date)}: ${g.home===false?"at":"vs"} ${g.opponent||"Game"}${g.time?", game "+hm(g.time):", time TBD"}${t?` · bus leaves ${hm(t.depart)}${t.return?", back about "+hm(t.return):""}${t.from?" from "+t.from:""}`:" (home)"}${ft?` · food by ${hm(ft)}`:""}`;});
 }
 function printSched(){
   const doc=pdfDoc();let y=pdfHead(doc,"Game & Bus Schedule",[team.name,(team.settings||{}).teamLabel].filter(Boolean).join(" · "));
@@ -428,7 +428,7 @@ function printSched(){
   doc.setFont("helvetica","normal");doc.setFontSize(10);
   allGames().forEach(g=>{if(y>740){doc.addPage();y=50;}const t=g.home===false?tripFor(g.date):null;
     doc.setFont("helvetica","normal");doc.text(longDay(g.date),cols[0],y);doc.setFont("helvetica","bold");doc.text(String((g.home===false?"at ":"vs ")+(g.opponent||"Game")).slice(0,28),cols[1],y);
-    doc.setFont("helvetica","normal");doc.text(g.home===false?"Away":"Home",cols[2],y);doc.text(hm(g.time)||"",cols[3],y);
+    doc.setFont("helvetica","normal");doc.text(g.home===false?"Away":"Home",cols[2],y);doc.text(hm(g.time)||"TBD",cols[3],y);
     const ft=schedFood(g);if(ft)doc.text(hm(ft),cols[6],y);
     if(t){doc.setFont("helvetica","bold");doc.text(hm(t.depart)||"",cols[4],y);doc.setFont("helvetica","normal");doc.text(hm(t.return)||"",cols[5],y);
       if(t.from){y+=12;doc.setFontSize(8.5);doc.setTextColor(110);doc.text("Leaves from "+t.from,cols[4],y);doc.setTextColor(0);doc.setFontSize(10);}}

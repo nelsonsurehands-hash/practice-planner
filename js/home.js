@@ -43,7 +43,7 @@ function nextGameCard(){
   const n=daysUntil(g.date),bus=(SETTINGS.special||[]).find(x=>x.date===g.date&&/^bus\b/i.test(x.note||""));
   return `<div class="hm-card hm-next"><small class="hm-k">Next game · ${n===0?"Today":n===1?"Tomorrow":`in ${n} days`}</small>
     <b class="hm-opp">${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")}</b>
-    <p class="hm-meta">${[fullDay(g.date),ampm(g.time),g.home===false?"Away":"Home"].filter(Boolean).join(" · ")}${bus?`<br>${esc(bus.note)}`:""}</p>
+    <p class="hm-meta">${[fullDay(g.date),g.time?ampm(g.time):"Time TBD",g.home===false?"Away":"Home"].filter(Boolean).join(" · ")}${bus?`<br>${esc(bus.note)}`:""}</p>
     <div class="hm-mini">${typeof hasFeature!=="function"||hasFeature("game")?`<button type="button" class="btn" data-hm="gameplan" data-date="${g.date}">Gameplan</button>`:""}${g.home===false&&(typeof hasFeature!=="function"||hasFeature("bus"))?`<button type="button" class="btn" data-hm="bus" data-date="${g.date}">Bus list</button>`:""}</div></div>`;
 }
 function planLine(iso){
@@ -54,7 +54,7 @@ function planLine(iso){
 }
 function dayItems(d,withPlan){
   const out=[];
-  if(d.game)out.push(`<li class="g"><span class="hm-pill ${d.game.home?"home":"away"}">${d.game.home?"Home":"Away"}</span><b>${d.game.home?"vs":"at"} ${esc(d.game.opponent||"Game")}</b>${d.game.time?`<small>${ampm(d.game.time)}</small>`:""}</li>`);
+  if(d.game)out.push(`<li class="g"><span class="hm-pill ${d.game.home?"home":"away"}">${d.game.home?"Home":"Away"}</span><b>${d.game.home?"vs":"at"} ${esc(d.game.opponent||"Game")}</b><small>${d.game.time?ampm(d.game.time):"Time TBD"}</small></li>`);
   if(d.practice)out.push(`<li class="p"><span class="hm-pill prac">${/tryout/i.test(d.practice.notes.join(" "))?"Tryouts":"Practice"}</span><b>${span(d.practice.start,d.practice.end)}</b>${d.practice.notes.filter(n=>!/tryout/i.test(n)).map(n=>`<small>${esc(n)}</small>`).join("")}${withPlan?`<div class="hm-plan">${planLine(d.date)}</div>`:""}</li>`);
   if(d.off)out.push(`<li class="o"><span class="hm-pill off">No practice</span>${d.off.note&&d.off.note!=="No practice"?`<b>${esc(d.off.note)}</b>`:""}</li>`);
   d.notes.forEach(n=>out.push(`<li class="n"><span class="hm-pill note">${/^bus\b/i.test(n)?"Bus":"Note"}</span><b>${esc(n)}</b></li>`));

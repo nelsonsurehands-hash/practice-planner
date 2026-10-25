@@ -422,7 +422,7 @@ $("#sDays").innerHTML=DOW.map((d,i)=>`<label><input type="checkbox" id="sd${i}" 
 function gameRow(g,i){return `<div class="row game" data-i="${i}">
   <input type="date" data-f="date" value="${esc(g.date||"")}" aria-label="Game date">
   <input data-f="opponent" value="${esc(g.opponent||"")}" placeholder="Opponent" aria-label="Opponent">
-  <input type="time" data-f="time" value="${esc(g.time||"")}" aria-label="Game time">
+  <span class="tbd-wrap"><input type="time" data-f="time" value="${esc(g.time||"")}" aria-label="Game time"${g.tbd?" disabled":""}><label class="tbd"><input type="checkbox" data-f="tbd"${g.tbd?" checked":""}> TBD</label></span>
   <select data-f="home" aria-label="Home or away"><option value="1"${g.home!==false?" selected":""}>Home</option><option value="0"${g.home===false?" selected":""}>Away</option></select>
   <button class="icon rm" data-rm="games" aria-label="Remove game">✕</button></div>`;}
 function specialRow(x,i){return `<div class="row special" data-i="${i}">
@@ -587,11 +587,13 @@ settingsView.addEventListener("input",e=>{
   if(["sColor","sColor2","sUseC2"].includes(e.target.id))renderIconPick();
   const row=e.target.closest(".row");
   if(row){const list=row.classList.contains("game")?draft.games:draft.special,item=list[+row.dataset.i],f=e.target.dataset.f;
-    item[f]=f==="home"?e.target.value==="1":e.target.value;}
+    if(f==="tbd"){item.tbd=e.target.checked;if(item.tbd)item.time="";else delete item.tbd;const t=row.querySelector('[data-f="time"]');t.disabled=e.target.checked;if(e.target.checked)t.value="";}
+    else item[f]=f==="home"?e.target.value==="1":e.target.value;
+    if(f==="time"&&item.time)delete item.tbd;}
   if(e.target.closest(".st-edit"))$("#sStatus").textContent="Unsaved changes";
   updatePreview();
 });
-settingsView.addEventListener("change",e=>{if(e.target.matches("select[data-f]"))settingsView.dispatchEvent(new Event("input",{bubbles:true}));});
+settingsView.addEventListener("change",e=>{if(e.target.matches("select[data-f],input[type=checkbox][data-f]"))settingsView.dispatchEvent(new Event("input",{bubbles:true}));});
 settingsView.addEventListener("click",e=>{
   const rm=e.target.closest("[data-rm]");
   if(rm){const row=rm.closest(".row");draft[rm.dataset.rm].splice(+row.dataset.i,1);renderRows();updatePreview();$("#sStatus").textContent="Unsaved changes";}

@@ -71,7 +71,7 @@ function cellHTML(iso,d){
     list.filter(isBus).map(n=>`<span class="ev bus"><b>${esc(n)}</b></span>`).join("");
   const tagsHTML=list=>list.filter(n=>!isTryout(n)&&!isMeeting(n)&&!isBus(n)).map(n=>`<span class="tag holiday">${esc(n)}</span>`).join("");
   if(d.game){const g=d.game;cls="game";
-    body+=`<span class="tag ${g.home?"home":"away"}">${g.home?"Home":"Away"}</span><span class="ev"><b>${g.home?"":"at "}${esc(g.opponent||"Game")}</b><small>${ampm(g.time)}</small></span>`;}
+    body+=`<span class="tag ${g.home?"home":"away"}">${g.home?"Home":"Away"}</span><span class="ev"><b>${g.home?"":"at "}${esc(g.opponent||"Game")}</b><small>${g.time?ampm(g.time):"Time TBD"}</small></span>`;}
   if(d.off){const np=/^no practice$/i.test(d.off.note);cls=cls||(np?"nopr":"holiday");after+=np?`<span class="ev nopr"><b>No practice</b></span>`:`<span class="ev holiday"><b>${esc(d.off.note)}</b><small>No practice</small></span>`;}
   if(d.practice){const p=d.practice,tr=isTry(p);cls=cls||(tr?"tryout":"practice");
     body+=`<span class="ev"><b>${tr?"Tryouts":"Practice"}</b><small>${span(p.start,p.end)}</small></span>`+evHTML(p.notes);after+=tagsHTML(p.notes);}
@@ -105,7 +105,7 @@ function renderNext(){
   const ng=DAYS.find(d=>d.game&&d.date>=t),np=DAYS.find(d=>d.practice&&(d.date>t||(d.date===t&&toM(d.practice.end)>nowMin)));
   const when=d=>d.date===t?"Today":d.date===S.addDays(t,1)?"Tomorrow":longDay(d.date);
   const cards=[];
-  if(ng)cards.push(`<div class="sc-nx"><small>Next game · ${esc(when(ng))}</small><b>${ng.game.home?"vs":"at"} ${esc(ng.game.opponent||"Game")}</b><span>${[ng.game.time&&ampm(ng.game.time),ng.game.home?"Home":"Away",ng.game.location].filter(Boolean).map(esc).join(" · ")}${ng.notes.length?`<br>${esc(ng.notes.join(" · "))}`:""}</span></div>`);
+  if(ng)cards.push(`<div class="sc-nx"><small>Next game · ${esc(when(ng))}</small><b>${ng.game.home?"vs":"at"} ${esc(ng.game.opponent||"Game")}</b><span>${[ng.game.time?ampm(ng.game.time):"Time TBD",ng.game.home?"Home":"Away",ng.game.location].filter(Boolean).map(esc).join(" · ")}${ng.notes.length?`<br>${esc(ng.notes.join(" · "))}`:""}</span></div>`);
   if(np)cards.push(`<div class="sc-nx"><small>Next practice · ${esc(when(np))}</small><b>${isTry(np.practice)?"Tryouts":"Practice"}</b><span>${span(np.practice.start,np.practice.end)}${np.practice.notes.length?` · ${esc(np.practice.notes.join(" · "))}`:""}</span></div>`);
   $("#scNext").innerHTML=cards.join("");$("#scNext").hidden=!cards.length;
 }
@@ -141,13 +141,13 @@ function render(){
   $("#calMonths").classList.toggle("one-month",one);
   $("#calMonths").innerHTML=(one?[months[idx]]:months).map(([y,m])=>monthHTML(y,m)).join("");
   $("#calGames").innerHTML=games.length?`<caption>Game list</caption><thead><tr><th>Date</th><th>Opponent</th><th>Time</th><th>Location</th></tr></thead><tbody>`+
-    games.map(d=>`<tr data-day="${d.date}"${d.date<todayISO()?' style="opacity:.6"':""}><td>${esc(S.dObj(d.date).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}))}</td><td class="opp">${esc(d.game.opponent||"")}</td><td>${ampm(d.game.time)}</td><td>${d.game.home?"Home":"Away"}${d.game.location?" · "+esc(d.game.location):""}</td></tr>`).join("")+`</tbody>`:"";
+    games.map(d=>`<tr data-day="${d.date}"${d.date<todayISO()?' style="opacity:.6"':""}><td>${esc(S.dObj(d.date).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}))}</td><td class="opp">${esc(d.game.opponent||"")}</td><td>${d.game.time?ampm(d.game.time):"TBD"}</td><td>${d.game.home?"Home":"Away"}${d.game.location?" · "+esc(d.game.location):""}</td></tr>`).join("")+`</tbody>`:"";
   $("#calFoot").textContent=show.practices!==false&&st.weekdayStart?`Practices are usually ${span(st.weekdayStart,st.weekdayEnd)} on weekdays${st.weekendStart?` and ${span(st.weekendStart,st.weekendEnd)} on weekends`:""}. Days with different times show them on the calendar.`:"";
 }
 function openDay(iso){
   const d=BY[iso];$("#scDayTitle").textContent=longDay(iso);
   const li=[];
-  if(d&&d.game)li.push(`<li><span class="sc-pill ${d.game.home?"p-home":"p-away"}">${d.game.home?"Home":"Away"}</span><b>${d.game.home?"vs":"at"} ${esc(d.game.opponent||"Game")}</b>${d.game.time?`<small>${ampm(d.game.time)}</small>`:""}${d.game.location?`<small>${esc(d.game.location)}</small>`:""}</li>`);
+  if(d&&d.game)li.push(`<li><span class="sc-pill ${d.game.home?"p-home":"p-away"}">${d.game.home?"Home":"Away"}</span><b>${d.game.home?"vs":"at"} ${esc(d.game.opponent||"Game")}</b><small>${d.game.time?ampm(d.game.time):"Time TBD"}</small>${d.game.location?`<small>${esc(d.game.location)}</small>`:""}</li>`);
   if(d&&d.practice)li.push(`<li><span class="sc-pill p-prac">${isTry(d.practice)?"Tryouts":"Practice"}</span><b>${span(d.practice.start,d.practice.end)}</b></li>`);
   if(d&&d.off)li.push(`<li><span class="sc-pill p-off">No practice</span>${d.off.note!=="No practice"?`<b>${esc(d.off.note)}</b>`:""}</li>`);
   if(d)[...(d.practice?d.practice.notes.filter(n=>!isTryout(n)):[]),...d.notes].forEach(n=>li.push(`<li><span class="sc-pill p-note">${isBus(n)?"Bus":isMeeting(n)?"Meeting":"Note"}</span><b>${esc(n)}</b></li>`));

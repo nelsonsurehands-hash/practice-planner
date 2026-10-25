@@ -1116,3 +1116,8 @@ body.pb-full{overflow:hidden}
 .md-chip input{position:absolute;opacity:0;pointer-events:none}
 .md-chip.same{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
 .md-chip:has(input:checked){background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.tbd-wrap{display:flex;align-items:center;gap:8px}
+.tbd-wrap input[type=time]{flex:1;min-width:0}
+.tbd-wrap input[type=time]:disabled{opacity:.45}
+.tbd{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink);white-space:nowrap;cursor:pointer}
+.tbd input{width:auto}
