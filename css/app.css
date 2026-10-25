@@ -388,13 +388,15 @@ button.cal-cell:hover{box-shadow:inset 0 0 0 2px var(--accent)}
 .cal-cell .tag.home{background:var(--cal-try-soft);color:var(--cal-try)}
 .cal-cell .tag.away{background:var(--sunk);color:var(--muted)}
 .cal-cell .tag.holiday{background:var(--cal-hol-soft);color:var(--cal-hol);border:1px solid var(--cal-hol)}
-.plan-dot{align-self:flex-start;font-size:10px;font-weight:700;padding:1px 6px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-variant-numeric:tabular-nums}
+.cal-cell{position:relative}
+.plan-dot{position:absolute;top:5px;right:5px;width:17px;height:17px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font:800 10px/17px var(--body,system-ui);text-align:center;font-style:normal;box-shadow:0 0 0 2px var(--surface)}
+.plan-dot.key{position:static;display:inline-block;margin-right:6px;vertical-align:-3px;box-shadow:none}
 @media (max-width:560px){
   .cal-cell{min-height:62px;padding:3px 2px 5px}
   .cal-cell .ev{font-size:9.5px}.cal-cell .ev small{font-size:9px}
   .cal-cell .tag{font-size:7.5px;padding:1px 3px;letter-spacing:0}
   .cal-grid .dow{font-size:9.5px;letter-spacing:.04em}
-  .plan-dot{font-size:0;width:8px;height:8px;padding:0}
+  .plan-dot{top:3px;right:3px;width:14px;height:14px;font-size:8.5px;line-height:14px}
   .cal-season{text-align:left}
 }
 .cal-list-wrap{overflow-x:auto}

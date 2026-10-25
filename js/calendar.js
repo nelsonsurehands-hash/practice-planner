@@ -55,7 +55,7 @@ function cellHTML(iso,d){
     const p=d.practice,tr=p.notes.some(isTryout);cls=cls||(tr?"tryout":"practice");
     body+=`<span class="ev"><b>${tr?"Tryouts":"Practice"}</b><small>${span(p.start,p.end)}</small></span>`;
     body+=evHTML(p.notes);
-    const pi=planInfo(iso);if(pi)body+=`<span class="plan-dot" title="Practice plan ready">Plan ${pi.used}/${pi.avail}</span>`;
+    const pi=planInfo(iso);if(pi)body+=`<span class="plan-dot" title="Practice plan ready (${pi.used} of ${pi.avail} min)" aria-label="Practice plan ready">P</span>`;
     after+=tagsHTML(p.notes);
   }
   if(d.tags){body+=evHTML(d.tags);after+=tagsHTML(d.tags);}
