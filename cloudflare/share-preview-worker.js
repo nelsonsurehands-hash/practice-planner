@@ -36,7 +36,9 @@ function teamName(t) {
   return sm || clean(t.name) || "Team";
 }
 function texts(kind, d) {
-  const t = d.team || {}, name = teamName(t), label = clean(t.teamLabel);
+  const t = d.team || {}, many = Array.isArray(d.teams) && d.teams.length > 1;
+  const name = many ? [[t.school, t.mascot].map(clean).filter(Boolean).join(" ") || clean(t.name), d.teams.map(x => clean((x.team || {}).teamLabel) || clean((x.team || {}).name)).join(" & ")].filter(Boolean).join(" ") : teamName(t);
+  const label = many ? "" : clean(t.teamLabel);
   if (kind === "c") return {
     title: `${name} Schedule`,
     desc: `${label ? label + " · " : ""}Practices and games, always up to date. Tap to open. No account needed.`

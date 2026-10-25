@@ -436,6 +436,7 @@
     <span class="help" id="calHint">Tap a day to see it, open its practice plan, or change it.</span>
   </div>
   <div class="cal-callout" id="calCallout" hidden></div>
+  <div class="cal-filter" id="calFilter" role="group" aria-label="Show on the calendar"></div>
   <div class="cal-viewbar">
     <div class="seg" role="group" aria-label="Calendar view"><button type="button" data-calview="month" aria-pressed="true">Month</button><button type="button" data-calview="all" aria-pressed="false">Full season</button></div>
     <div class="cal-nav" id="calNav"><button class="btn" type="button" id="calPrev" aria-label="Previous month">‹</button><b id="calNavLabel"></b><button class="btn" type="button" id="calNext" aria-label="Next month">›</button></div>
@@ -610,9 +611,11 @@
 <dialog id="calExpDlg" aria-labelledby="expTitle">
   <div class="dlg">
     <h2 id="expTitle">Export calendar</h2>
+    <fieldset class="catpick" id="expTeams" hidden></fieldset>
     <fieldset class="catpick"><legend>Include</legend><div class="exp-pick">
       <label><input type="checkbox" id="expP" checked> Practices and tryouts</label>
       <label><input type="checkbox" id="expG" checked> Games</label>
+      <label><input type="checkbox" id="expB" checked> Bus and departure times (with games)</label>
       <label><input type="checkbox" id="expO"> Holidays and days off</label>
     </div></fieldset>
     <p class="help">Tip: send players and parents a games-only file.</p>

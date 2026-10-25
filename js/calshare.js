@@ -3,12 +3,12 @@
    make the link, pick what it shows, and can turn it off. Saved in calendar_shares (hosted)
    or in this browser (demo). */
 (function(){
-const SHOW_DEFAULT={practices:true,games:true,off:true};
+const SHOW_DEFAULT={practices:true,games:true,bus:true,off:true};
 const randId=()=>{const a=new Uint8Array(10);crypto.getRandomValues(a);return Array.from(a,b=>"abcdefghijkmnpqrstuvwxyz23456789"[b%32]).join("");};
 /* Short, clean links parents can trust: theextracoach.com/c/<code> */
 const linkURL=id=>location.origin+"/c/"+encodeURIComponent(id)+(HOSTED?"":"?demo=1");
 const canMake=()=>typeof PERM==="undefined"||!!PERM.schedule;
-const missing=e=>/calendar_shares|does not exist|schema cache/i.test((e&&e.message)||String(e||""));
+const missing=e=>/calendar_shares|team_ids|does not exist|schema cache/i.test((e&&e.message)||String(e||""));
 const API=()=>HOSTED?{
   async load(){const {data,error}=await sb.from("calendar_shares").select("*").eq("team_id",team.id).maybeSingle();if(error)throw error;return data;},
   async create(v){const {data,error}=await sb.from("calendar_shares").insert({...v,team_id:team.id}).select().single();if(error)throw error;return data;},
@@ -26,7 +26,15 @@ const teamLine=()=>{const s=team.settings||{};return [s.school&&s.mascot?`${s.sc
 const showBoxes=(sh,dis)=>`<fieldset class="catpick"><legend>Parents see</legend><div class="exp-pick">
   <label><input type="checkbox" data-cs="games"${sh.games!==false?" checked":""}${dis}> Games</label>
   <label><input type="checkbox" data-cs="practices"${sh.practices!==false?" checked":""}${dis}> Practices and tryouts</label>
-  <label><input type="checkbox" data-cs="off"${sh.off!==false?" checked":""}${dis}> Days off, holidays and notes (meetings, bus times)</label></div></fieldset>`;
+  <label><input type="checkbox" data-cs="bus"${sh.bus!==false?" checked":""}${dis}> Bus and departure times</label>
+  <label><input type="checkbox" data-cs="off"${sh.off!==false?" checked":""}${dis}> Days off, holidays and notes (meetings)</label></div></fieldset>`;
+/* Teams on the link: this team, plus any other teams you coach (e.g. 7th and 8th grade on one link). */
+const others=()=>(typeof teams!=="undefined"?teams:[]).filter(t=>t.id!==team.id);
+const lbl=t=>((t.settings||{}).teamLabel)||t.name;
+const teamBoxes=(ids,dis)=>others().length?`<fieldset class="catpick"><legend>Teams on this link</legend><div class="exp-pick">
+  <label><input type="checkbox" checked disabled> ${esc(lbl(team))} <small>(this team)</small></label>
+  ${others().map(t=>`<label><input type="checkbox" data-cst="${esc(t.id)}"${(ids||[]).includes(t.id)?" checked":""}${dis}> ${esc(lbl(t))}</label>`).join("")}</div></fieldset>`:"";
+const readTeams=()=>{const o=[team.id];box().querySelectorAll("[data-cst]:checked").forEach(x=>o.push(x.dataset.cst));return o;};
 
 /* Shown in two places: the Calendar tab's "Parent link" button (a dialog) and Team → Parent Admin. */
 const inDlg=()=>$("#calShareDlg").open;
@@ -38,14 +46,14 @@ function render(){
   if(state==="loading")body=`<p class="help">Loading…</p>`;
   else if(state==="nodb")body=`<p class="help">The parent link needs one more database step. In Supabase, open SQL Editor, paste <b>supabase/team-tools.sql</b> and tap Run. Then try again.</p>`;
   else if(!share)body=ed?`<p class="help" style="margin-top:0">Make one link for parents. It always shows this calendar as it is right now: when you change a practice or add a game, parents see it the next time they open the link. No account needed.</p>
-      ${showBoxes(SHOW_DEFAULT,"")}<div class="actions" style="margin:0"><button class="btn primary" type="button" data-csact="make">Make the parent link</button></div>`:
+      ${teamBoxes([],"")}${showBoxes(SHOW_DEFAULT,"")}<div class="actions" style="margin:0"><button class="btn primary" type="button" data-csact="make">Make the parent link</button></div>`:
       `<p class="help">There's no parent link yet. Ask your head coach to make one.</p>`;
   else{
     const url=linkURL(share.id);
     body=share.active?`<p class="help" style="margin-top:0">Send this to parents by text, email or your team app. It always shows the latest calendar. Parents can also subscribe so the schedule shows up in their phone's calendar app.</p>
       <div class="fd-url"><input readonly value="${esc(url)}" id="csUrl" aria-label="Parent calendar link"><button class="btn primary" type="button" data-csact="copy">Copy link</button>${navigator.share?`<button class="btn" type="button" data-csact="share">Send…</button>`:""}<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Open</a></div>
       <div class="actions" style="margin:8px 0 0"><button class="btn" type="button" data-csact="msg">Copy a message for parents</button></div>
-      ${showBoxes(share.show||SHOW_DEFAULT,dis)}`:
+      ${teamBoxes(share.team_ids||[],dis)}${showBoxes(share.show||SHOW_DEFAULT,dis)}`:
       `<p class="help" style="margin-top:0">The link is off. Parents who open it see that the calendar isn't shared. Turn it back on and the same link works again.</p>`;
     if(ed)body+=`<div class="actions" style="margin:8px 0 0"><button class="btn${share.active?" danger":""}" type="button" data-csact="toggle">${share.active?"Turn off the link":"Turn the link back on"}</button></div>`;
   }
@@ -75,7 +83,7 @@ async function onClick(e){
   const text=()=>`Here's our ${name} calendar: practices, games and changes, always up to date. Bookmark it or add it to your phone's calendar: ${url}`;
   const copy=async(t,ok)=>{try{await navigator.clipboard.writeText(t);msg($("#csMsg"),ok,"ok");}catch{const i=$("#csUrl");if(i)i.select();msg($("#csMsg"),"Select the link and copy it.","err");}};
   if(k==="close")$("#calShareDlg").close();
-  if(k==="make"){a.disabled=true;await save({show:readShow(),active:true},"Link made. Copy it and send it to parents.");}
+  if(k==="make"){a.disabled=true;const ids=readTeams();await save({show:readShow(),active:true,...(ids.length>1?{team_ids:ids}:{})},"Link made. Copy it and send it to parents.");}
   if(k==="copy")copy(url,"Link copied.");
   if(k==="msg")copy(text(),"Message copied. Paste it into a text or email to parents.");
   if(k==="share")navigator.share({title:`${name} calendar`,text:text(),url}).catch(()=>{});
@@ -86,6 +94,7 @@ async function onClick(e){
 }
 $("#calShareDlg").addEventListener("click",onClick);$("#tm-plink").addEventListener("click",onClick);
 function onChange(e){
+  if(e.target.closest("[data-cst]")&&share&&canMake()){const ids=readTeams();save({team_ids:ids.length>1?ids:null},"Saved. Parents see these teams next time they open the link.");return;}
   if(!e.target.closest("[data-cs]")||!share||!canMake())return;
   const v=readShow();if(!v.games&&!v.practices&&!v.off){e.target.checked=true;msg($("#csMsg"),"Parents need to see at least one thing.","err");return;}
   save({show:v},"Saved. Parents see this next time they open the link.");

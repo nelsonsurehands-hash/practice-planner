@@ -94,9 +94,9 @@ $("#calTeam").addEventListener("change",async e=>{
 /* ---------- All my teams: one calendar with every team's practices and games ---------- */
 let hubOn=false;try{hubOn=localStorage.getItem("cpp:calHub")==="1";}catch{}
 const shortLabel=t=>{const s=t.settings||{},l=s.teamLabel||t.name||"Team";return l.replace(/\s+(girls|boys)?\s*(basketball|volleyball|soccer|football|baseball|softball)$/i,"").replace(/\s+(girls|boys)$/i,"")||l;};
-function hubData(){
-  const list=[...teams].sort((a,b)=>String((a.settings||{}).teamLabel||a.name).localeCompare(String((b.settings||{}).teamLabel||b.name),undefined,{numeric:true}));
-  return list.map(t=>({t,label:shortLabel(t),color:(t.settings||{}).color||"#5b2a86",days:buildDays(t.settings||{}).days}));
+function hubData(all){
+  const list=[...teams].filter(t=>all||!VF.hideTeams.includes(t.id)).sort((a,b)=>String((a.settings||{}).teamLabel||a.name).localeCompare(String((b.settings||{}).teamLabel||b.name),undefined,{numeric:true}));
+  return list.map(t=>({t,label:shortLabel(t),color:(t.settings||{}).color||"#5b2a86",days:all?buildDays(t.settings||{}).days:filterDays(buildDays(t.settings||{}).days)}));
 }
 function hubItems(H,iso){
   const groups=new Map(),add=(kind,text,h)=>{const k=kind+"|"+text;if(!groups.has(k))groups.set(k,{kind,text,teams:[]});groups.get(k).teams.push(h);};
@@ -127,13 +127,26 @@ function renderHub(){
     for(let dd=1;dd<=n;dd++)c+=cell(isoD(dd));const tail=(7-((pad+n)%7))%7;for(let i=0;i<tail;i++)c+=`<div class="cal-cell pad"></div>`;
     return `<section class="cal-month"><h3>${MONTHS[m]} ${y}</h3><div class="cal-grid">${DOW.map(x=>`<div class="dow">${x}</div>`).join("")}${c}</div></section>`;}).join("");
   const games=[];H.forEach(h=>((h.t.settings||{}).games||[]).forEach(g=>{if(g.date)games.push({g,h});}));games.sort((a,b)=>a.g.date<b.g.date?-1:a.g.date>b.g.date?1:0);
-  $("#calGames").innerHTML=games.length?`<caption>Game list · all teams</caption><thead><tr><th>Date</th><th>Team</th><th>Opponent</th><th>Time</th><th>Location</th></tr></thead><tbody>`+
+  $("#calGames").innerHTML=games.length&&!VF.hide.game?`<caption>Game list · all teams</caption><thead><tr><th>Date</th><th>Team</th><th>Opponent</th><th>Time</th><th>Location</th></tr></thead><tbody>`+
     games.map(({g,h})=>`<tr data-day="${g.date}"><td>${longDay(g.date)}</td><td><i class="hub-dot" style="background:${esc(h.color)}"></i>${esc(h.label)}</td><td class="opp">${esc(g.opponent||"")}${g.event?`<small class="gl-ev">${esc(g.event)}</small>`:""}</td><td>${g.time?ampm(g.time):"TBD"}</td><td>${g.home===false?"Away":"Home"}${g.location?" · "+esc(g.location):""}</td></tr>`).join("")+`</tbody>`:"";
   $("#calFoot").textContent="Every team you coach, on one calendar. Tap a day to change practices for the teams you pick, or to add a game for one team.";
 }
 
+/* ---------- view filter (what you see; doesn't change anything) ---------- */
+let VF={hideTeams:[],hide:{}};try{VF={hideTeams:[],hide:{},...JSON.parse(localStorage.getItem("cpp:calFilter")||"{}")};}catch{}
+const saveVF=()=>{try{localStorage.setItem("cpp:calFilter",JSON.stringify(VF));}catch{}};
+function filterDays(days){if(!VF.hide.practice&&!VF.hide.game&&!VF.hide.off)return days;const out={};
+  Object.entries(days).forEach(([k,d])=>{const x={...d};if(VF.hide.practice)delete x.practice;if(VF.hide.game)delete x.game;if(VF.hide.off){delete x.off;delete x.tags;}if(x.practice||x.game||x.off||x.tags)out[k]=x;});return out;}
+function renderFilter(){
+  const el=$("#calFilter");if(!el)return;const hub=hubOn&&typeof teams!=="undefined"&&teams.length>1;
+  const chip=(attr,val,on,label,dot)=>`<label class="vf-chip${on?" on":""}"><input type="checkbox" ${attr}="${esc(val)}"${on?" checked":""}>${dot?`<i class="hub-dot" style="background:${esc(dot)}"></i>`:""}<span>${esc(label)}</span></label>`;
+  el.innerHTML=`<span class="vf-k">Show</span>${hub?hubData(true).map(h=>chip("data-vft",h.t.id,!VF.hideTeams.includes(h.t.id),h.label,h.color)).join(""):""}${[["practice","Practices"],["game","Games"],["off","Days off & notes"]].map(([k,l])=>chip("data-vfk",k,!VF.hide[k],l)).join("")}`;
+}
+document.addEventListener("change",e=>{const t=e.target;
+  if(t.dataset.vft!==undefined){VF.hideTeams=t.checked?VF.hideTeams.filter(x=>x!==t.dataset.vft):[...new Set([...VF.hideTeams,t.dataset.vft])];saveVF();render();}
+  if(t.dataset.vfk!==undefined){VF.hide={...VF.hide,[t.dataset.vfk]:!t.checked};saveVF();render();}});
 function render(){
-  renderTeamPick();
+  renderTeamPick();renderFilter();
   if(hubOn&&typeof teams!=="undefined"&&teams.length>1){renderHub();return;}
   if(typeof SETTINGS==="undefined"||!$("#calMonths"))return;
   const st=SETTINGS,{days,practices}=buildDays(st),months=monthsToShow(st,days);
@@ -146,15 +159,8 @@ function render(){
     $("#calMonths").innerHTML=`<div class="empty">No schedule yet. Set your season dates and practice days below (Season &amp; practice setup), or tap + Game to add your first game.</div>`;
     $("#calCallout").hidden=true;$("#calGames").innerHTML="";$("#calFoot").textContent="";return;
   }
-  /* practice count before the first game */
-  const games=(st.games||[]).filter(g=>g.date).sort((a,b)=>a.date<b.date?-1:1),g1=games[0];
-  if(g1){
-    const before=practices.filter(([iso])=>iso<g1.date).length,need=+st.minPractices||0;
-    const where=`${longDay(g1.date)} ${g1.home===false?"at":"vs"} ${esc(g1.opponent||"first opponent")}`;
-    $("#calCallout").hidden=false;$("#calCallout").classList.toggle("short",!!need&&before<need);
-    $("#calCallout").innerHTML=need?`<span class="mark">${before>=need?"✓":"!"}</span><span><b>Each player needs ${need} practices</b> before the first game (${where}). ${before} practice${before===1?" is":"s are"} scheduled before then${before>=need?", so this calendar meets the requirement.":`. That's ${need-before} short.`}</span>`
-      :`<span class="mark">${before}</span><span><b>${before} practice${before===1?"":"s"}</b> before the first game (${where}). Set a required number in Season &amp; practice setup (below the calendar) to have it checked.</span>`;
-  }else $("#calCallout").hidden=true;
+  $("#calCallout").hidden=true;
+  const games=(st.games||[]).filter(g=>g.date).sort((a,b)=>a.date<b.date?-1:1);
   /* Month view: one month at a time with ‹ › (or swipe). Full season: every month stacked. */
   const keys=months.map(([y,m])=>y+"-"+m);
   if(!calMonth||!keys.includes(calMonth)){const t=todayISO(),tk=+t.slice(0,4)+"-"+(+t.slice(5,7)-1);calMonth=keys.includes(tk)?tk:keys[0];}
@@ -164,8 +170,8 @@ function render(){
   $("#calNavLabel").textContent=one?`${MONTHS[months[idx][1]]} ${months[idx][0]}`:"";
   $("#calPrev").disabled=idx<=0;$("#calNext").disabled=idx>=keys.length-1;
   $("#calMonths").classList.toggle("one-month",one);
-  $("#calMonths").innerHTML=(one?[months[idx]]:months).map(([y,m])=>monthHTML(y,m,days)).join("");
-  $("#calGames").innerHTML=games.length?`<caption>Game list</caption><thead><tr><th>Date</th><th>Opponent</th><th>Time</th><th>Location</th></tr></thead><tbody>`+
+  {const fd=filterDays(days);$("#calMonths").innerHTML=(one?[months[idx]]:months).map(([y,m])=>monthHTML(y,m,fd)).join("");}
+  $("#calGames").innerHTML=games.length&&!VF.hide.game?`<caption>Game list</caption><thead><tr><th>Date</th><th>Opponent</th><th>Time</th><th>Location</th></tr></thead><tbody>`+
     games.map(g=>`<tr data-day="${g.date}"><td>${longDay(g.date)}</td><td class="opp">${esc(g.opponent||"")}${g.event?`<small class="gl-ev">${esc(g.event)}</small>`:""}</td><td>${g.time?ampm(g.time):"TBD"}</td><td>${g.home===false?"Away":"Home"}${g.location?" · "+esc(g.location):""}</td></tr>`).join("")+`</tbody>`:"";
   $("#calFoot").textContent=`Practices ${span(st.weekdayStart,st.weekdayEnd)} weekdays${st.weekendStart?`, ${span(st.weekendStart,st.weekendEnd)} weekends`:""}. Change the season, practice days and times below.`;
 }
@@ -225,7 +231,7 @@ function renderDay(){
   const regular=isRegular(st,iso),list=entriesOn(st,iso);
   let h=`<h2 id="dayTitle">${fullDay(iso)}</h2>`;
   /* All my teams: who's doing what today, and which teams the practice and day changes go to. */
-  if(dayTeams){const H=hubData();
+  if(dayTeams){const H=hubData(true);
     h+=`<div class="hub-sum">${H.map(x=>{const d2=x.days[iso],l=[];
       if(d2&&d2.game){const g=d2.game;l.push(`${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")} · ${g.time?ampm(g.time):"TBD"}`);}
       if(d2&&d2.practice)l.push(`Practice ${span(d2.practice.start,d2.practice.end)}`);
@@ -243,7 +249,7 @@ function renderDay(){
         <p class="help" id="mdPreview"></p></div>`;}
   }
   if(dayTeams){   // every team's game this day, each editable on its own
-    hubData().forEach(x=>{const g=((x.t.settings||{}).games||[]).find(y=>y.date===iso);if(!g)return;const can=canSchedule(x.t);
+    hubData(true).forEach(x=>{const g=((x.t.settings||{}).games||[]).find(y=>y.date===iso);if(!g)return;const can=canSchedule(x.t);
       const bus=((x.t.settings||{}).special||[]).find(y=>y.date===iso&&(y.bus!==undefined||isBus(y.note)));
       h+=`<div class="day-ev game" style="--tc:${esc(x.color)}"><small class="gev-h"><i class="hub-dot" style="background:${esc(x.color)}"></i>${esc(x.label)}${g.event?" · "+esc(g.event):""}</small><b>${g.home===false?"at ":"vs "}${esc(g.opponent||"Game")}</b><span>${g.time?ampm(g.time):"Time TBD"} · ${g.home===false?"Away":"Home"}${bus?" · "+esc(bus.note):""}</span>${g.location?`<span>📍 ${esc(g.location)}</span>`:""}${can?`<button class="btn danger day-del" type="button" data-act="delGame" data-team="${esc(x.t.id)}" data-label="Delete game">Delete game</button>`:""}</div>`;
       if(can)h+=`<details class="day-edit"><summary>Edit ${esc(x.label)}'s game</summary>${gameForm(g,x.t.id)}</details>`;});
@@ -427,16 +433,26 @@ $("#calToday").addEventListener("click",()=>{
 });
 
 /* ---------- export: phone calendar (.ics), printable PDF, spreadsheet (.csv) ---------- */
-$("#calIcs").addEventListener("click",()=>{$("#expMsg").textContent="";$("#calExpDlg").showModal();});
+$("#calIcs").addEventListener("click",()=>{$("#expMsg").textContent="";
+  const box=$("#expTeams"),hub=hubOn&&teams.length>1;
+  if(box){box.hidden=teams.length<2;box.innerHTML=teams.length<2?"":`<legend>Teams</legend><div class="exp-pick">${[...teams].sort((a,b)=>shortLabel(a).localeCompare(shortLabel(b),undefined,{numeric:true})).map(t=>`<label><input type="checkbox" data-expt="${esc(t.id)}"${(hub?!VF.hideTeams.includes(t.id):t.id===team.id)?" checked":""}> ${esc(shortLabel(t))}</label>`).join("")}</div>`;}
+  $("#calExpDlg").showModal();});
 $("#expClose").addEventListener("click",()=>$("#calExpDlg").close());
+/* Export: this team, or any of your teams together (each event labeled with its team). */
+function expTeams(){const boxes=[...document.querySelectorAll("#expTeams [data-expt]")];
+  return boxes.length?boxes.filter(x=>x.checked).map(x=>teams.find(t=>t.id===x.dataset.expt)).filter(Boolean):[team];}
 function exportEvents(){
-  const st=SETTINGS,{days}=buildDays(st),want={p:$("#expP").checked,g:$("#expG").checked,o:$("#expO").checked};
+  const pick=expTeams(),many=pick.length>1,want={p:$("#expP").checked,g:$("#expG").checked,o:$("#expO").checked,b:!$("#expB")||$("#expB").checked};
+  const st=many?{...SETTINGS,teamLabel:pick.map(shortLabel).join(" & ")}:(pick[0]===team?SETTINGS:(pick[0].settings||{}));
   const team0=[st.school,st.mascot].filter(Boolean).join(" ")||"Team",ev=[];
-  Object.keys(days).sort().forEach(iso=>{const d=days[iso];
-    if(want.p&&d.practice)ev.push({iso,kind:"practice",title:isTryout(d.practice.note)?"Tryouts":"Practice",start:d.practice.start,end:d.practice.end,note:d.practice.note||""});
-    if(want.g&&d.game)ev.push({iso,kind:"game",title:`${d.game.home===false?"at":"vs"} ${d.game.opponent||"Game"}`,start:d.game.time,end:d.game.time?plus(d.game.time,90):"",note:d.game.home===false?"Away":"Home"});
-    if(want.o&&d.off&&d.off.note)ev.push({iso,kind:"off",title:d.off.note,note:"No practice"});
-  });
+  pick.forEach(t=>{const ts=t===team?SETTINGS:(t.settings||{}),{days}=buildDays(ts),pre=many?shortLabel(t)+": ":"";
+    const bus=iso=>((ts.special||[]).find(x=>x.date===iso&&(x.bus!==undefined||isBus(x.note)))||{}).note||"";
+    Object.keys(days).sort().forEach(iso=>{const d=days[iso];
+      if(want.p&&d.practice)ev.push({iso,kind:"practice",tid:t.id,title:pre+(isTryout(d.practice.note)?"Tryouts":"Practice"),start:d.practice.start,end:d.practice.end,note:d.practice.note||""});
+      if(want.g&&d.game)ev.push({iso,kind:"game",tid:t.id,title:pre+`${d.game.home===false?"at":"vs"} ${d.game.opponent||"Game"}`,start:d.game.time,end:d.game.time?plus(d.game.time,90):"",note:[d.game.event,d.game.home===false?"Away":"Home",d.game.location,want.b?bus(iso):""].filter(Boolean).join(" · ")});
+      if(want.o&&d.off&&d.off.note)ev.push({iso,kind:"off",tid:t.id,title:pre+d.off.note,note:"No practice"});
+    });});
+  ev.sort((a,b)=>a.iso<b.iso?-1:a.iso>b.iso?1:(a.start||"")<(b.start||"")?-1:1);
   const slug=team0.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"team";
   return {st,ev,team0,slug};
 }
@@ -444,7 +460,7 @@ const plus=(t,m)=>{const x=toMin(t)+m;return String(Math.floor(x/60)%24).padStar
 $("#calExpDlg").addEventListener("click",async e=>{
   const b=e.target.closest("[data-exp]");if(!b)return;
   const {st,ev,team0,slug}=exportEvents();
-  if(!ev.length){msg($("#expMsg"),"Pick at least one kind of event to export.","err");return;}
+  if(!ev.length){msg($("#expMsg"),expTeams().length?"Pick at least one kind of event to export.":"Pick at least one team.","err");return;}
   const kind=b.dataset.exp;msg($("#expMsg"),"Building…");
   try{
     if(kind==="ics"){
@@ -453,7 +469,7 @@ $("#calExpDlg").addEventListener("click",async e=>{
       const escI=x=>String(x||"").replace(/[\\;,]/g,m=>"\\"+m).replace(/\n/g,"\\n");
       const lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Practice Planner//EN","CALSCALE:GREGORIAN",`X-WR-CALNAME:${escI(team0)}`];
       ev.forEach(x=>{
-        lines.push("BEGIN:VEVENT",`UID:${x.kind}-${x.iso}-${(team&&team.id)||"team"}@practice-planner`,`DTSTAMP:${stamp}`);
+        lines.push("BEGIN:VEVENT",`UID:${x.kind}-${x.iso}-${x.tid||(team&&team.id)||"team"}@practice-planner`,`DTSTAMP:${stamp}`);
         if(x.start)lines.push(`DTSTART:${dt(x.iso,x.start)}`,`DTEND:${dt(x.iso,x.end||plus(x.start,60))}`);
         else lines.push(`DTSTART;VALUE=DATE:${dd(x.iso)}`,`DTEND;VALUE=DATE:${dd(addDays(x.iso,1))}`);
         lines.push(`SUMMARY:${escI(team0+" "+x.title.replace(/^Practice$/,"practice").replace(/^Tryouts$/,"tryouts"))}`);

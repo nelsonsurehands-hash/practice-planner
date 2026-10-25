@@ -15,7 +15,7 @@ const longDay=s=>S.dObj(s).toLocaleDateString("en-US",{weekday:"long",month:"lon
 const todayISO=()=>S.isoOf(new Date());
 const FEED=CFG.supabaseUrl&&!DEMO?`${CFG.supabaseUrl.replace(/\/$/,"")}/functions/v1/calendar-feed?c=${encodeURIComponent(ID)}`:"";
 const pref=(k,v)=>{try{if(v===undefined)return localStorage.getItem("cpp:sched:"+k);localStorage.setItem("cpp:sched:"+k,v);}catch{return null;}};
-let CAL=null,DAYS=[],BY={},view=pref("view")||"month",calMonth=null,feedOK=null;
+let CAL=null,DAYS=[],BY={},TEAMS=null,view=pref("view")||"month",calMonth=null,feedOK=null;
 
 /* ---------- where the calendar lives ---------- */
 let api;
@@ -25,7 +25,9 @@ if(DEMO){
     try{teamId=localStorage.getItem("cpp:calshareTeam:"+ID);share=JSON.parse(localStorage.getItem("cpp:calshare:"+teamId)||"null");
       t=(JSON.parse(localStorage.getItem("cpp:demoTeams")||"[]")).find(x=>x.id===teamId);}catch{}
     if(!share||share.id!==ID||!share.active||!t)return null;const st=t.settings||{};
-    return {title:share.title||"",show:share.show,team:{name:t.name,color:st.color,color2:st.color2,logo:st.logo,school:st.school,mascot:st.mascot,teamLabel:st.teamLabel},schedule:st};
+    const all=JSON.parse(localStorage.getItem("cpp:demoTeams")||"[]"),tj=x=>{const s2=x.settings||{};return {id:x.id,team:{name:x.name,color:s2.color,color2:s2.color2,logo:s2.logo,school:s2.school,mascot:s2.mascot,teamLabel:s2.teamLabel},schedule:s2};};
+    const ids=[t.id,...(share.team_ids||[]).filter(x=>x!==t.id)];
+    return {title:share.title||"",show:share.show,team:tj(t).team,schedule:st,teams:ids.map(id=>all.find(x=>x.id===id)).filter(Boolean).map(tj)};
   }};
 }else{
   const sb=CFG.supabaseUrl&&window.supabase?window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseAnonKey,{auth:{persistSession:false}}):null;
@@ -36,21 +38,25 @@ function fail(text){$("#scLoading").hidden=true;$("#scApp").hidden=true;$("#scEr
 function ink(hex){const m=/^#?([0-9a-f]{6})$/i.exec(hex||"");if(!m)return "#ffffff";const n=parseInt(m[1],16);
   const L=[n>>16&255,n>>8&255,n&255].map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);});
   return .2126*L[0]+.7152*L[1]+.0722*L[2]>.4?"#17141c":"#ffffff";}
-const teamName=()=>{const t=CAL.team||{};return [t.school&&t.mascot?`${t.school} ${t.mascot}`:t.name,t.teamLabel].filter(Boolean).join(" ");};
+const teamName=()=>{const t=CAL.team||{};return [t.school&&t.mascot?`${t.school} ${t.mascot}`:t.name,TEAMS?TEAMS.map(x=>x.label).join(" & "):t.teamLabel].filter(Boolean).join(" ");};
 
 async function load(quiet){
   let c;try{c=await api.get();}catch{if(!quiet)fail("Couldn't load the schedule. Check your connection and try again.");return;}
   if(!c){fail("This calendar link is off or wrong. Ask your coach for the current link.");return;}
   CAL=c;const show=CAL.show||{};
-  DAYS=S.days(CAL.schedule||{}).map(d=>({...d,
-    game:show.games===false?null:d.game,practice:show.practices===false?null:d.practice,off:show.off===false?null:d.off,notes:show.off===false&&!d.game?[]:d.notes}))
+  const prep=sched=>S.days(sched||{}).map(d=>{const nb=n=>show.bus===false?(n||[]).filter(x=>!isBus(x)):(n||[]);
+      return {...d,game:show.games===false?null:d.game,practice:show.practices===false?null:(d.practice&&{...d.practice,notes:nb(d.practice.notes)}),off:show.off===false?null:d.off,notes:nb(show.off===false&&!d.game?(d.notes||[]).filter(isBus):d.notes)};})
     .filter(d=>d.game||d.practice||d.off||d.notes.length);
+  DAYS=prep(CAL.schedule);
+  /* One link, several teams (e.g. 7th and 8th grade) */
+  TEAMS=Array.isArray(CAL.teams)&&CAL.teams.length>1?CAL.teams.map(x=>{const t=x.team||{},dl=prep(x.schedule);
+    return {id:x.id,label:(t.teamLabel||t.name||"Team").replace(/\s+(girls|boys)?\s*(basketball|volleyball|soccer|football|baseball|softball)$/i,"")||t.teamLabel||t.name,color:t.color||"#5b2a86",team:t,sched:x.schedule||{},days:dl,by:Object.fromEntries(dl.map(d=>[d.date,d]))};}):null;
   const t=CAL.team||{},root=document.documentElement;
   root.style.setProperty("--team",t.color||"#5b2a86");root.style.setProperty("--team-ink",ink(t.color));
   if(t.color2){root.style.setProperty("--team2",t.color2);root.classList.add("has-c2");}
   const tc=document.querySelector('meta[name="theme-color"]');if(tc)tc.content=t.color||"#5b2a86";
   document.title=`${t.mascot||t.name||"Team"} Calendar · The Extra Coach`;
-  $("#scEyebrow").textContent=[t.school&&t.mascot?`${t.school} ${t.mascot}`:t.name,t.teamLabel].filter(Boolean).join(" · ");
+  $("#scEyebrow").textContent=[t.school&&t.mascot?`${t.school} ${t.mascot}`:t.name,TEAMS?TEAMS.map(x=>x.label).join(" & "):t.teamLabel].filter(Boolean).join(" · ");
   $("#scTitle").textContent=CAL.title||"Practice & Game Calendar";
   if(t.logo){$("#scLogo").src=t.logo;$("#scLogo").hidden=false;}
   $("#scDemo").hidden=!DEMO;
@@ -124,6 +130,7 @@ function renderCalButtons(){
   }
 }
 function render(){
+  if(TEAMS){renderMulti();return;}
   BY=Object.fromEntries(DAYS.map(d=>[d.date,d]));
   const st=CAL.schedule||{},show=CAL.show||{};
   renderNext();renderCalButtons();
@@ -133,7 +140,7 @@ function render(){
   $("#scSeason").innerHTML=st.seasonStart?`<b>${fmtM(st.seasonStart)} – ${fmtM(st.seasonEnd)}</b><small>${[show.practices!==false?`${nP} practices`:"",show.games!==false?`${games.length} games`:""].filter(Boolean).join(" · ")}</small>`:"";
   /* legend: only what this calendar can show */
   document.querySelectorAll("#scLegend span").forEach(x=>{const k=x.querySelector("i").className.replace("sw ","");
-    x.hidden=(k==="game"&&show.games===false)||((k==="practice"||k==="tryout")&&show.practices===false)||(["holiday","nopr","meeting","bus"].includes(k)&&show.off===false);});
+    x.hidden=(k==="game"&&show.games===false)||((k==="practice"||k==="tryout")&&show.practices===false)||(["holiday","nopr","meeting"].includes(k)&&show.off===false)||(k==="bus"&&show.bus===false);});
   const months=monthsToShow();
   if(!months.length){$("#calMonths").innerHTML=`<div class="empty">Nothing on the schedule yet.</div>`;$("#calNav").hidden=true;$("#calGames").innerHTML="";return;}
   const keys=months.map(([y,m])=>y+"-"+m);
@@ -150,12 +157,69 @@ function render(){
   $("#calFoot").textContent=show.practices!==false&&st.weekdayStart?`Practices are usually ${span(st.weekdayStart,st.weekdayEnd)} on weekdays${st.weekendStart?` and ${span(st.weekendStart,st.weekendEnd)} on weekends`:""}.${prNote()?" "+prNote():""} Days with different times show them on the calendar.`:"";
 }
 function openDay(iso){
+  if(TEAMS){openDayMulti(iso);return;}
   const d=BY[iso];$("#scDayTitle").textContent=longDay(iso);
   const li=[];
   if(d&&d.game)li.push(`<li><span class="sc-pill ${d.game.home?"p-home":"p-away"}">${d.game.home?"Home":"Away"}</span><b>${d.game.home?"vs":"at"} ${esc(d.game.opponent||"Game")}</b><small>${d.game.time?ampm(d.game.time):"Time TBD"}</small>${d.game.event?`<small>${esc(d.game.event)}</small>`:""}${d.game.location?`<small>📍 ${esc(d.game.location)}</small>`:""}</li>`);
   if(d&&d.practice)li.push(`<li><span class="sc-pill p-prac">${isTry(d.practice)?"Tryouts":"Practice"}</span><b>${span(d.practice.start,d.practice.end)}</b>${prNote()?`<small>📌 ${esc(prNote())}</small>`:""}</li>`);
   if(d&&d.off)li.push(`<li><span class="sc-pill p-off">No practice</span>${d.off.note!=="No practice"?`<b>${esc(d.off.note)}</b>`:""}</li>`);
   if(d)[...(d.practice?d.practice.notes.filter(n=>!isTryout(n)):[]),...d.notes].forEach(n=>li.push(`<li><span class="sc-pill p-note">${isBus(n)?"Bus":isMeeting(n)?"Meeting":"Note"}</span><b>${esc(n)}</b></li>`));
+  $("#scDayList").innerHTML=li.join("")||`<li><small>Nothing scheduled.</small></li>`;
+  $("#scDay").showModal();
+}
+
+/* ---------- several teams on one link ---------- */
+function monthsMulti(){
+  const all=[];TEAMS.forEach(x=>{all.push(...x.days.map(d=>d.date));if(x.sched.seasonStart)all.push(x.sched.seasonStart);if(x.sched.seasonEnd)all.push(x.sched.seasonEnd);});all.sort();
+  if(!all.length)return [];const out=[];let y=+all[0].slice(0,4),m=+all[0].slice(5,7)-1;const ey=+all[all.length-1].slice(0,4),em=+all[all.length-1].slice(5,7)-1;
+  while(y<ey||(y===ey&&m<=em)){out.push([y,m]);m++;if(m>11){m=0;y++;}if(out.length>24)break;}return out;
+}
+function itemsOn(iso){
+  const groups=new Map(),add=(kind,text,x)=>{const k=kind+"|"+text;if(!groups.has(k))groups.set(k,{kind,text,teams:[]});groups.get(k).teams.push(x);};
+  TEAMS.forEach(x=>{const d=x.by[iso];if(!d)return;
+    if(d.game){const g=d.game;add("game",`${g.home?"vs":"at"} ${g.opponent||"Game"}${g.time?" "+ampm(g.time).replace(":00",""):""}`,x);}
+    if(d.practice)add("practice",`${isTry(d.practice)?"Tryouts":"Practice"} ${ampm(d.practice.start).replace(":00","")}`,x);
+    if(d.off)add("off",d.off.note==="No practice"?"No practice":d.off.note,x);
+    [...(d.practice?d.practice.notes:[]),...d.notes].filter(n=>!isTryout(n)).forEach(n=>add(isBus(n)?"bus":"note",n,x));});
+  return [...groups.values()];
+}
+function renderMulti(){
+  const show=CAL.show||{},t=todayISO();
+  /* arrival heading: one line when every team arrives the same, else per team */
+  {const a=TEAMS.map(x=>+(x.sched.arriveEarly||0)),el=$("#scArrive");
+    if(el){const same=a.every(v=>v===a[0]);el.hidden=!a.some(Boolean);
+      el.textContent=same?(a[0]?`⏰ Players arrive ${a[0]} minutes before every practice`:""):"⏰ Arrive before practice: "+TEAMS.map((x,i)=>a[i]?`${x.label} ${a[i]} min`:"").filter(Boolean).join(" · ");}}
+  $("#scSeason").innerHTML=`<div class="hub-key">${TEAMS.map(x=>`<span><i style="background:${esc(x.color)}"></i>${esc(x.label)}</span>`).join("")}</div>`;
+  /* what's next */
+  const cards=[],when=d=>d===t?"Today":d===S.addDays(t,1)?"Tomorrow":longDay(d);
+  const ng=[];TEAMS.forEach(x=>{const d=x.days.find(d=>d.game&&d.date>=t);if(d)ng.push({x,d});});ng.sort((a,b)=>a.d.date<b.d.date?-1:1);
+  ng.slice(0,2).forEach(({x,d})=>{const g=d.game;cards.push(`<div class="sc-nx" style="border-left-color:${esc(x.color)}"><small>${esc(x.label)} · Next game · ${esc(when(d.date))}${g.event?` · ${esc(g.event)}`:""}</small><b>${g.home?"vs":"at"} ${esc(g.opponent||"Game")}</b><span>${[g.time?ampm(g.time):"Time TBD",g.home?"Home":"Away",g.location].filter(Boolean).map(esc).join(" · ")}${d.notes.filter(isBus).length?`<br>${esc(d.notes.filter(isBus).join(" · "))}`:""}</span></div>`);});
+  $("#scNext").innerHTML=cards.join("");$("#scNext").hidden=!cards.length;
+  renderCalButtons();
+  const months=monthsMulti();
+  if(!months.length){$("#calMonths").innerHTML=`<div class="empty">Nothing on the schedule yet.</div>`;$("#calNav").hidden=true;$("#calGames").innerHTML="";return;}
+  const keys=months.map(([y,m])=>y+"-"+m);
+  if(!calMonth||!keys.includes(calMonth)){const tk=+t.slice(0,4)+"-"+(+t.slice(5,7)-1);calMonth=keys.includes(tk)?tk:(t<keys[0]?keys[0]:keys[keys.length-1]);}
+  const idx=keys.indexOf(calMonth),one=view==="month";
+  document.querySelectorAll("[data-v]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===view)));
+  $("#calNav").hidden=!one;$("#calNavLabel").textContent=one?`${MONTHS[months[idx][1]]} ${months[idx][0]}`:"";
+  $("#calPrev").disabled=idx<=0;$("#calNext").disabled=idx>=keys.length-1;$("#calMonths").classList.toggle("one-month",one);
+  const cell=iso=>{const it=itemsOn(iso);return `<button type="button" class="cal-cell hub${iso===t?" today":""}" data-day="${iso}"><span class="d">${+iso.slice(8)}</span>${it.map(x=>`<span class="hub-ev ${x.kind==="bus"?"note":x.kind}"><span class="hub-dots">${x.teams.map(h=>`<i style="background:${esc(h.color)}"></i>`).join("")}</span><b>${esc(x.text)}</b>${x.teams.length<TEAMS.length||x.kind==="game"?`<small>${esc(x.teams.map(h=>h.label).join(", "))}</small>`:""}</span>`).join("")}</button>`;};
+  $("#calMonths").innerHTML=(one?[months[idx]]:months).map(([y,m])=>{const n=new Date(y,m+1,0).getDate(),pad=new Date(y,m,1).getDay(),isoD=dd=>`${y}-${String(m+1).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;
+    let c="";for(let i=0;i<pad;i++)c+=`<div class="cal-cell pad"></div>`;for(let dd=1;dd<=n;dd++)c+=cell(isoD(dd));const tail=(7-((pad+n)%7))%7;for(let i=0;i<tail;i++)c+=`<div class="cal-cell pad"></div>`;
+    return `<section class="cal-month"><h3>${MONTHS[m]} ${y}</h3><div class="cal-grid">${DOW.map(x=>`<div class="dow">${x}</div>`).join("")}${c}</div></section>`;}).join("");
+  const games=[];TEAMS.forEach(x=>x.days.forEach(d=>{if(d.game)games.push({x,d});}));games.sort((a,b)=>a.d.date<b.d.date?-1:a.d.date>b.d.date?1:0);
+  $("#calGames").innerHTML=games.length?`<caption>Game list</caption><thead><tr><th>Date</th><th>Team</th><th>Opponent</th><th>Time</th><th>Location</th></tr></thead><tbody>`+
+    games.map(({x,d})=>`<tr data-day="${d.date}"${d.date<t?' style="opacity:.6"':""}><td>${esc(S.dObj(d.date).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}))}</td><td><i class="hub-dot" style="background:${esc(x.color)}"></i>${esc(x.label)}</td><td class="opp">${esc(d.game.opponent||"")}${d.game.event?`<small class="gl-ev">${esc(d.game.event)}</small>`:""}</td><td>${d.game.time?ampm(d.game.time):"TBD"}</td><td>${d.game.home?"Home":"Away"}${d.game.location?" · "+esc(d.game.location):""}</td></tr>`).join("")+`</tbody>`:"";
+  $("#calFoot").textContent="";
+}
+function openDayMulti(iso){
+  $("#scDayTitle").textContent=longDay(iso);const li=[];
+  TEAMS.forEach(x=>{const d=x.by[iso];if(!d)return;const tag=`<span class="sc-pill" style="background:${esc(x.color)};color:#fff">${esc(x.label)}</span>`;
+    if(d.game)li.push(`<li>${tag}<b>${d.game.event?esc(d.game.event)+": ":""}${d.game.home?"vs":"at"} ${esc(d.game.opponent||"Game")}</b><small>${d.game.time?ampm(d.game.time):"Time TBD"} · ${d.game.home?"Home":"Away"}</small>${d.game.location?`<small>📍 ${esc(d.game.location)}</small>`:""}</li>`);
+    if(d.practice)li.push(`<li>${tag}<b>${isTry(d.practice)?"Tryouts":"Practice"} ${span(d.practice.start,d.practice.end)}</b></li>`);
+    if(d.off)li.push(`<li>${tag}<b>${d.off.note==="No practice"?"No practice":esc(d.off.note)+" (no practice)"}</b></li>`);
+    [...(d.practice?d.practice.notes.filter(n=>!isTryout(n)):[]),...d.notes].forEach(n=>li.push(`<li>${tag}<b>${esc(n)}</b></li>`));});
   $("#scDayList").innerHTML=li.join("")||`<li><small>Nothing scheduled.</small></li>`;
   $("#scDay").showModal();
 }
@@ -175,7 +239,8 @@ document.addEventListener("click",e=>{
   const v=e.target.closest("[data-v]");if(v){view=v.dataset.v;pref("view",view);render();return;}
   const d=e.target.closest("[data-day]");if(d){openDay(d.dataset.day);return;}
   if(e.target.closest("#scIcs")){
-    const text=S.ics(DAYS,{show:CAL.show,team:teamName(),key:ID,arrive:early(),note:prNote()});
+    const parts=TEAMS?TEAMS.map(x=>({list:x.days,prefix:x.label,key:ID+"-"+String(x.id||"").slice(0,8),arrive:+(x.sched.arriveEarly||0),note:x.sched.practiceNote||""})):undefined;
+    const text=S.ics(DAYS,{show:CAL.show,team:teamName(),key:ID,arrive:early(),note:prNote(),parts});
     const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"text/calendar"}));a.download="team-schedule.ics";document.body.appendChild(a);a.click();a.remove();
   }
 });

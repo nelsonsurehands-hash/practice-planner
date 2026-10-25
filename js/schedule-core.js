@@ -50,19 +50,23 @@ function ics(list,o){
   const dt=(d,t)=>d.replace(/-/g,"")+"T"+t.replace(":","")+"00";
   const plus=(t,m)=>{const [h,mm]=t.split(":").map(Number),x=h*60+mm+m;return String(Math.floor(x/60)%24).padStart(2,"0")+":"+String(x%60).padStart(2,"0");};
   const stamp=new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
-  const early=+o.arrive||0,am=t=>{const [h,m]=t.split(":").map(Number);return (h%12||12)+":"+String(m).padStart(2,"0")+(h<12?" AM":" PM");};
+  const am=t=>{const [h,m]=t.split(":").map(Number);return (h%12||12)+":"+String(m).padStart(2,"0")+(h<12?" AM":" PM");};
   const L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Coach Practice Planner//Team Schedule//EN","CALSCALE:GREGORIAN","METHOD:PUBLISH",
     "X-WR-CALNAME:"+esc(team),"X-PUBLISHED-TTL:PT1H","REFRESH-INTERVAL;VALUE=DURATION:PT1H"];
-  const ev=(id,d,title,start,end,desc,loc)=>{L.push("BEGIN:VEVENT","UID:"+id+"-"+d+"-"+key+"@practice-planner","DTSTAMP:"+stamp);
+  /* Several teams on one calendar (o.parts): each team's events get its label in front and their own ids. */
+  const parts=o.parts||[{list,prefix:"",key,arrive:o.arrive,note:o.note}];let pk=key,pre="";
+  const ev=(id,d,title,start,end,desc,loc)=>{L.push("BEGIN:VEVENT","UID:"+id+"-"+d+"-"+pk+"@practice-planner","DTSTAMP:"+stamp);title=pre+title;
     if(start){L.push("DTSTART:"+dt(d,start),"DTEND:"+dt(d,end||plus(start,90)));}
     else{L.push("DTSTART;VALUE=DATE:"+d.replace(/-/g,""),"DTEND;VALUE=DATE:"+addDays(d,1).replace(/-/g,""));}
     L.push("SUMMARY:"+esc(title));if(desc)L.push("DESCRIPTION:"+esc(desc));if(loc)L.push("LOCATION:"+esc(loc));L.push("END:VEVENT");};
-  list.forEach(x=>{
+  const noBus=n=>show.bus===false?(n||[]).filter(t=>!/^bus\b/i.test(t)):(n||[]);
+  parts.forEach(P=>{pk=P.key||key;pre=P.prefix?P.prefix+": ":"";const early=+P.arrive||0,o2={note:P.note};
+  (P.list||[]).map(x=>({...x,notes:noBus(x.notes),practice:x.practice&&{...x.practice,notes:noBus(x.practice.notes)}})).forEach(x=>{
     if(show.games!==false&&x.game){const g=x.game;ev("game",x.date,`${g.event?g.event+": ":""}${g.home?"vs":"at"} ${g.opponent||"Game"}${g.time?"":" (time TBD)"}`,g.time,"",[g.event,g.home?"Home game":"Away game",...x.notes].filter(Boolean).join(" · "),g.location);}
-    if(show.practices!==false&&x.practice){const p=x.practice;ev("practice",x.date,/tryout/i.test(p.notes.join(" "))?"Tryouts":"Practice",p.start,p.end,[early&&p.start?`Players arrive by ${am(arriveAt(p.start,early))}`:"",(/^players arrive \d+ min(ute)?s? (before|early)/i.test(o.note||"")?"":(o.note||"")),...p.notes].filter(Boolean).join(" · "));}
+    if(show.practices!==false&&x.practice){const p=x.practice;ev("practice",x.date,/tryout/i.test(p.notes.join(" "))?"Tryouts":"Practice",p.start,p.end,[early&&p.start?`Players arrive by ${am(arriveAt(p.start,early))}`:"",(/^players arrive \d+ min(ute)?s? (before|early)/i.test(o2.note||"")?"":(o2.note||"")),...p.notes].filter(Boolean).join(" · "));}
     if(show.off!==false&&x.off)ev("off",x.date,x.off.note==="No practice"?"No practice":x.off.note+" (no practice)","","","");
     if(show.off!==false&&!x.practice&&!x.game&&x.notes.length)ev("note",x.date,x.notes.join(" · "),"","","");
-  });
+  });});
   L.push("END:VCALENDAR");
   return L.map(l=>{let out="";while(l.length>74){out+=l.slice(0,74)+"\r\n ";l=l.slice(74);}return out+l;}).join("\r\n")+"\r\n";
 }

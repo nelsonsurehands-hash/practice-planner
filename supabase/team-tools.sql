@@ -263,16 +263,16 @@ create policy "editors delete calendar links" on public.calendar_shares for dele
 
 -- What the parents' calendar shows: team name, colors and logo, and the schedule parts of the
 -- team settings (season dates, practice days and times, games, special days). Nothing else.
-create or replace function public.get_calendar(p_id text) returns jsonb
-language plpgsql security definer set search_path = public as $$
-declare c calendar_shares; t teams; s jsonb;
+-- One team's part of a parent calendar: name, colors, logo and the schedule parts of its settings.
+create or replace function public.calendar_team_json(p_team uuid) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare t teams; s jsonb;
 begin
-  select * into c from calendar_shares where id = p_id and active;
-  if c.id is null then return null; end if;
-  select * into t from teams where id = c.team_id;
+  select * into t from teams where id = p_team;
+  if t.id is null then return null; end if;
   s := coalesce(t.settings, '{}'::jsonb);
   return jsonb_build_object(
-    'title', c.title, 'show', c.show,
+    'id', t.id,
     'team', jsonb_build_object('name', t.name, 'color', s->>'color', 'color2', s->>'color2', 'logo', s->>'logo',
                                'school', s->>'school', 'mascot', s->>'mascot', 'teamLabel', s->>'teamLabel', 'sport', s->>'sport'),
     'schedule', jsonb_build_object(
@@ -285,6 +285,36 @@ begin
       'special', coalesce((select jsonb_agg(jsonb_build_object('date', x->>'date', 'kind', x->>'kind', 'note', x->>'note',
                                                               'start', x->>'start', 'end', x->>'end'))
                              from jsonb_array_elements(coalesce(s->'special', '[]'::jsonb)) x where coalesce(x->>'date', '') <> ''), '[]'::jsonb)));
+end $$;
+revoke all on function public.calendar_team_json(uuid) from public;
+
+-- A parent link can show one team or several (team_ids, e.g. 7th and 8th grade together).
+alter table public.calendar_shares add column if not exists team_ids uuid[];
+create or replace function public.check_share_teams() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  if new.team_ids is not null and exists (select 1 from unnest(new.team_ids) x where not is_member(x)) then
+    raise exception 'You can only add teams you coach to a parent link.';
+  end if;
+  return new;
+end $$;
+drop trigger if exists calendar_shares_teams on public.calendar_shares;
+create trigger calendar_shares_teams before insert or update of team_ids on public.calendar_shares
+  for each row execute function public.check_share_teams();
+
+create or replace function public.get_calendar(p_id text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare c calendar_shares; main jsonb; ids uuid[];
+begin
+  select * into c from calendar_shares where id = p_id and active;
+  if c.id is null then return null; end if;
+  main := calendar_team_json(c.team_id);
+  ids := array[c.team_id] || coalesce((select array_agg(x) from unnest(c.team_ids) x where x <> c.team_id), '{}'::uuid[]);
+  return jsonb_build_object(
+    'title', c.title, 'show', c.show,
+    'team', main->'team', 'schedule', main->'schedule',
+    'teams', (select coalesce(jsonb_agg(calendar_team_json(u.x) order by u.ord), '[]'::jsonb)
+                from unnest(ids) with ordinality u(x, ord) where exists (select 1 from teams where id = u.x)));
 end $$;
 revoke all on function public.get_calendar(text) from public;
 grant execute on function public.get_calendar(text) to anon, authenticated;
