@@ -97,7 +97,7 @@ function render(){
   $("#calSeason").innerHTML=st.seasonStart?`<b>${fmtM(st.seasonStart)} – ${fmtM(st.seasonEnd)}</b><small>${practices.length} practices · ${(st.games||[]).length} games</small>`:"";
   $("#calAddGame").hidden=!editable();
   if(!months.length){
-    $("#calMonths").innerHTML=`<div class="empty">No schedule yet. Set your season dates and practice days in Settings, or tap + Game to add your first game.</div>`;
+    $("#calMonths").innerHTML=`<div class="empty">No schedule yet. Set your season dates and practice days below (Season &amp; practice setup), or tap + Game to add your first game.</div>`;
     $("#calCallout").hidden=true;$("#calGames").innerHTML="";$("#calFoot").textContent="";return;
   }
   /* practice count before the first game */
@@ -107,7 +107,7 @@ function render(){
     const where=`${longDay(g1.date)} ${g1.home===false?"at":"vs"} ${esc(g1.opponent||"first opponent")}`;
     $("#calCallout").hidden=false;$("#calCallout").classList.toggle("short",!!need&&before<need);
     $("#calCallout").innerHTML=need?`<span class="mark">${before>=need?"✓":"!"}</span><span><b>Each player needs ${need} practices</b> before the first game (${where}). ${before} practice${before===1?" is":"s are"} scheduled before then${before>=need?", so this calendar meets the requirement.":`. That's ${need-before} short.`}</span>`
-      :`<span class="mark">${before}</span><span><b>${before} practice${before===1?"":"s"}</b> before the first game (${where}). Set a required number in Settings → Season to have it checked.</span>`;
+      :`<span class="mark">${before}</span><span><b>${before} practice${before===1?"":"s"}</b> before the first game (${where}). Set a required number in Season &amp; practice setup (below the calendar) to have it checked.</span>`;
   }else $("#calCallout").hidden=true;
   /* Month view: one month at a time with ‹ › (or swipe). Full season: every month stacked. */
   const keys=months.map(([y,m])=>y+"-"+m);
@@ -121,9 +121,12 @@ function render(){
   $("#calMonths").innerHTML=(one?[months[idx]]:months).map(([y,m])=>monthHTML(y,m,days)).join("");
   $("#calGames").innerHTML=games.length?`<caption>Game list</caption><thead><tr><th>Date</th><th>Opponent</th><th>Time</th><th>Location</th></tr></thead><tbody>`+
     games.map(g=>`<tr data-day="${g.date}"><td>${longDay(g.date)}</td><td class="opp">${esc(g.opponent||"")}</td><td>${g.time?ampm(g.time):"TBD"}</td><td>${g.home===false?"Away":"Home"}</td></tr>`).join("")+`</tbody>`:"";
-  $("#calFoot").textContent=`Practices ${span(st.weekdayStart,st.weekdayEnd)} weekdays${st.weekendStart?`, ${span(st.weekendStart,st.weekendEnd)} weekends`:""}. Change the season, practice days and times in Settings.`;
+  $("#calFoot").textContent=`Practices ${span(st.weekdayStart,st.weekdayEnd)} weekdays${st.weekendStart?`, ${span(st.weekendStart,st.weekendEnd)} weekends`:""}. Change the season, practice days and times below.`;
 }
 window.onCalChange=()=>{if(!$("#view-cal").hidden)render();};
+/* Season & practice setup lives at the bottom of the Calendar tab. */
+document.addEventListener("click",e=>{if(!e.target.closest("#calSetupBtn"))return;
+  if(window.onSettingsTab)window.onSettingsTab();const d=$("#acc-schedule");if(d)d.open=true;$("#calSetup").scrollIntoView({behavior:"smooth",block:"start"});});
 let calView="month",calMonth=null;
 try{calView=localStorage.getItem("cpp:calView")||"month";}catch{}
 document.querySelector(".cal-viewbar .seg").addEventListener("click",e=>{const b=e.target.closest("[data-calview]");if(!b)return;

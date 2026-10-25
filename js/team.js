@@ -28,6 +28,7 @@ function syncNav(){
   const pb=$("#tmParentBtn");if(pb){pb.setAttribute("aria-selected",!!PARENT_PANES[pane]);$("#tmParentSub").textContent=PARENT_PANES[pane]?": "+PARENT_PANES[pane]:"";}
   document.querySelectorAll("#tmParentMenu [data-tm]").forEach(b=>b.classList.toggle("on",b.dataset.tm===pane));
   document.querySelectorAll("#view-team .tm-pane").forEach(x=>x.hidden=x.id!=="tm-"+pane);
+  const id=$("#tmIdent");if(id)id.hidden=pane!=="teams";
 }
 function parentMenu(open){
   const m=$("#tmParentMenu"),b=$("#tmParentBtn");if(!m||!b)return;
@@ -51,9 +52,10 @@ function showPane(p){
   if(pane==="food"&&food&&!$("#view-team").hidden)loadFood();   // pick up new sign-ups
 }
 window.goTeam=(p,opts)=>{if(opts&&opts.date){if(p==="bus")busDate=opts.date;else if(window.TM)TM.date=opts.date;}setTab("team");showPane(p);};
-window.onTeamTab=()=>showPane(pane);
+window.onTeamTab=()=>{showPane(pane);if(window.onSettingsTab)window.onSettingsTab();};
 $(".tm-nav").addEventListener("click",e=>{const b=e.target.closest("[data-tm]");if(b)showPane(b.dataset.tm);});
-document.addEventListener("click",e=>{const b=e.target.closest("[data-goteam]");if(b)window.goTeam(b.dataset.goteam);});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-goteam]");if(b)window.goTeam(b.dataset.goteam);
+  const t=e.target.closest("[data-tab-go]");if(t){setTab(t.dataset.tabGo);scrollTo(0,0);}});
 function render(){
   if(typeof team==="undefined"||!team||$("#view-team").hidden)return;
   /* Keep the visible section in step with the remembered one (the app can open straight onto the Team tab). */
@@ -181,8 +183,8 @@ function renderTeams(){
     <div class="actions" style="margin:12px 0 0"><button class="btn" type="button" id="tmNew">+ Add a different school or club</button>${HOSTED?`<button class="btn" type="button" id="tmJoin">Join another staff with a code</button>`:""}</div>
     <p class="help">Each grade or level is its own team with its own practice plans, plays, drills, calendar, roster and staff. Switch between them here or from the team button at the top.</p></div>
     <div class="tm-card"><h3 class="tm-h">This team</h3>
-    <p class="help" style="margin-top:0">Name, colors, logo, season, practice days and games are in Settings.</p>
-    <div class="actions" style="margin:0"><button class="btn" type="button" data-tab-go="settings">Team settings</button><button class="btn" type="button" data-goteam="roster">Roster</button><button class="btn" type="button" data-goteam="staff">Staff</button></div>
+    <p class="help" style="margin-top:0">Change this team's name and grade/level above. Season, practice days and games are on the Calendar tab; colors and logo are in Settings.</p>
+    <div class="actions" style="margin:0"><button class="btn" type="button" data-tab-go="settings">Colors &amp; logo</button><button class="btn" type="button" data-goteam="roster">Roster</button><button class="btn" type="button" data-goteam="staff">Staff</button></div>
     ${owner?`<details class="tm-danger"><summary>Delete this team</summary>
       <p class="help">This permanently deletes <b>${esc(team.name)}</b>${HOSTED?" for everyone on the staff":""}: its practice plans, plays, drills, calendar, roster, bus lists and sign-up sheets. Download a backup first (Settings → Backup). Your other teams aren't affected.</p>
       <label class="f">Type the team name to confirm<input id="tmDelName" autocomplete="off" placeholder="${esc(team.name)}"></label>
@@ -227,7 +229,6 @@ $("#tm-teams").addEventListener("submit",async e=>{
 $("#tm-teams").addEventListener("click",async e=>{
   const o=e.target.closest("[data-openteam]");
   if(o){const t=teams.find(x=>x.id===o.dataset.openteam);if(t){await openTeam(t);showPane("teams");}return;}
-  if(e.target.closest("[data-tab-go]")){setTab(e.target.closest("[data-tab-go]").dataset.tabGo);return;}
   if(e.target.id==="tmNew"||e.target.id==="tmJoin"){showSetup(true,e.target.id==="tmJoin");return;}
   const ac=e.target.closest("[data-addclass]");
   if(ac){addClassFor=ac.dataset.addclass?{key:ac.dataset.addclass}:null;renderTeams();

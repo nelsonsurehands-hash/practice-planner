@@ -128,7 +128,7 @@
       <div class="prog-pick" id="suProg"></div>
       <details class="feat-more"><summary>Choose the features you'll use</summary><div class="feat-list" id="suFeatures"></div></details>
     </fieldset>
-    <p class="help" style="font-size:13px">You can add games, days off, weekend times and more in Settings later, and turn features on or off any time.</p>
+    <p class="help" style="font-size:13px">You can add games, days off and weekend times on the Calendar tab later, and turn features on or off in Settings any time.</p>
     <div class="actions" style="margin-top:0"><button class="btn primary" type="submit">Create team</button><button class="btn demo-only" type="button" id="suSample">Explore with sample team</button><button class="btn" type="button" id="suBack" hidden>Back to planner</button></div>
     <div class="msg" id="setupMsg"></div>
   </form>
@@ -333,6 +333,7 @@
   <div class="cal-tools">
     <button class="btn" type="button" id="calToday">Today</button>
     <button class="btn" type="button" id="calIcs">Export calendar</button>
+    <button class="btn edit-only" type="button" id="calSetupBtn">⚙ Season &amp; practice times</button>
     <button class="btn" type="button" id="calShare" data-feature="plink">🔗 Parent link</button>
     <button class="btn edit-only" type="button" id="calAddGame">+ Game</button>
     <button class="btn edit-only" type="button" data-photo="schedule">📷 Add from a photo</button>
@@ -346,76 +347,9 @@
   <div id="calMonths"></div>
   <div class="cal-list-wrap"><table class="cal-list" id="calGames"></table></div>
   <p class="help cal-foot" id="calFoot"></p>
-</section>
-
-<section id="view-team" class="view" hidden>
-  <div class="cal-head">
-    <div><div class="eyebrow" id="tmEyebrow"></div><h2 class="cal-title">Team management</h2></div>
-  </div>
-  <nav class="tm-nav" role="tablist" aria-label="Team sections">
-    <button type="button" role="tab" data-tm="teams" aria-selected="true">My teams</button>
-    <button type="button" role="tab" data-tm="roster" aria-selected="false">Roster</button>
-    <button type="button" role="tab" data-tm="game" aria-selected="false" data-feature="game">Gameplan</button>
-    <button type="button" role="tab" data-tm="scout" aria-selected="false" data-feature="scout">Scouting report</button>
-    <button type="button" role="tab" data-tm="stats" aria-selected="false" data-feature="stats">Stats</button>
-    <button type="button" role="tab" data-tm="sched" aria-selected="false" data-feature="sched">Schedule</button>
-    <button type="button" class="tm-group" id="tmParentBtn" data-feature="bus food plink" aria-haspopup="menu" aria-expanded="false" aria-selected="false">Parent Admin<span class="tm-sub" id="tmParentSub"></span> ▾</button>
-    <button type="button" role="tab" data-tm="staff" aria-selected="false">Staff</button>
-  </nav>
-  <div class="tm-pane" id="tm-teams"></div>
-  <div class="tm-pane" id="tm-roster" hidden></div>
-  <div class="tm-pane" id="tm-staff" hidden><div class="tm-card"><h3 class="tm-h">Coaching staff</h3><div id="staffPanel"><div id="staffBody"></div></div></div></div>
-  <div class="tm-pane" id="tm-game" hidden></div>
-  <div class="tm-pane" id="tm-scout" hidden></div>
-  <div class="tm-pane" id="tm-stats" hidden></div>
-  <div class="tm-pane" id="tm-sched" hidden></div>
-  <div class="tm-pane" id="tm-bus" hidden></div>
-  <div class="tm-pane" id="tm-plink" hidden></div>
-  <div class="tm-pane" id="tm-food" hidden></div>
-</section>
-
-<section id="view-settings" class="view" hidden>
-  <nav class="set-nav" aria-label="Settings sections">
-    <button type="button" data-acc="team">Team</button><button type="button" data-acc="schedule">Schedule</button><button type="button" data-acc="games">Games</button><button type="button" data-acc="special">Special days</button><button type="button" data-acc="features">Features</button><button type="button" data-acc="data">Export</button><button type="button" data-acc="account">Account</button>
-  </nav>
-  <div class="set-save edit-only"><button class="btn primary" id="sSave">Save settings</button><span class="saved" id="sStatus" style="margin-left:0"></span></div>
-  <div class="settings acc-list">
-    <details class="acc st-edit" id="acc-team">
-      <summary><span class="acc-t">Team &amp; colors</span><span class="acc-s" id="accSub-team"></span></summary>
-      <div class="acc-body">
-      <label class="f">Sport<select id="sSport"><option value="basketball">Basketball</option><option value="volleyball">Volleyball</option><option value="soccer">Soccer</option><option value="football">Football</option><option value="baseball">Baseball / Softball</option><option value="other">Other sport</option></select></label>
-      <p class="help" id="sSportHelp" hidden>Changing the sport switches drill categories and the play board. Plays drawn on the old board keep their positions but will sit on the new court.</p>
-      <div class="grid2">
-        <label class="f">School or club<input id="sSchool"></label>
-        <label class="f">Team name<input id="sMascot"></label>
-      </div>
-      <div class="grid2">
-        <div class="f">Grade/Level<div class="lvl-pick"><select id="sLabelSel" aria-label="Grade or level" data-lvl="sLabel"></select><input id="sLabel" placeholder="Type it, e.g. 14U, 6th Grade" hidden></div></div>
-        <label class="f">Team color<input id="sColor" type="color"></label>
-      </div>
-      <div class="grid2">
-        <div class="f">Second color<div class="c2row"><input id="sColor2" type="color" aria-label="Second color"><label><input type="checkbox" id="sUseC2" style="width:auto"> Use it</label></div></div>
-        <div class="f">Team logo<div class="logo-edit"><div class="preview" id="sLogoPrev">No logo</div>
-          <label class="btn" style="cursor:pointer">Upload<input type="file" id="sLogo" accept="image/*" hidden></label>
-          <button class="btn" type="button" id="sLogoRm" hidden>Remove</button></div>
-          <div class="lc-pick" id="sLogoColors" hidden></div></div>
-      </div>
-      <fieldset class="catpick"><legend>App icon</legend>
-        <div class="icon-pick" id="sIconPick">
-          <label><input type="radio" name="sIcon" value="colors"><img alt="" id="sIconColors"><span>Court in team colors</span></label>
-          <label><input type="radio" name="sIcon" value="logo"><img alt="" id="sIconLogo"><span>Team logo</span></label>
-          <label><input type="radio" name="sIcon" value="classic"><img alt="" src="icons/icon-192.png"><span>Classic</span></label>
-        </div>
-        <div class="icon-bg" id="sIconBgWrap" hidden>
-          <div class="icon-bg-h">Background behind the logo</div>
-          <div class="icon-bg-opts" id="sIconBgOpts"></div>
-          <p class="help" style="margin:0">Pick whatever makes your logo easy to see. iPhones don't allow see-through home-screen icons, so Transparent shows white behind the logo there.</p>
-        </div>
-        <p class="help">This is the icon on your phone's home screen. Phones pick up the icon when the app is added, so after you change it, remove the app from your home screen and add it again.</p>
-      </fieldset>
-      <p class="help">The second color shows in stripes and the minutes meter. The logo shows in the header, on printed plans and on your players' playbook. A square PNG with a clear background looks best.</p>
-      </div>
-    </details>
+  <section class="cal-setup st-form" id="calSetup">
+    <h2 class="cal-title" style="font-size:24px;margin:24px 0 8px">Season &amp; practice setup</h2>
+    <div class="acc-list">
     <details class="acc st-edit" id="acc-schedule">
       <summary><span class="acc-t">Practice schedule</span><span class="acc-s" id="accSub-schedule"></span></summary>
       <div class="acc-body">
@@ -452,7 +386,90 @@
       <div class="edit-only"><button class="btn" id="sAddSpecial">+ Add special day</button></div>
       </div>
     </details>
-    <p class="help set-moved">Your teams, roster, coaching staff, bus lists and parent sign-ups are on the <button type="button" class="linkbtn" data-goteam="teams">Team</button> tab.</p>
+    </div>
+    <div class="set-save edit-only"><button class="btn primary st-save" type="button">Save schedule</button><span class="saved st-status"></span></div>
+  </section>
+</section>
+
+<section id="view-team" class="view" hidden>
+  <div class="cal-head">
+    <div><div class="eyebrow" id="tmEyebrow"></div><h2 class="cal-title">Team management</h2></div>
+  </div>
+  <nav class="tm-nav" role="tablist" aria-label="Team sections">
+    <button type="button" role="tab" data-tm="teams" aria-selected="true">My teams</button>
+    <button type="button" role="tab" data-tm="roster" aria-selected="false">Roster</button>
+    <button type="button" role="tab" data-tm="game" aria-selected="false" data-feature="game">Gameplan</button>
+    <button type="button" role="tab" data-tm="scout" aria-selected="false" data-feature="scout">Scouting report</button>
+    <button type="button" role="tab" data-tm="stats" aria-selected="false" data-feature="stats">Stats</button>
+    <button type="button" role="tab" data-tm="sched" aria-selected="false" data-feature="sched">Schedule</button>
+    <button type="button" class="tm-group" id="tmParentBtn" data-feature="bus food plink" aria-haspopup="menu" aria-expanded="false" aria-selected="false">Parent Admin<span class="tm-sub" id="tmParentSub"></span> ▾</button>
+    <button type="button" role="tab" data-tm="staff" aria-selected="false">Staff</button>
+  </nav>
+  <section class="tm-card st-form" id="tmIdent">
+    <details class="acc st-edit" id="acc-ident" open>
+      <summary><span class="acc-t">This team</span><span class="acc-s" id="accSub-ident"></span></summary>
+      <div class="acc-body">
+      <label class="f">Sport<select id="sSport"><option value="basketball">Basketball</option><option value="volleyball">Volleyball</option><option value="soccer">Soccer</option><option value="football">Football</option><option value="baseball">Baseball / Softball</option><option value="other">Other sport</option></select></label>
+      <p class="help" id="sSportHelp" hidden>Changing the sport switches drill categories and the play board. Plays drawn on the old board keep their positions but will sit on the new court.</p>
+      <div class="grid2">
+        <label class="f">School or club<input id="sSchool"></label>
+        <label class="f">Team name<input id="sMascot"></label>
+      </div>
+      <div class="grid2">
+        <div class="f">Grade/Level<div class="lvl-pick"><select id="sLabelSel" aria-label="Grade or level" data-lvl="sLabel"></select><input id="sLabel" placeholder="Type it, e.g. 14U, 6th Grade" hidden></div></div>
+      </div>
+      <div class="set-save edit-only"><button class="btn primary st-save" type="button">Save</button><span class="saved st-status"></span></div>
+      </div>
+    </details>
+  </section>
+  <div class="tm-pane" id="tm-teams"></div>
+  <div class="tm-pane" id="tm-roster" hidden></div>
+  <div class="tm-pane" id="tm-staff" hidden><div class="tm-card"><h3 class="tm-h">Coaching staff</h3><div id="staffPanel"><div id="staffBody"></div></div></div></div>
+  <div class="tm-pane" id="tm-game" hidden></div>
+  <div class="tm-pane" id="tm-scout" hidden></div>
+  <div class="tm-pane" id="tm-stats" hidden></div>
+  <div class="tm-pane" id="tm-sched" hidden></div>
+  <div class="tm-pane" id="tm-bus" hidden></div>
+  <div class="tm-pane" id="tm-plink" hidden></div>
+  <div class="tm-pane" id="tm-food" hidden></div>
+</section>
+
+<section id="view-settings" class="view st-form" hidden>
+  <nav class="set-nav" aria-label="Settings sections">
+    <button type="button" data-acc="team">Colors &amp; logo</button><button type="button" data-acc="features">Features</button><button type="button" data-acc="data">Export</button><button type="button" data-acc="account">Account</button>
+  </nav>
+  <div class="set-save edit-only"><button class="btn primary st-save" id="sSave">Save settings</button><span class="saved st-status" id="sStatus" style="margin-left:0"></span></div>
+  <div class="settings acc-list">
+    <details class="acc st-edit" id="acc-team">
+      <summary><span class="acc-t">Colors, logo &amp; app icon</span><span class="acc-s" id="accSub-team"></span></summary>
+      <div class="acc-body">
+      <div class="grid2">
+        <label class="f">Team color<input id="sColor" type="color"></label>
+      </div>
+      <div class="grid2">
+        <div class="f">Second color<div class="c2row"><input id="sColor2" type="color" aria-label="Second color"><label><input type="checkbox" id="sUseC2" style="width:auto"> Use it</label></div></div>
+        <div class="f">Team logo<div class="logo-edit"><div class="preview" id="sLogoPrev">No logo</div>
+          <label class="btn" style="cursor:pointer">Upload<input type="file" id="sLogo" accept="image/*" hidden></label>
+          <button class="btn" type="button" id="sLogoRm" hidden>Remove</button></div>
+          <div class="lc-pick" id="sLogoColors" hidden></div></div>
+      </div>
+      <fieldset class="catpick"><legend>App icon</legend>
+        <div class="icon-pick" id="sIconPick">
+          <label><input type="radio" name="sIcon" value="colors"><img alt="" id="sIconColors"><span>Court in team colors</span></label>
+          <label><input type="radio" name="sIcon" value="logo"><img alt="" id="sIconLogo"><span>Team logo</span></label>
+          <label><input type="radio" name="sIcon" value="classic"><img alt="" src="icons/icon-192.png"><span>Classic</span></label>
+        </div>
+        <div class="icon-bg" id="sIconBgWrap" hidden>
+          <div class="icon-bg-h">Background behind the logo</div>
+          <div class="icon-bg-opts" id="sIconBgOpts"></div>
+          <p class="help" style="margin:0">Pick whatever makes your logo easy to see. iPhones don't allow see-through home-screen icons, so Transparent shows white behind the logo there.</p>
+        </div>
+        <p class="help">This is the icon on your phone's home screen. Phones pick up the icon when the app is added, so after you change it, remove the app from your home screen and add it again.</p>
+      </fieldset>
+      <p class="help">The second color shows in stripes and the minutes meter. The logo shows in the header, on printed plans and on your players' playbook. A square PNG with a clear background looks best.</p>
+      </div>
+    </details>
+    <p class="help set-moved">Team name and grade/level are on the <button type="button" class="linkbtn" data-goteam="teams">Team</button> tab. Season dates, practice times, games and special days are on the <button type="button" class="linkbtn" data-tab-go="cal">Calendar</button> tab.</p>
     <details class="acc st-edit" id="acc-features">
       <summary><span class="acc-t">Features</span><span class="acc-s" id="accSub-features"></span></summary>
       <div class="acc-body">

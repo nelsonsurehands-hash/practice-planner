@@ -645,3 +645,72 @@ begin
 end $$;
 revoke all on function public.get_calendar(text) from public;
 grant execute on function public.get_calendar(text) to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- School staff code: one code that adds a coach to several teams at once
+-- (for example a school's 7th grade, 8th grade and JV teams).
+-- ---------------------------------------------------------------------------
+create table if not exists public.school_codes (
+  code        text primary key,
+  team_ids    uuid[] not null,
+  label       text not null default '',
+  created_by  uuid references auth.users(id) on delete cascade default auth.uid(),
+  active      boolean not null default true,
+  created_at  timestamptz not null default now()
+);
+alter table public.school_codes enable row level security;
+drop policy if exists "own school codes" on public.school_codes;
+create policy "own school codes" on public.school_codes for select to authenticated using (created_by = auth.uid());
+
+-- Get (or with p_new, replace) your code for exactly these teams. You must manage the staff of every one.
+create or replace function public.school_code(p_team_ids uuid[], p_label text default '', p_new boolean default false)
+returns text language plpgsql security definer set search_path = public as $$
+declare t uuid; c text;
+begin
+  if auth.uid() is null then raise exception 'Sign in first.'; end if;
+  if coalesce(array_length(p_team_ids, 1), 0) < 1 then raise exception 'Pick at least one team.'; end if;
+  foreach t in array p_team_ids loop
+    if not can_edit(t, 'staff') then raise exception 'You can only include teams where you manage the coaching staff.'; end if;
+  end loop;
+  if not p_new then
+    select code into c from school_codes
+     where created_by = auth.uid() and active and team_ids @> p_team_ids and team_ids <@ p_team_ids limit 1;
+    if c is not null then return c; end if;
+  end if;
+  update school_codes set active = false where created_by = auth.uid() and active and team_ids && p_team_ids;
+  loop
+    c := random_join_code();
+    exit when not exists (select 1 from school_codes where code = c)
+          and not exists (select 1 from teams where join_code = c or viewer_code = c);
+  end loop;
+  insert into school_codes (code, team_ids, label) values (c, p_team_ids, coalesce(p_label, ''));
+  return c;
+end $$;
+revoke all on function public.school_code(uuid[], text, boolean) from public;
+grant execute on function public.school_code(uuid[], text, boolean) to authenticated;
+
+-- Joining: a school code adds you to every team on it as an assistant coach; otherwise a team's own code.
+create or replace function public.join_team(p_code text, p_display_name text default null)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare t uuid; r text; sc school_codes;
+begin
+  if auth.uid() is null then raise exception 'Sign in first.'; end if;
+  select * into sc from school_codes where code = upper(trim(p_code)) and active;
+  if sc.code is not null then
+    foreach t in array sc.team_ids loop
+      if exists (select 1 from teams where id = t) then
+        insert into team_members (team_id, user_id, role, email, display_name, title)
+          values (t, auth.uid(), 'coach', auth.jwt() ->> 'email', my_default_name(p_display_name), 'Assistant Coach')
+          on conflict (team_id, user_id) do nothing;
+      end if;
+    end loop;
+    return sc.team_ids[1];
+  end if;
+  select id, case when join_code = upper(trim(p_code)) then 'coach' else 'viewer' end into t, r
+    from teams where join_code = upper(trim(p_code)) or viewer_code = upper(trim(p_code));
+  if t is null then raise exception 'No team found with that code. Check it with your head coach.'; end if;
+  insert into team_members (team_id, user_id, role, email, display_name, title)
+    values (t, auth.uid(), r, auth.jwt() ->> 'email', my_default_name(p_display_name), case when r = 'coach' then 'Assistant Coach' else null end)
+    on conflict (team_id, user_id) do nothing;
+  return t;
+end $$;

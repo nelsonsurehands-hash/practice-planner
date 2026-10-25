@@ -1122,3 +1122,11 @@ body.pb-full{overflow:hidden}
 .tbd{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink);white-space:nowrap;cursor:pointer}
 .tbd input{width:auto}
 .lvl-pick{display:flex;flex-direction:column;gap:6px}
+#tmIdent{padding:0;overflow:hidden}
+#tmIdent details.acc{border:0;margin:0}
+.cal-setup{margin-top:10px}
+.cal-setup .set-save{margin-top:12px}
+.school-code{border-top:1px dashed var(--line);padding-top:12px}
+.sc-teams{display:flex;flex-wrap:wrap;gap:6px 14px}
+.sc-t{display:inline-flex;align-items:center;gap:6px;font-size:14px;text-transform:none;letter-spacing:0;color:var(--ink);font-weight:500}
+.sc-t input{width:auto}

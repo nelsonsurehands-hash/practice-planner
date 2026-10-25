@@ -143,6 +143,7 @@ async function loadMembers(){
   members=data||[];
 }
 async function openTeam(t){
+  if(!team||team.id!==t.id){schoolCode=null;schoolPick=null;}
   if(team&&t&&team.id!==t.id&&window.guardPlay&&!guardPlay(()=>openTeam(t)))return;
   team=t;
   if(store)store.close();
@@ -475,6 +476,7 @@ function accSummaries(){
   sub("games",g.length?`${g.length} game${g.length>1?"s":""}${nx?` · next: ${dLabel(nx.date)} ${nx.home===false?"at":"vs"} ${nx.opponent||""}`:""}`:"No games yet");
   const sp=(draft.special||[]).filter(x=>x.date),off=sp.filter(x=>x.kind==="off").length,ex=sp.filter(x=>x.kind==="extra").length;
   sub("special",sp.length?`${off} day${off===1?"":"s"} off · ${ex} extra practice${ex===1?"":"s"} · ${sp.length-off-ex} with notes`:"Holidays, extra practices and notes");
+  sub("ident",[draft.sport&&SPORTS[draft.sport]?SPORTS[draft.sport].name:"",[draft.school,draft.mascot].filter(Boolean).join(" "),draft.teamLabel].filter(Boolean).join(" · "));
   sub("staff",members.length?`${members.length} on staff`:"");
   {const f=draft.features||{},on=FEATURES.filter(([k])=>f[k]!==false).length,pr=PROGRAMS[progOf(f)];sub("features",`${pr?pr.label+" · ":""}${on} of ${FEATURES.length} on`);}
   sub("account",HOSTED&&user?user.email||"":"Demo mode");
@@ -488,16 +490,22 @@ document.querySelector(".set-nav").addEventListener("click",e=>{const b=e.target
 /* Remember which sections are open on this device. Team starts open the first time. */
 (function(){
   let open=["team"];try{const v=JSON.parse(localStorage.getItem("cpp:accOpen")||"null");if(Array.isArray(v))open=v;}catch{}
-  document.querySelectorAll("#view-settings details.acc").forEach(d=>{d.open=open.includes(d.id.slice(4));
-    d.addEventListener("toggle",()=>{try{localStorage.setItem("cpp:accOpen",JSON.stringify([...document.querySelectorAll("#view-settings details.acc[open]")].map(x=>x.id.slice(4))));}catch{}});});
+  document.querySelectorAll(".st-form details.acc:not(#acc-ident)").forEach(d=>{d.open=open.includes(d.id.slice(4));
+    d.addEventListener("toggle",()=>{try{localStorage.setItem("cpp:accOpen",JSON.stringify([...document.querySelectorAll(".st-form details.acc[open]")].map(x=>x.id.slice(4))));}catch{}});});
 })();
 function updatePreview(){
   const st=readForm(),list=computePractices(st);
   accSummaries();
   $("#sPreview").textContent=list.length?`${list.length} practice days scheduled, ${dLabel(list[0][0])} to ${dLabel(list[list.length-1][0])}.`:"Set season dates and practice days to build your practice calendar.";
 }
-window.onSettingsTab=function(){
+/* Fill the forms from the saved team. Skipped while there are unsaved edits in any of them,
+   so moving between Team, Calendar and Settings doesn't throw away what you typed. */
+let settingsDirty=false;
+document.addEventListener("input",e=>{if(inForm(e)&&e.target.closest(".st-edit"))settingsDirty=true;},true);
+window.onSettingsTab=function(force){
   if(!team)return;
+  if(settingsDirty&&draft&&!force)return;
+  settingsDirty=false;
   draft=JSON.parse(JSON.stringify({...DEFAULT_SETTINGS,...(team.settings||{})}));
   draft.games=draft.games||[];draft.special=draft.special||[];
   $("#sSport").value=draft.sport||"basketball";$("#sSportHelp").hidden=true;
@@ -509,7 +517,7 @@ window.onSettingsTab=function(){
   {const f=draft.features||{};$("#sProg").innerHTML=progHTML("sProg",progOf(f));$("#sFeatures").innerHTML=featHTML(f);}
   renderRows();updatePreview();$("#sStatus").textContent="";
   renderStaff();renderAccount();$("#importBox").innerHTML="";
-  document.querySelectorAll("#view-settings .st-edit .acc-body :is(input,select,button)").forEach(el=>el.disabled=!PERM.schedule);
+  document.querySelectorAll(".st-form .st-edit .acc-body :is(input,select,button)").forEach(el=>el.disabled=!PERM.schedule);
   accSummaries();
 };
 /* App icon choices, previewed in the colors and logo currently on the form. */
@@ -589,9 +597,16 @@ $("#sLogo").addEventListener("change",async e=>{
   catch{$("#sStatus").textContent="That file couldn't be read as an image. Try a PNG or JPG.";}
 });
 $("#sLogoRm").addEventListener("click",()=>{draft.logo="";if(draft.appIcon==="logo")draft.appIcon="colors";renderLogoEdit();renderIconPick();$("#sStatus").textContent="Unsaved changes";});
-const settingsView=$("#view-settings");
+/* The team's settings are edited in three places: Team (name, grade/level), Calendar (season,
+   practice times, games, special days) and Settings (colors, logo, features, export). They share one
+   draft and the same save. Every place's status line mirrors #sStatus. */
+const settingsView=document;
+const inForm=e=>!!(e.target&&e.target.closest&&e.target.closest(".st-form"));
+new MutationObserver(()=>{const t=$("#sStatus").textContent;document.querySelectorAll(".st-status").forEach(x=>{if(x.id!=="sStatus")x.textContent=t;});})
+  .observe($("#sStatus"),{childList:true,characterData:true,subtree:true});
 $("#sSport").addEventListener("change",()=>{$("#sSportHelp").hidden=$("#sSport").value===((team.settings||{}).sport||"basketball");});
 settingsView.addEventListener("input",e=>{
+  if(!inForm(e)||!draft)return;
   if(e.target.name==="sIcon"){draft.appIcon=e.target.value;renderIconBg({...draft,color:$("#sColor").value,color2:$("#sUseC2").checked?$("#sColor2").value:""});}
   if(e.target.name==="sIconBg"){draft.iconBg=e.target.value;$("#sStatus").textContent="Unsaved changes";}
   if(e.target.id==="sIconBgColor"){draft.iconBg="custom";draft.iconBgColor=e.target.value;const r=document.querySelector('input[name="sIconBg"][value="custom"]');if(r)r.checked=true;
@@ -605,8 +620,9 @@ settingsView.addEventListener("input",e=>{
   if(e.target.closest(".st-edit"))$("#sStatus").textContent="Unsaved changes";
   updatePreview();
 });
-settingsView.addEventListener("change",e=>{if(e.target.matches("select[data-f],input[type=checkbox][data-f]"))settingsView.dispatchEvent(new Event("input",{bubbles:true}));});
+settingsView.addEventListener("change",e=>{if(inForm(e)&&e.target.matches("select[data-f],input[type=checkbox][data-f]"))e.target.dispatchEvent(new Event("input",{bubbles:true}));});
 settingsView.addEventListener("click",e=>{
+  if(!inForm(e))return;
   const rm=e.target.closest("[data-rm]");
   if(rm){const row=rm.closest(".row");draft[rm.dataset.rm].splice(+row.dataset.i,1);renderRows();updatePreview();$("#sStatus").textContent="Unsaved changes";}
 });
@@ -625,11 +641,12 @@ async function saveSettings(st){
   applySettings(st);renderSwitcher();
   if(sportChanged){play=blankPlay();fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();renderAllDrills();}
 }
-$("#sSave").addEventListener("click",async()=>{
+document.querySelectorAll(".st-save").forEach(b=>b.addEventListener("click",async()=>{
+  if(!draft)window.onSettingsTab(true);
   const st=readForm();$("#sStatus").textContent="Saving…";
-  try{await saveSettings(st);$("#sStatus").textContent="Saved";window.onSettingsTab();$("#sStatus").textContent="Saved";}
+  try{await saveSettings(st);settingsDirty=false;$("#sStatus").textContent="Saved";window.onSettingsTab(true);$("#sStatus").textContent="Saved";}
   catch(err){$("#sStatus").textContent="Not saved: "+(err.message||"check your connection");}
-});
+}));
 
 
 /* ---------- coaching staff ---------- */
@@ -653,6 +670,7 @@ async function renderStaff(){
   box.innerHTML=(team.role==="viewer"&&!mgr?"":
       codeRow("Staff code",team.join_code,"staff","Coaches who join with this code can edit plans, drills, plays and the calendar. You can narrow that per person below.")+
       codeRow("View-only code",team.viewer_code,"viewer","For team managers, trainers or players: they can see and print plans and play through plays. You can let them edit some areas below (for example, the calendar)."))+
+    schoolCodeHTML()+
     (!PERMS_DB&&owner?`<p class="msg err">Per-person permissions need one database update. Run supabase/roles.sql in Supabase (SQL Editor) to turn them on.</p>`:"")+
     `<ul class="members">${members.map(m=>{
       const me=m.user_id===user.id,name=esc(m.display_name||(m.email||"").split("@")[0]);
@@ -664,6 +682,29 @@ async function renderStaff(){
     <div class="msg" id="staffMsg"></div>
     <div class="actions" style="margin:0"><button class="btn danger" id="leaveTeam">Leave this team</button></div>`;
 }
+/* One code for a whole school: adds a coach to every team you pick (7th, 8th, JV…) in one go. */
+let schoolCode=null,schoolPick=null;
+function schoolTeams(){
+  const key=String((team.settings||{}).school||team.name||"").trim().toLowerCase();
+  return teams.filter(t=>String((t.settings||{}).school||t.name||"").trim().toLowerCase()===key&&permsFor(t.role,t.perms).staff);
+}
+function schoolCodeHTML(){
+  if(!HOSTED||!PERM.staff)return "";
+  const list=schoolTeams();if(list.length<2)return "";
+  if(!schoolPick)schoolPick=new Set(list.map(t=>t.id));
+  const school=(team.settings||{}).school||team.name;
+  return `<div class="coderow school-code"><div style="flex:1 1 100%"><div class="eyebrow">School staff code · ${esc(school)}</div>
+    <p class="help" style="margin:4px 0 8px">One code that adds a coach to every team you check, as an assistant coach. Handy for a coach who helps with more than one grade.</p>
+    <div class="sc-teams">${list.map(t=>`<label class="sc-t"><input type="checkbox" data-scteam="${t.id}"${schoolPick.has(t.id)?" checked":""}> ${esc((t.settings||{}).teamLabel||t.name)}</label>`).join("")}</div></div>
+    ${schoolCode?`<div><span class="code">${esc(schoolCode)}</span></div><div class="actions" style="margin:0"><button class="btn" data-copycode="${esc(schoolCode)}">Copy</button><button class="btn" data-schoolcode="new">New code</button></div>`:
+      `<div class="actions" style="margin:0"><button class="btn primary" data-schoolcode="get">Get the school code</button></div>`}</div>`;
+}
+async function getSchoolCode(fresh){
+  const ids=[...schoolPick];if(!ids.length){msg($("#staffMsg"),"Check at least one team.","err");return;}
+  const {data,error}=await sb.rpc("school_code",{p_team_ids:ids,p_label:(team.settings||{}).school||"",p_new:!!fresh});
+  if(error){msg($("#staffMsg"),/function|does not exist|schema cache/i.test(error.message)?"School codes need one database step: run supabase/team-tools.sql in Supabase → SQL Editor.":error.message,"err");return;}
+  schoolCode=data;renderStaff();
+}
 async function savePerms(uid,perms){
   const {error}=await sb.rpc("set_member_perms",{p_team:team.id,p_user:uid,p_perms:perms});
   if(error){msg($("#staffMsg"),error.message,"err");renderStaff();return;}
@@ -672,7 +713,13 @@ async function savePerms(uid,perms){
   const det=document.querySelector(`.perm-edit [data-uid="${uid}"]`);if(det)det.closest("details").open=!!keep;
   if(uid===user.id){await loadTeams();team=teams.find(t=>t.id===team.id)||team;openTeam(team);}
 }
+$("#staffBody").addEventListener("change",e=>{const c=e.target.closest("[data-scteam]");if(!c)return;
+  if(c.checked)schoolPick.add(c.dataset.scteam);else schoolPick.delete(c.dataset.scteam);
+  if(schoolCode){schoolCode=null;renderStaff();}});
 $("#staffBody").addEventListener("click",async e=>{
+  const sc=e.target.closest("[data-schoolcode]");
+  if(sc){if(sc.dataset.schoolcode==="new"&&sc.dataset.armed!=="1"){sc.dataset.armed="1";sc.textContent="Old school code stops working. Tap again";return;}
+    await getSchoolCode(sc.dataset.schoolcode==="new");return;}
   const pr=e.target.closest("[data-preset]");
   if(pr){await savePerms(pr.dataset.uid,{...PRESETS[pr.dataset.preset].perms});return;}
   const c=e.target.closest("[data-copycode]");
