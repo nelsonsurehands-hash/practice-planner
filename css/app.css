@@ -1265,3 +1265,7 @@ body:has(#screen-landing:not([hidden])){padding:0;max-width:none;background:#0a1
 @media print{.app-bar{display:none}}
 .day-ev .pr-note{font-size:13.5px;color:var(--ink);background:var(--accent-soft);border-radius:8px;padding:4px 8px;display:inline-block;margin:2px 0}
 .cal-arrive{display:inline-block;margin-top:6px;padding:4px 10px;border-radius:999px;background:var(--accent-soft);color:var(--ink);font-size:13.5px;font-weight:600}
+.day-form{display:flex;flex-direction:column;gap:14px;margin-top:12px}
+.day-form .grid2{gap:12px}
+.day-form .actions{margin:2px 0 0!important}
+.day-edit .day-game{margin-top:12px}

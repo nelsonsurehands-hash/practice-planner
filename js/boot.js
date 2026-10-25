@@ -1070,11 +1070,4 @@ if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.
 
 init().catch(err=>{show("screen-auth");msg($("#authMsg"),"Something went wrong starting the app: "+err.message,"err");});
 
-/* Picking an arrival time fills in the every-practice note; coaches can reword it. */
-(function(){const a=document.getElementById("sArrive"),n=document.getElementById("sPrNote");if(!a||!n)return;
-  const auto=v=>v>0?`Players arrive ${v} minutes before practice.`:"";
-  let last=null;a.addEventListener("focus",()=>{last=+a.value||0;});
-  a.addEventListener("change",()=>{const v=+a.value||0,cur=n.value.trim();
-    if(!cur||cur===auto(last)||/^Players arrive \d+ minutes before practice\.$/.test(cur)){n.value=auto(v);n.dispatchEvent(new Event("input",{bubbles:true}));}
-    last=v;});
-})();
+

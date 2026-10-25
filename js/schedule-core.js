@@ -59,7 +59,7 @@ function ics(list,o){
     L.push("SUMMARY:"+esc(title));if(desc)L.push("DESCRIPTION:"+esc(desc));if(loc)L.push("LOCATION:"+esc(loc));L.push("END:VEVENT");};
   list.forEach(x=>{
     if(show.games!==false&&x.game){const g=x.game;ev("game",x.date,`${g.home?"vs":"at"} ${g.opponent||"Game"}${g.time?"":" (time TBD)"}`,g.time,"",[g.home?"Home game":"Away game",...x.notes].join(" · "),g.location);}
-    if(show.practices!==false&&x.practice){const p=x.practice;ev("practice",x.date,/tryout/i.test(p.notes.join(" "))?"Tryouts":"Practice",p.start,p.end,[early&&p.start?`Players arrive by ${am(arriveAt(p.start,early))}`:"",o.note||"",...p.notes].filter(Boolean).join(" · "));}
+    if(show.practices!==false&&x.practice){const p=x.practice;ev("practice",x.date,/tryout/i.test(p.notes.join(" "))?"Tryouts":"Practice",p.start,p.end,[early&&p.start?`Players arrive by ${am(arriveAt(p.start,early))}`:"",(/^players arrive \d+ min(ute)?s? (before|early)/i.test(o.note||"")?"":(o.note||"")),...p.notes].filter(Boolean).join(" · "));}
     if(show.off!==false&&x.off)ev("off",x.date,x.off.note==="No practice"?"No practice":x.off.note+" (no practice)","","","");
     if(show.off!==false&&!x.practice&&!x.game&&x.notes.length)ev("note",x.date,x.notes.join(" · "),"","","");
   });

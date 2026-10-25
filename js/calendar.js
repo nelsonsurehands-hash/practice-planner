@@ -173,6 +173,7 @@ function markValue(id,regular){
 }
 /* Bus time: 90 minutes before that day's game, or 3:00 PM if there's no game. */
 function busDefault(iso){const g=(SETTINGS.games||[]).find(x=>x.date===iso);if(!g||!g.time)return "15:00";const m=Math.max(0,toMin(g.time)-90);return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");}
+const prNoteOf=st=>{const n=String((st&&st.practiceNote)||"").trim();return /^players arrive \d+ min(ute)?s? (before|early)/i.test(n)?"":n;};
 function renderDay(){
   const iso=dayIso,st=SETTINGS,{days}=buildDays(st),d=days[iso]||{},ed=editable();
   const regular=isRegular(st,iso),list=entriesOn(st,iso);
@@ -197,14 +198,14 @@ function renderDay(){
   const noteChips=()=>{const ns=list.map((x,i)=>({x,i})).filter(o=>o.x.kind!=="off"&&o.x.note&&!isBus(o.x.note));
     return ns.length?`<div class="note-chips">${ns.map(o=>`<span class="nchip">${esc(o.x.note)}${ed?`<button type="button" class="icon" data-rmentry="${o.i}" aria-label="Remove ${esc(o.x.note)}">✕</button>`:""}</span>`).join("")}</div>`:"";};
   if(d.practice){const p=d.practice,pi=planInfo(iso);
-    h+=`<div class="day-ev practice"><b>${p.notes.some(isTryout)?"Tryouts":"Practice"}</b><span>${span(p.start,p.end)}</span>${(SETTINGS||{}).practiceNote?`<span class="pr-note">📌 ${esc(SETTINGS.practiceNote)}</span>`:""}${noteChips()}
+    h+=`<div class="day-ev practice"><b>${p.notes.some(isTryout)?"Tryouts":"Practice"}</b><span>${span(p.start,p.end)}</span>${prNoteOf(SETTINGS)?`<span class="pr-note">📌 ${esc(prNoteOf(SETTINGS))}</span>`:""}${noteChips()}
       <span>${pi?`Plan ready: ${pi.used} of ${pi.avail} minutes booked`:"No practice plan yet"}</span>${ed?delBtn("delPractice","Cancel this practice"):""}</div>
       <button class="btn primary" type="button" data-go="plan">${pi?"Open practice plan":"Plan this practice"}</button>`;
-    if(ed)h+=`<details class="day-edit"><summary>Change time or add a note</summary>
+    if(ed)h+=`<details class="day-edit"><summary>Change time or add a note</summary><div class="day-form">
       <div class="grid2"><label class="f">Starts<input type="time" id="dpStart" value="${p.start}"></label><label class="f">Ends<input type="time" id="dpEnd" value="${p.end}"></label></div>
       <label class="f">Add a note<input id="dpNote" placeholder="e.g. Bring white jerseys"></label>
       ${moreDaysPicker(iso)}
-      <div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="savePractice" id="dpSave">Save</button></div></details>`;
+      <div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="savePractice" id="dpSave">Save</button></div></div></details>`;
   }
   if(d.off){
     const offs=list.map((x,i)=>({x,i})).filter(o=>o.x.kind==="off");
@@ -216,8 +217,8 @@ function renderDay(){
   if(!d.game&&!d.practice&&!d.off&&!d.tags)h+=`<p class="help">Nothing scheduled.</p>`;
   if(ed&&!d.game)h+=`<details class="day-edit"><summary>Add a game this day</summary>${gameForm({date:iso,home:true,time:"17:30"})}</details>`;
   if(ed&&!d.practice&&!d.off){const t=practiceTimes(iso,st);
-    h+=`<details class="day-edit"><summary>Add a practice this day</summary><div class="grid2"><label class="f">Starts<input type="time" id="dpStart" value="${t.start}"></label><label class="f">Ends<input type="time" id="dpEnd" value="${t.end}"></label></div>
-      <label class="f">Add a note<input id="dpNote" placeholder="Optional"></label><div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="savePractice">Add practice</button></div></details>`;}
+    h+=`<details class="day-edit"><summary>Add a practice this day</summary><div class="day-form"><div class="grid2"><label class="f">Starts<input type="time" id="dpStart" value="${t.start}"></label><label class="f">Ends<input type="time" id="dpEnd" value="${t.end}"></label></div>
+      <label class="f">Add a note<input id="dpNote" placeholder="Optional"></label><div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="savePractice">Add practice</button></div></div></details>`;}
   h+=`<div class="msg" id="dayMsg"></div><div class="actions" style="margin:0"><button class="btn" type="button" data-act="close">Close</button></div>`;
   $("#dayBody").innerHTML=h;mdPreview();
 }

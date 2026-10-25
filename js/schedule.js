@@ -65,7 +65,7 @@ const isTryout=n=>/tryout/i.test(n||""),isMeeting=n=>/meeting/i.test(n||""),isBu
 const isTry=p=>(p.notes||[]).some(isTryout);
 /* "Players arrive 20 minutes early": the coach's setting (Calendar → Practice schedule). */
 const early=()=>+((CAL&&CAL.schedule&&CAL.schedule.arriveEarly)||0);
-const prNote=()=>String((CAL&&CAL.schedule&&CAL.schedule.practiceNote)||"").trim();
+const prNote=()=>{const n=String((CAL&&CAL.schedule&&CAL.schedule.practiceNote)||"").trim();return /^players arrive \d+ min(ute)?s? (before|early)/i.test(n)?"":n;};   // the arrival line already says this
 const arrive=p=>early()&&p.start?ampm(S.arriveAt(p.start,early())):"";
 function cellHTML(iso,d){
   const today=iso===todayISO();
