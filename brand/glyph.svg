@@ -1,32 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#16244f"/><stop offset="1" stop-color="#0a1230"/></linearGradient>
-    <linearGradient id="glow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd166"/><stop offset="1" stop-color="#ff7a2f"/></linearGradient>
-  </defs>
-  
-  <!-- idea: a lightbulb whose filament is a plus sign (the "extra") -->
-  <g fill="none" stroke="url(#glow)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M318 196a62 62 0 1 1 92 0c-12 13-18 25-18 40h-56c0-15-6-27-18-40z"/>
-    <path d="M338 262h52M344 286h40"/>
-    <path d="M364 128v52M338 154h52"/>
-    <path d="M364 62v-14M286 96l-10-10M442 96l10-10M260 166h-14M482 166h-14" stroke-width="12"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs>    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#172A5E"/><stop offset="1" stop-color="#0A1330"/></linearGradient>
+    <radialGradient id="ball" cx=".36" cy=".3" r=".8"><stop offset="0" stop-color="#FFB547"/><stop offset=".55" stop-color="#FF8A1F"/><stop offset="1" stop-color="#E5560F"/></radialGradient>
+    <linearGradient id="hot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD166"/><stop offset="1" stop-color="#FF8A1F"/></linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity=".10"/><stop offset=".5" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient></defs><g stroke="url(#hot)" stroke-width="18" stroke-linecap="round"><path d="M108.3 186.0L80.7 181.1M159.6 97.1L141.6 75.6M256.0 62.0L256.0 34.0M352.4 97.1L370.4 75.6M403.7 186.0L431.3 181.1"/></g>
+  <circle cx="256" cy="212" r="118" fill="url(#ball)"/>
+  <g fill="none" stroke="#0A1330" stroke-width="11" stroke-linecap="round" opacity=".9">
+    <path d="M256 94V330M138 212H374"/>
+    <path d="M172 129a118 118 0 0 1 0 166"/><path d="M340 129a118 118 0 0 0 0 166"/>
   </g>
-  <!-- coach: head, shoulders, cap brim, clipboard with a play drawn on it -->
-  <g fill="none" stroke="#ffffff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M138 236a48 48 0 0 0 96 0"/>
-    <path d="M142 250c-4-10-5-20-4-30"/>
-    <path d="M78 452c0-86 48-134 108-134 30 0 56 12 74 32"/>
-  </g>
-  <!-- cap -->
-  <path d="M132 224c4-40 30-62 58-62 32 0 54 22 56 52l36 4c8 1 8 13 0 14l-150 4z" fill="#ffffff"/>
-  <g transform="rotate(-8 330 390)">
-    <rect x="254" y="318" width="148" height="164" rx="18" fill="#0a1230" stroke="#ffffff" stroke-width="16"/>
-    <rect x="300" y="304" width="56" height="26" rx="8" fill="#ffffff"/>
-    <g fill="none" stroke="url(#glow)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="294" cy="440" r="14"/>
-      <path d="M350 362l22 22M372 362l-22 22"/>
-      <path d="M306 426c18-30 34-40 50-36" stroke-dasharray="1 16"/>
-      <path d="M352 386l6 8-10 2"/>
-    </g>
-  </g>
+  <path d="M190 150a84 84 0 0 1 52-40" fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" opacity=".45"/>
+  <path d="M206 344h100l-10 22h-80z" fill="#FFFFFF"/>
+  <rect x="212" y="376" width="88" height="20" rx="10" fill="#FFFFFF"/>
+  <rect x="224" y="406" width="64" height="20" rx="10" fill="#FFFFFF"/>
+  <rect x="244" y="434" width="24" height="12" rx="6" fill="#FFFFFF" opacity=".7"/>
 </svg>
