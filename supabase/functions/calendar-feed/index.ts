@@ -51,12 +51,14 @@ function days(st){
 }
 /* A calendar file (.ics) of the schedule. Times are "floating" (the phone's own time zone).
    show: {practices, games, off}. Stable UIDs so a calendar app updates events instead of duplicating them. */
+function arriveAt(t,min){if(!t||!min)return "";const [h,m]=t.split(":").map(Number),x=h*60+m-min;return String(Math.floor(x/60)).padStart(2,"0")+":"+String(x%60).padStart(2,"0");}
 function ics(list,o){
   o=o||{};const show=o.show||{practices:true,games:true,off:true},team=o.team||"Team",key=o.key||"team";
   const esc=t=>String(t||"").replace(/\\/g,"\\\\").replace(/[,;]/g,m=>"\\"+m).replace(/\n/g,"\\n");
   const dt=(d,t)=>d.replace(/-/g,"")+"T"+t.replace(":","")+"00";
   const plus=(t,m)=>{const [h,mm]=t.split(":").map(Number),x=h*60+mm+m;return String(Math.floor(x/60)%24).padStart(2,"0")+":"+String(x%60).padStart(2,"0");};
   const stamp=new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
+  const early=+o.arrive||0,am=t=>{const [h,m]=t.split(":").map(Number);return (h%12||12)+":"+String(m).padStart(2,"0")+(h<12?" AM":" PM");};
   const L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Coach Practice Planner//Team Schedule//EN","CALSCALE:GREGORIAN","METHOD:PUBLISH",
     "X-WR-CALNAME:"+esc(team),"X-PUBLISHED-TTL:PT1H","REFRESH-INTERVAL;VALUE=DURATION:PT1H"];
   const ev=(id,d,title,start,end,desc,loc)=>{L.push("BEGIN:VEVENT","UID:"+id+"-"+d+"-"+key+"@practice-planner","DTSTAMP:"+stamp);
@@ -65,7 +67,7 @@ function ics(list,o){
     L.push("SUMMARY:"+esc(title));if(desc)L.push("DESCRIPTION:"+esc(desc));if(loc)L.push("LOCATION:"+esc(loc));L.push("END:VEVENT");};
   list.forEach(x=>{
     if(show.games!==false&&x.game){const g=x.game;ev("game",x.date,`${g.home?"vs":"at"} ${g.opponent||"Game"}${g.time?"":" (time TBD)"}`,g.time,"",[g.home?"Home game":"Away game",...x.notes].join(" · "),g.location);}
-    if(show.practices!==false&&x.practice){const p=x.practice;ev("practice",x.date,/tryout/i.test(p.notes.join(" "))?"Tryouts":"Practice",p.start,p.end,p.notes.join(" · "));}
+    if(show.practices!==false&&x.practice){const p=x.practice;ev("practice",x.date,/tryout/i.test(p.notes.join(" "))?"Tryouts":"Practice",p.start,p.end,[early&&p.start?`Players arrive by ${am(arriveAt(p.start,early))}`:"",o.note||"",...p.notes].filter(Boolean).join(" · "));}
     if(show.off!==false&&x.off)ev("off",x.date,x.off.note==="No practice"?"No practice":x.off.note+" (no practice)","","","");
     if(show.off!==false&&!x.practice&&!x.game&&x.notes.length)ev("note",x.date,x.notes.join(" · "),"","","");
   });
@@ -91,7 +93,7 @@ Deno.serve(async (req) => {
   if (!cal) return new Response("This calendar link is off.", { status: 404, headers: CORS });
   const t = cal.team || {};
   const name = [t.school && t.mascot ? `${t.school} ${t.mascot}` : t.name, t.teamLabel].filter(Boolean).join(" ") || "Team schedule";
-  const text = ics(days(cal.schedule || {}), { show: cal.show, team: name, key: code });
+  const text = ics(days(cal.schedule || {}), { show: cal.show, team: name, key: code, arrive: (cal.schedule || {}).arriveEarly || 0, note: (cal.schedule || {}).practiceNote || "" });
   return new Response(text, {
     headers: { ...CORS, "Content-Type": "text/calendar; charset=utf-8", "Cache-Control": "public, max-age=900",
                "Content-Disposition": 'inline; filename="team-schedule.ics"' },

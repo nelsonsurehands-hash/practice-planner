@@ -636,6 +636,7 @@ begin
     'schedule', jsonb_build_object(
       'seasonStart', s->>'seasonStart', 'seasonEnd', s->>'seasonEnd', 'practiceDays', coalesce(s->'practiceDays', '[]'::jsonb),
       'weekdayStart', s->>'weekdayStart', 'weekdayEnd', s->>'weekdayEnd', 'weekendStart', s->>'weekendStart', 'weekendEnd', s->>'weekendEnd',
+      'arriveEarly', coalesce((s->>'arriveEarly')::int, 0), 'practiceNote', coalesce(s->>'practiceNote', ''),
       'games', coalesce((select jsonb_agg(jsonb_build_object('date', g->>'date', 'opponent', g->>'opponent', 'time', g->>'time',
                                                             'home', coalesce((g->>'home')::boolean, true), 'location', g->>'location'))
                            from jsonb_array_elements(coalesce(s->'games', '[]'::jsonb)) g where coalesce(g->>'date', '') <> ''), '[]'::jsonb),

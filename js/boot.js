@@ -508,7 +508,7 @@ function readForm(){
   draft.color2=$("#sUseC2").checked?$("#sColor2").value:"";
   {const r=document.querySelector('input[name="sIcon"]:checked');if(r)draft.appIcon=r.value;}
   {const r=document.querySelector('input[name="sIconBg"]:checked');if(r)draft.iconBg=r.value;const c=$("#sIconBgColor");if(c&&draft.iconBg==="custom")draft.iconBgColor=c.value;}
-  draft.weekdayStart=$("#sWdS").value;draft.weekdayEnd=$("#sWdE").value;draft.weekendStart=$("#sWeS").value;draft.weekendEnd=$("#sWeE").value;
+  draft.weekdayStart=$("#sWdS").value;draft.weekdayEnd=$("#sWdE").value;draft.weekendStart=$("#sWeS").value;draft.weekendEnd=$("#sWeE").value;draft.arriveEarly=+$("#sArrive").value||0;draft.practiceNote=$("#sPrNote").value.trim();
   draft.seasonStart=$("#sStart").value;draft.seasonEnd=$("#sEnd").value;
   draft.minPractices=+$("#sMinPr").value||0;
   draft.special.forEach(x=>{if(!x.start)delete x.start;if(!x.end)delete x.end;});
@@ -565,7 +565,7 @@ window.onSettingsTab=function(force){
   $("#sSport").value=draft.sport||"basketball";$("#sSportHelp").hidden=true;
   $("#sSchool").value=draft.school||"";$("#sMascot").value=draft.mascot||"";setLevel("sLabelSel",draft.teamLabel||"");$("#sColor").value=draft.color||"#5b2a86";
   $("#sColor2").value=draft.color2||"#f2b705";$("#sUseC2").checked=!!draft.color2;renderLogoEdit();renderIconPick();
-  $("#sWdS").value=draft.weekdayStart||"";$("#sWdE").value=draft.weekdayEnd||"";$("#sWeS").value=draft.weekendStart||"";$("#sWeE").value=draft.weekendEnd||"";
+  $("#sWdS").value=draft.weekdayStart||"";$("#sWdE").value=draft.weekdayEnd||"";$("#sWeS").value=draft.weekendStart||"";$("#sWeE").value=draft.weekendEnd||"";$("#sArrive").value=String(draft.arriveEarly||0);$("#sPrNote").value=draft.practiceNote||"";
   $("#sStart").value=draft.seasonStart||"";$("#sEnd").value=draft.seasonEnd||"";$("#sMinPr").value=draft.minPractices||"";
   document.querySelectorAll("#sDays input").forEach(x=>x.checked=(draft.practiceDays||[]).includes(+x.value));
   {const f=draft.features||{};$("#sProg").innerHTML=progHTML("sProg",progOf(f));$("#sFeatures").innerHTML=featHTML(f);}
@@ -961,7 +961,7 @@ $("#shareClose").addEventListener("click",e=>{e.preventDefault();$("#shareDlg").
    Export: pick what goes in the file (plays, drill library, practice plans, calendar, roster, or
    everything). A plays-only file is how you send plays to another coach: they import it on their team.
    Import: shows what's in the file and lets you pick which parts to bring in. Nothing is deleted. */
-const CAL_KEYS=["games","special","seasonStart","seasonEnd","practiceDays","weekdayStart","weekdayEnd","weekendStart","weekendEnd","minPractices"];
+const CAL_KEYS=["games","special","seasonStart","seasonEnd","practiceDays","weekdayStart","weekdayEnd","weekendStart","weekendEnd","minPractices","arriveEarly","practiceNote"];
 const sendable=()=>plays.filter(p=>!p.draft).sort((a,b)=>a.name.localeCompare(b.name));
 function exportPanel(){
   const st=team.settings||{},ps=sendable(),ng=(st.games||[]).length,nd=(st.special||[]).length,nr=(window.TM&&TM.roster.length)||0;
@@ -1069,3 +1069,12 @@ $("#sImport").addEventListener("change",async e=>{
 if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>{window.SW_REG=r;}).catch(()=>{});
 
 init().catch(err=>{show("screen-auth");msg($("#authMsg"),"Something went wrong starting the app: "+err.message,"err");});
+
+/* Picking an arrival time fills in the every-practice note; coaches can reword it. */
+(function(){const a=document.getElementById("sArrive"),n=document.getElementById("sPrNote");if(!a||!n)return;
+  const auto=v=>v>0?`Players arrive ${v} minutes before practice.`:"";
+  let last=null;a.addEventListener("focus",()=>{last=+a.value||0;});
+  a.addEventListener("change",()=>{const v=+a.value||0,cur=n.value.trim();
+    if(!cur||cur===auto(last)||/^Players arrive \d+ minutes before practice\.$/.test(cur)){n.value=auto(v);n.dispatchEvent(new Event("input",{bubbles:true}));}
+    last=v;});
+})();
