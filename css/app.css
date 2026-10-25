@@ -1136,7 +1136,8 @@ body.pb-full{overflow:hidden}
 @media (min-width:900px){.top-right .tabs{flex:0 1 auto}}
 .page-help{width:38px;height:38px;min-height:38px;padding:0;border-radius:50%;font-weight:800;font-size:17px;flex:none}
 .ph-tip{background:var(--accent-soft);border-radius:8px;padding:8px 10px;color:var(--ink)}
-.dlg.tour{max-width:420px;text-align:center}
+.dlg.tour{max-width:420px;margin:0 auto;text-align:center}
+#pageHelpDlg:has(.tour){width:min(480px,calc(100vw - 24px))}
 .tour-top{display:flex;justify-content:space-between;align-items:center;text-align:left}
 .tour-top small{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .tour-ic{font-size:46px;line-height:1;margin:14px 0 6px}
