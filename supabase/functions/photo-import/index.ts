@@ -168,11 +168,12 @@ Deno.serve(async (req) => {
 async function handle(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return reply(405, { error: "Use POST." });
-  // A key pasted into Supabase can pick up a space, a line break or "smart quotes": strip anything
-  // that can't be in a key, then check it looks like one.
-  const key = (Deno.env.get("ANTHROPIC_API_KEY") || "").replace(/[^\x21-\x7e]/g, "").replace(/^["']+|["']+$/g, "");
-  if (!key) return reply(500, { error: "The photo reader isn't set up: add the ANTHROPIC_API_KEY secret in Supabase." });
-  if (!/^sk-ant-[A-Za-z0-9_-]{20,}$/.test(key)) return reply(500, { error: "The photo reader's key in Supabase doesn't look right. In Supabase → Edge Functions → Secrets, paste the ANTHROPIC_API_KEY again (it starts with sk-ant-)." });
+  // A key pasted into Supabase can pick up spaces, line breaks, "smart quotes" or even its own name
+  // ("ANTHROPIC_API_KEY=sk-ant-…"): pull the key itself out of whatever was pasted.
+  const raw = Deno.env.get("ANTHROPIC_API_KEY") || "";
+  const key = (raw.match(/sk-ant-[A-Za-z0-9_-]{20,}/) || [""])[0];
+  if (!raw.trim()) return reply(500, { error: "The photo reader isn't set up: add the ANTHROPIC_API_KEY secret in Supabase." });
+  if (!key) return reply(500, { error: "The photo reader's key in Supabase doesn't look like an Anthropic API key. In Supabase → Edge Functions → Secrets, replace ANTHROPIC_API_KEY with a key from console.anthropic.com → API keys (it starts with sk-ant-)." });
 
   let body: { kind?: string; team?: string; images?: { data: string; type: string }[]; context?: Record<string, unknown> };
   try { body = await req.json(); } catch { return reply(400, { error: "Bad request." }); }
