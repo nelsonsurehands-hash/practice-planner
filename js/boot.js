@@ -291,10 +291,10 @@ $("#suCopyFrom").addEventListener("change",()=>{
   const src=teams.find(t=>t.id===$("#suCopyFrom").value);
   if(src){const st=src.settings||{};
     $("#suSport").value=st.sport||"basketball";$("#suSchool").value=st.school||"";$("#suMascot").value=st.mascot||"";
-    $("#suLabel").value="";$("#suColor").value=st.color||"#5b2a86";$("#suUseC2").checked=!!st.color2;if(st.color2)$("#suColor2").value=st.color2;
+    setLevel("suLabelSel","");$("#suColor").value=st.color||"#5b2a86";$("#suUseC2").checked=!!st.color2;if(st.color2)$("#suColor2").value=st.color2;
     $("#suStart").value=st.seasonStart||"";$("#suEnd").value=st.seasonEnd||"";
     $("#suWdS").value=st.weekdayStart||"";$("#suWdE").value=st.weekdayEnd||"";
-    $("#suStarter").checked=false;$("#suLabel").focus();}
+    $("#suStarter").checked=false;$("#suLabelSel").focus();}
   updateStarterLabel();copyNote();
 });
 async function readItems(teamId,kind){
@@ -303,6 +303,18 @@ async function readItems(teamId,kind){
   if(error)throw error;return (data||[]).map(r=>[r.id,r.data]);
 }
 $("#suBack").addEventListener("click",()=>{show("app");});
+/* ---------- Grade/Level: pick from the usual levels, or Other to type your own ---------- */
+const LEVELS=["7th Grade","8th Grade","Freshman","JV","Varsity"];
+function setLevel(selId,val){
+  const sel=$("#"+selId),inp=$("#"+sel.dataset.lvl);val=String(val||"").trim();
+  const known=LEVELS.find(l=>l.toLowerCase()===val.toLowerCase());
+  sel.innerHTML=`<option value="">Choose…</option>`+LEVELS.map(l=>`<option${l===known?" selected":""}>${l}</option>`).join("")+`<option value="__other"${val&&!known?" selected":""}>Other…</option>`;
+  inp.value=known||val;inp.hidden=!(val&&!known);
+}
+document.addEventListener("change",e=>{const sel=e.target.closest("select[data-lvl]");if(!sel)return;const inp=$("#"+sel.dataset.lvl);
+  if(sel.value==="__other"){inp.hidden=false;inp.value="";inp.focus();}else{inp.hidden=true;inp.value=sel.value;}
+  inp.dispatchEvent(new Event("input",{bubbles:true}));});
+setLevel("suLabelSel","");
 /* ---------- which features a team uses (new team form and Settings → Features) ---------- */
 function progHTML(name,cur){return Object.entries(PROGRAMS).map(([k,p])=>`<label class="prog"><input type="radio" name="${name}" value="${k}"${k===cur?" checked":""}><span><b>${p.label}</b><small>${p.help}</small></span></label>`).join("");}
 function featHTML(f){
@@ -489,7 +501,7 @@ window.onSettingsTab=function(){
   draft=JSON.parse(JSON.stringify({...DEFAULT_SETTINGS,...(team.settings||{})}));
   draft.games=draft.games||[];draft.special=draft.special||[];
   $("#sSport").value=draft.sport||"basketball";$("#sSportHelp").hidden=true;
-  $("#sSchool").value=draft.school||"";$("#sMascot").value=draft.mascot||"";$("#sLabel").value=draft.teamLabel||"";$("#sColor").value=draft.color||"#5b2a86";
+  $("#sSchool").value=draft.school||"";$("#sMascot").value=draft.mascot||"";setLevel("sLabelSel",draft.teamLabel||"");$("#sColor").value=draft.color||"#5b2a86";
   $("#sColor2").value=draft.color2||"#f2b705";$("#sUseC2").checked=!!draft.color2;renderLogoEdit();renderIconPick();
   $("#sWdS").value=draft.weekdayStart||"";$("#sWdE").value=draft.weekdayEnd||"";$("#sWeS").value=draft.weekendStart||"";$("#sWeE").value=draft.weekendEnd||"";
   $("#sStart").value=draft.seasonStart||"";$("#sEnd").value=draft.seasonEnd||"";$("#sMinPr").value=draft.minPractices||"";

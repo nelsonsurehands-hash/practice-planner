@@ -1121,3 +1121,4 @@ body.pb-full{overflow:hidden}
 .tbd-wrap input[type=time]:disabled{opacity:.45}
 .tbd{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink);white-space:nowrap;cursor:pointer}
 .tbd input{width:auto}
+.lvl-pick{display:flex;flex-direction:column;gap:6px}
