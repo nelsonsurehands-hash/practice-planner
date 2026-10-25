@@ -100,8 +100,17 @@
       <label class="f">Weekday practice starts<input id="suWdS" type="time" value="16:00"></label>
       <label class="f">Weekday practice ends<input id="suWdE" type="time" value="18:00"></label>
     </div>
+    <div class="su-logo">
+      <div class="preview" id="suLogoPrev">Logo</div>
+      <div><b>Team logo</b> <small>(optional)</small><p class="help" style="margin:2px 0 6px">Add a photo or file of your logo and the app picks up your team colors from it.</p>
+        <label class="btn" style="cursor:pointer">📷 Add logo<input type="file" id="suLogo" accept="image/*" hidden></label> <button class="btn" type="button" id="suLogoRm" hidden>Remove</button>
+        <div class="lc-pick" id="suLogoColors" hidden></div></div>
+    </div>
     <div class="grid2">
       <label class="f">Team color<input id="suColor" type="color" value="#5b2a86"></label>
+      <div class="f">Second color<div class="c2row"><input id="suColor2" type="color" value="#f2b705" aria-label="Second color"><label><input type="checkbox" id="suUseC2" style="width:auto"> Use it</label></div></div>
+    </div>
+    <div class="grid2">
       <label class="f" id="suStarterWrap" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:14px;font-weight:500;color:var(--ink)"><input type="checkbox" id="suStarter" checked style="width:auto"> <span id="suStarterText">Add starter drills</span></label>
     </div>
     <fieldset class="catpick" id="suCopyBox" hidden><legend>Start from one of your teams</legend>
@@ -384,7 +393,8 @@
         <div class="f">Second color<div class="c2row"><input id="sColor2" type="color" aria-label="Second color"><label><input type="checkbox" id="sUseC2" style="width:auto"> Use it</label></div></div>
         <div class="f">Team logo<div class="logo-edit"><div class="preview" id="sLogoPrev">No logo</div>
           <label class="btn" style="cursor:pointer">Upload<input type="file" id="sLogo" accept="image/*" hidden></label>
-          <button class="btn" type="button" id="sLogoRm" hidden>Remove</button></div></div>
+          <button class="btn" type="button" id="sLogoRm" hidden>Remove</button></div>
+          <div class="lc-pick" id="sLogoColors" hidden></div></div>
       </div>
       <fieldset class="catpick"><legend>App icon</legend>
         <div class="icon-pick" id="sIconPick">

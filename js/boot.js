@@ -263,6 +263,7 @@ function showSetup(canGoBack,focusJoin){
   $("#suBack").hidden=!canGoBack;msg($("#setupMsg"),"");msg($("#joinMsg"),"");
   const nm=team&&team.myName||"";$("#suName").value=nm;$("#joinName").value=nm;
   updateStarterLabel();fillCopyFrom();
+  if(typeof suLogo!=="undefined"){suLogo="";$("#suLogoPrev").textContent="Logo";$("#suLogoRm").hidden=true;$("#suLogoColors").hidden=true;$("#suUseC2").checked=false;}
   show("screen-setup");
   if(focusJoin)$("#joinCode").focus();
 }
@@ -290,7 +291,7 @@ $("#suCopyFrom").addEventListener("change",()=>{
   const src=teams.find(t=>t.id===$("#suCopyFrom").value);
   if(src){const st=src.settings||{};
     $("#suSport").value=st.sport||"basketball";$("#suSchool").value=st.school||"";$("#suMascot").value=st.mascot||"";
-    $("#suLabel").value="";$("#suColor").value=st.color||"#5b2a86";
+    $("#suLabel").value="";$("#suColor").value=st.color||"#5b2a86";$("#suUseC2").checked=!!st.color2;if(st.color2)$("#suColor2").value=st.color2;
     $("#suStart").value=st.seasonStart||"";$("#suEnd").value=st.seasonEnd||"";
     $("#suWdS").value=st.weekdayStart||"";$("#suWdE").value=st.weekdayEnd||"";
     $("#suStarter").checked=false;$("#suLabel").focus();}
@@ -302,19 +303,33 @@ async function readItems(teamId,kind){
   if(error)throw error;return (data||[]).map(r=>[r.id,r.data]);
 }
 $("#suBack").addEventListener("click",()=>{show("app");});
+let suLogo="";
+$("#suLogo").addEventListener("change",async e=>{
+  const f=e.target.files[0];e.target.value="";if(!f)return;
+  try{let out=await shrinkImage(f,256);if(out.length>150000)out=await shrinkImage(f,160);suLogo=out;
+    $("#suLogoPrev").innerHTML=`<img src="${out}" alt="Team logo">`;$("#suLogoRm").hidden=false;
+    const cs=await logoColors(out);const apply=(c1,c2)=>{$("#suColor").value=c1;if(c2){$("#suColor2").value=c2;$("#suUseC2").checked=true;}};
+    if(cs.length)apply(cs[0],cs[1]||"");showLogoColors($("#suLogoColors"),cs,apply);}
+  catch{msg($("#setupMsg"),"That file couldn't be read as an image. Try a PNG or JPG.","err");}
+});
+$("#suLogoRm").addEventListener("click",()=>{suLogo="";$("#suLogoPrev").textContent="Logo";$("#suLogoRm").hidden=true;$("#suLogoColors").hidden=true;});
 $("#setupForm").addEventListener("submit",async e=>{
   e.preventDefault();
   const sport=$("#suSport").value;
   const settings={...DEFAULT_SETTINGS,sport,
     school:$("#suSchool").value.trim(),mascot:$("#suMascot").value.trim(),teamLabel:$("#suLabel").value.trim(),
     color:$("#suColor").value,seasonStart:$("#suStart").value,seasonEnd:$("#suEnd").value,
-    weekdayStart:$("#suWdS").value||"16:00",weekdayEnd:$("#suWdE").value||"18:00"};
+    weekdayStart:$("#suWdS").value||"16:00",weekdayEnd:$("#suWdE").value||"18:00",
+    color2:$("#suUseC2").checked?$("#suColor2").value:""};
+  if(suLogo)settings.logo=suLogo;
   const src=teams.find(x=>x.id===$("#suCopyFrom").value)||null,sst=src&&src.settings||{};
   if(src&&$("#suCpSched").checked){
     ["practiceDays","weekendStart","weekendEnd","minPractices"].forEach(k=>{if(sst[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(sst[k]));});
     if(!settings.seasonStart)settings.seasonStart=sst.seasonStart||"";if(!settings.seasonEnd)settings.seasonEnd=sst.seasonEnd||"";
   }
-  if(src&&$("#suCpLook").checked)["logo","color2","quickAdds","appIcon","iconBg","iconBgColor"].forEach(k=>{if(sst[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(sst[k]));});
+  if(src&&$("#suCpLook").checked)["logo","color2","quickAdds","appIcon","iconBg","iconBgColor"].forEach(k=>{
+    if(k==="logo"&&suLogo)return;if(k==="color2"&&$("#suUseC2").checked)return;   // what you picked here wins
+    if(sst[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(sst[k]));});
   const copyKinds=src?[["drills","#suCpDrills"],["plays","#suCpPlays"],["players","#suCpRoster"]].filter(([k,q])=>$(q).checked&&!$(q).disabled).map(([k])=>k):[];
   let copied={};
   for(const k of copyKinds){try{copied[k]=await readItems(src.id,k);}catch{copied[k]=[];}}
@@ -498,10 +513,47 @@ function shrinkImage(file,max){
       let out=c.toDataURL("image/webp",.9);if(!out.startsWith("data:image/webp"))out=c.toDataURL("image/png");res(out);};
     im.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("bad image"));};im.src=url;});
 }
+/* Team colors from a logo: the two strongest, most-used colors in it (white and see-through parts
+   are skipped). Done on the phone, no photo reader needed. */
+function logoColors(src){
+  return new Promise(res=>{const im=new Image();im.onload=()=>{
+    const N=72,c=document.createElement("canvas"),s=Math.min(1,N/Math.max(im.naturalWidth,im.naturalHeight));
+    c.width=Math.max(1,Math.round(im.naturalWidth*s));c.height=Math.max(1,Math.round(im.naturalHeight*s));
+    const x=c.getContext("2d",{willReadFrequently:true});x.drawImage(im,0,0,c.width,c.height);
+    let d;try{d=x.getImageData(0,0,c.width,c.height).data;}catch{res([]);return;}
+    const bins=new Map();
+    for(let i=0;i<d.length;i+=4){const a=d[i+3];if(a<160)continue;const r=d[i],g=d[i+1],b=d[i+2];
+      const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/510,sat=mx?(mx-mn)/mx:0;
+      if(l>0.9&&sat<0.15)continue;                       // white background
+      const k=(r>>4)<<8|(g>>4)<<4|(b>>4),e=bins.get(k)||{n:0,r:0,g:0,b:0,sat:0};
+      e.n++;e.r+=r;e.g+=g;e.b+=b;e.sat+=sat;bins.set(k,e);}
+    const list=[...bins.values()].map(e=>{const r=e.r/e.n,g=e.g/e.n,b=e.b/e.n,sat=e.sat/e.n;return {r,g,b,n:e.n,score:e.n*(0.3+sat)};}).sort((a,b)=>b.score-a.score);
+    const hex=o=>"#"+[o.r,o.g,o.b].map(v=>Math.round(v).toString(16).padStart(2,"0")).join("");
+    const far=(a,b)=>Math.hypot(a.r-b.r,a.g-b.g,a.b-b.b)>90;
+    const top=list[0]?list[0].score:0;   // skip specks (edges of shapes blend into in-between colors)
+    const out=[];for(const e of list){if(e.score<top*0.1)break;if(out.every(o=>far(o,e)))out.push(e);if(out.length>=4)break;}
+    res(out.map(hex));};im.onerror=()=>res([]);im.src=src;});
+}
+/* Show the colors found in a logo as one-tap choices. */
+function showLogoColors(box,colors,apply){
+  if(!colors.length){box.hidden=true;return;}
+  box.hidden=false;
+  box.innerHTML=`<span>Colors in your logo:</span>`+colors.map(c=>`<span class="lc-sw" style="background:${c}" title="${c}"></span>`).join("")+
+    `<button type="button" class="btn" data-lcuse>Use ${colors.length>1?"the first two":"it"}</button>`+
+    (colors.length>1?`<button type="button" class="linkbtn" data-lcswap>Swap them</button>`:"")+`<small class="lc-tip">Tap a color to make it the main one.</small>`;
+  let pick=colors.slice(0,2);
+  box.onclick=e=>{
+    if(e.target.closest("[data-lcuse]"))apply(pick[0],pick[1]||"");
+    if(e.target.closest("[data-lcswap]")){pick=[pick[1],pick[0]];apply(pick[0],pick[1]);}
+    const sw=e.target.closest(".lc-sw");if(sw){const c=sw.title;pick=[c,pick[0]===c?pick[1]:pick[0]];apply(pick[0],pick[1]||"");}
+  };
+}
 $("#sLogo").addEventListener("change",async e=>{
   const f=e.target.files[0];e.target.value="";if(!f)return;
   try{let out=await shrinkImage(f,256);if(out.length>150000)out=await shrinkImage(f,160);
-    draft.logo=out;renderLogoEdit();renderIconPick();$("#sStatus").textContent="Unsaved changes";}
+    draft.logo=out;renderLogoEdit();renderIconPick();$("#sStatus").textContent="Unsaved changes";
+    showLogoColors($("#sLogoColors"),await logoColors(out),(c1,c2)=>{$("#sColor").value=c1;if(c2){$("#sColor2").value=c2;$("#sUseC2").checked=true;}
+      renderIconPick();$("#sStatus").textContent="Unsaved changes";$("#sColor").dispatchEvent(new Event("input",{bubbles:true}));});}
   catch{$("#sStatus").textContent="That file couldn't be read as an image. Try a PNG or JPG.";}
 });
 $("#sLogoRm").addEventListener("click",()=>{draft.logo="";if(draft.appIcon==="logo")draft.appIcon="colors";renderLogoEdit();renderIconPick();$("#sStatus").textContent="Unsaved changes";});

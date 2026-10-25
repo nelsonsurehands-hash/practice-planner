@@ -33,7 +33,7 @@ function start(kind){
   };
   show(`<p class="help" style="margin-top:0">${KIND[kind].tip}</p>
     <div class="actions" style="margin:0"><button class="btn primary" type="button" data-ai="pick">📷 Take or choose ${job.kind==="roster"?"a photo":"photos"}</button></div>
-    ${HOSTED||window.__photoMock?"":`<p class="msg err" style="margin:0">Photo reading works once the app is connected to Supabase (it's in demo mode now).</p>`}`);
+    ${HOSTED||window.__photoMock?"":`<p class="msg err" style="margin:0">${(window.APP_CONFIG||{}).env==="test"?"The test version can't read photos (it has no server). Try Add from a photo in the real app at theextracoach.com.":"Photo reading works once the app is connected to Supabase (it's in demo mode now)."}</p>`}`);
 }
 /* Check the photos before reading: add more, put them in order, or remove one. */
 function stage(){
@@ -60,7 +60,7 @@ async function read(){
   try{
     let r;
     if(window.__photoMock)r=await window.__photoMock(job.kind,context);
-    else if(!HOSTED)throw new Error("Photo reading works once the app is connected to Supabase (it's in demo mode now).");
+    else if(!HOSTED)throw new Error((window.APP_CONFIG||{}).env==="test"?"The test version can't read photos (it has no server). Try Add from a photo in the real app at theextracoach.com.":"Photo reading works once the app is connected to Supabase (it's in demo mode now).");
     else{
       const {data,error}=await sb.functions.invoke("photo-import",{body:{kind:job.kind,team:team.id,images:job.photos.map(p=>({data:p.data,type:p.type})),context}});
       if(error){let m=error.message||"",status=error.context&&error.context.status;try{const j=await error.context.json();m=j.error||j.message||m;}catch{}
