@@ -74,7 +74,7 @@ function ics(list,o){
 }
 
 const URL0 = Deno.env.get("SUPABASE_URL")!;
-const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
+const ANON = (Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY"))!;
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 
 Deno.serve(async (req) => {
@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
   if (!/^[a-z0-9]{10,40}$/.test(code)) return new Response("Calendar link is missing or wrong.", { status: 404, headers: CORS });
   const r = await fetch(`${URL0}/rest/v1/rpc/get_calendar`, {
     method: "POST",
-    headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+    headers: { apikey: ANON, ...(ANON.startsWith("eyJ") ? { Authorization: `Bearer ${ANON}` } : {}), "Content-Type": "application/json" },
     body: JSON.stringify({ p_id: code }),
   });
   if (!r.ok) return new Response("Couldn't read the calendar right now.", { status: 502, headers: CORS });
