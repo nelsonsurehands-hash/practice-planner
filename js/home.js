@@ -44,7 +44,7 @@ function nextGameCard(){
   return `<div class="hm-card hm-next"><small class="hm-k">Next game · ${n===0?"Today":n===1?"Tomorrow":`in ${n} days`}</small>
     <b class="hm-opp">${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")}</b>
     <p class="hm-meta">${[fullDay(g.date),ampm(g.time),g.home===false?"Away":"Home"].filter(Boolean).join(" · ")}${bus?`<br>${esc(bus.note)}`:""}</p>
-    <div class="hm-mini"><button type="button" class="btn" data-hm="gameplan" data-date="${g.date}">Gameplan</button>${g.home===false?`<button type="button" class="btn" data-hm="bus" data-date="${g.date}">Bus list</button>`:""}</div></div>`;
+    <div class="hm-mini">${typeof hasFeature!=="function"||hasFeature("game")?`<button type="button" class="btn" data-hm="gameplan" data-date="${g.date}">Gameplan</button>`:""}${g.home===false&&(typeof hasFeature!=="function"||hasFeature("bus"))?`<button type="button" class="btn" data-hm="bus" data-date="${g.date}">Bus list</button>`:""}</div></div>`;
 }
 function planLine(iso){
   const p=(typeof plans!=="undefined"&&plans[iso])||null,n=p&&p.blocks?p.blocks.length:0;
@@ -77,13 +77,16 @@ function weekCard(days){
 function quick(){
   const t=todayISO(),pr=(typeof PRACTICES!=="undefined"?PRACTICES:[]).map(p=>p[0]),pd=pr.includes(t)?t:pr.find(d=>d>t);
   const tile=(k,icon,label,sub,extra="")=>`<button type="button" class="hm-tile" data-hm="${k}"${extra}><span class="hm-ic" aria-hidden="true">${icon}</span><b>${label}</b><small>${sub}</small></button>`;
-  return `<div class="hm-tiles">
-    ${tile("practice","📋",pd===t?"Today's practice":"Next practice",pd?(pd===t?"Open today's plan":whenWord(pd)):"No practices scheduled",pd?` data-date="${pd}"`:"")}
-    ${tile("live","🔴","Live tracker",liveGame()?"Game in progress":"Track a game")}
-    ${tile("stats","📊","Stats","Season and games")}
-    ${tile("cal","📅","Calendar","Practices and games")}
-  </div>
-  <div class="hm-more"><button type="button" class="btn" data-hm="sched">🚌 Game &amp; bus schedule</button><button type="button" class="btn" data-hm="roster">Roster</button><button type="button" class="btn" data-hm="food">Food sign-ups</button><button type="button" class="btn" data-hm="parentlink">🔗 Parent calendar link</button></div>`;
+  const H=k=>typeof hasFeature!=="function"||hasFeature(k);
+  const tiles=[H("plans")&&tile("practice","📋",pd===t?"Today's practice":"Next practice",pd?(pd===t?"Open today's plan":whenWord(pd)):"No practices scheduled",pd?` data-date="${pd}"`:""),
+    H("stats")&&tile("live","🔴","Live tracker",liveGame()?"Game in progress":"Track a game"),
+    H("stats")&&tile("stats","📊","Stats","Season and games"),
+    tile("cal","📅","Calendar","Practices and games"),
+    !H("stats")&&H("plays")&&tile("plays","🏀","Plays","Your playbook"),
+    !H("plans")&&H("drills")&&tile("drills","📚","Drill library","Your drills")].filter(Boolean);
+  const more=[H("sched")&&`<button type="button" class="btn" data-hm="sched">🗓 ${H("bus")?"Game &amp; bus schedule":"Game schedule"}</button>`,`<button type="button" class="btn" data-hm="roster">Roster</button>`,
+    H("food")&&`<button type="button" class="btn" data-hm="food">Food sign-ups</button>`,H("plink")&&`<button type="button" class="btn" data-hm="parentlink">🔗 Parent calendar link</button>`].filter(Boolean);
+  return `<div class="hm-tiles">${tiles.join("")}</div><div class="hm-more">${more.join("")}</div>`;
 }
 function render(){
   const box=document.getElementById("homeBody");if(!box||document.getElementById("view-home").hidden||typeof SETTINGS==="undefined"||typeof team==="undefined"||!team)return;
@@ -110,11 +113,14 @@ document.getElementById("view-home").addEventListener("click",e=>{
   if(k==="bus")window.goTeam("bus",{date:d});
   if(k==="roster")window.goTeam("roster");
   if(k==="sched")window.goTeam("sched");
+  if(k==="plays")setTab("plays");
+  if(k==="drills")setTab("lib");
   if(k==="food")window.goTeam("food");
   if(k==="parentlink")window.goTeam("plink");
   if(k!=="practice")scrollTo(0,0);
 });
 /* Redraw when the schedule, plans or scores change, and at midnight-ish when "today" moves on. */
+const prevFeat=window.onFeaturesChange;window.onFeaturesChange=function(){if(prevFeat)prevFeat();render();};
 const prevCal=window.onCalChange;window.onCalChange=function(){if(prevCal)prevCal.apply(this,arguments);render();};
 if(T().opened)T().opened.push(()=>setTimeout(render,0));
 setInterval(render,60*1000);

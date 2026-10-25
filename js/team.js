@@ -41,8 +41,11 @@ $("#tmParentMenu").addEventListener("click",e=>{const b=e.target.closest("[data-
 document.addEventListener("click",e=>{if(!e.target.closest("#tmParentMenu,#tmParentBtn"))parentMenu(false);});
 addEventListener("scroll",()=>parentMenu(false),{passive:true});$(".tm-nav").addEventListener("scroll",()=>parentMenu(false),{passive:true});addEventListener("resize",()=>parentMenu(false));
 document.addEventListener("keydown",e=>{if(e.key==="Escape")parentMenu(false);});
+const PANE_FEATURE={game:"game",scout:"scout",stats:"stats",sched:"sched",bus:"bus",food:"food",plink:"plink"};
+const paneOn=p=>!PANE_FEATURE[p]||hasFeature(PANE_FEATURE[p]);
+window.onFeaturesChange=()=>{if(!paneOn(pane)){pane="teams";if(!$("#view-team").hidden)showPane("teams");}};
 function showPane(p){
-  pane=p||pane;try{localStorage.setItem("cpp:tmPane",pane);}catch{}
+  pane=p||pane;if(!paneOn(pane))pane="teams";try{localStorage.setItem("cpp:tmPane",pane);}catch{}
   syncNav();
   render();
   if(pane==="food"&&food&&!$("#view-team").hidden)loadFood();   // pick up new sign-ups
@@ -379,14 +382,14 @@ function foodBlock(g,dis){
 }
 function renderSched(){
   const box=$("#tm-sched"),today=todayISO(),ed=can(),dis=ed?"":" disabled",all=allGames();
-  if(!food){loadFood();}
+  if(!food&&hasFeature("food")){loadFood();}
   if(!all.length){box.innerHTML=`<div class="tm-card"><h3 class="tm-h">Schedule</h3><p class="help">No games yet. Add games in the Calendar tab and they show up here, with the bus for every away game.</p></div>`;return;}
   const list=all.filter(g=>schedFilter==="all"||(schedFilter==="away"?g.home===false:g.date>=today));
   const away=all.filter(g=>g.home===false),missing=away.filter(g=>g.date>=today&&!busSet(g.date)).length;
   const row=g=>{
     const d=dObj(g.date),past=g.date<today,res=resultTxt(g.date),isAway=g.home===false;
     let bus="";
-    if(isAway){const t=tripFor(g.date),set=busSet(g.date);
+    if(isAway&&hasFeature("bus")){const t=tripFor(g.date),set=busSet(g.date);
       const riding=ROSTER.filter(p=>status(t,p)==="bus").length,own=ROSTER.filter(p=>status(t,p)==="own").length,out=ROSTER.filter(p=>status(t,p)==="out").length;
       const on=Object.values(t.boarded||{}).filter(Boolean).length;
       bus=`<div class="sch-bus">
@@ -395,7 +398,7 @@ function renderSched(){
         <div class="sch-bi">${set?"":`<span class="sch-sug">Suggested time: 90 min before the game</span>`}${t.from?`<span>From ${esc(t.from)}</span>`:""}${t.driver?`<span>Bus ${esc(t.driver)}</span>`:""}
           ${ROSTER.length?`<span><b>${riding}</b> on the bus</span>${own?`<span><b>${own}</b> own ride</span>`:""}${out?`<span><b>${out}</b> not going</span>`:""}${on?`<span class="ok"><b>${on}</b> checked in</span>`:""}`:""}</div>
         <button type="button" class="btn" data-schbus="${g.date}">Bus list ›</button></div>`;}
-    const fb=foodBlock(g,dis);
+    const fb=hasFeature("food")?foodBlock(g,dis):"";
     return `<article class="sch-row${past?" past":""}${isAway?" away":" home"}${g.date===today?" today":""}">
       <div class="sch-date"><small>${DOWS[d.getDay()]}</small><b>${d.getDate()}</b><small>${MONS[d.getMonth()]}</small></div>
       <div class="sch-main"><div class="sch-top"><span class="sch-pill">${isAway?"Away":"Home"}</span><b class="sch-opp">${isAway?"at":"vs"} ${esc(g.opponent||"Game")}</b>${res?`<span class="sch-res ${res[0]}">${res}</span>`:""}</div>

@@ -124,7 +124,11 @@
       </div>
       <p class="help" id="suCopyHelp" hidden>Games, practice plans and calendar marks are not copied.</p>
     </fieldset>
-    <p class="help" style="font-size:13px">You can add games, days off, weekend times and more in Settings later.</p>
+    <fieldset class="catpick su-prog"><legend>What kind of team is this?</legend>
+      <div class="prog-pick" id="suProg"></div>
+      <details class="feat-more"><summary>Choose the features you'll use</summary><div class="feat-list" id="suFeatures"></div></details>
+    </fieldset>
+    <p class="help" style="font-size:13px">You can add games, days off, weekend times and more in Settings later, and turn features on or off any time.</p>
     <div class="actions" style="margin-top:0"><button class="btn primary" type="submit">Create team</button><button class="btn demo-only" type="button" id="suSample">Explore with sample team</button><button class="btn" type="button" id="suBack" hidden>Back to planner</button></div>
     <div class="msg" id="setupMsg"></div>
   </form>
@@ -159,9 +163,9 @@
   </details>
   <div class="tabs" role="tablist">
     <button id="tab-home" role="tab" aria-selected="true" data-tab="home">Home</button>
-    <button id="tab-plan" role="tab" aria-selected="false" data-tab="plan">Practice</button>
-    <button id="tab-plays" role="tab" aria-selected="false" data-tab="plays">Plays <span id="playCount"></span></button>
-    <button id="tab-lib" role="tab" aria-selected="false" data-tab="lib">Drill Library <span id="drillCount"></span></button>
+    <button id="tab-plan" role="tab" aria-selected="false" data-tab="plan" data-feature="plans">Practice</button>
+    <button id="tab-plays" role="tab" aria-selected="false" data-tab="plays" data-feature="plays">Plays <span id="playCount"></span></button>
+    <button id="tab-lib" role="tab" aria-selected="false" data-tab="lib" data-feature="drills">Drill Library <span id="drillCount"></span></button>
     <button id="tab-cal" role="tab" aria-selected="false" data-tab="cal">Calendar</button>
     <button id="tab-team" role="tab" aria-selected="false" data-tab="team">Team</button>
     <button id="tab-settings" role="tab" aria-selected="false" data-tab="settings">Settings</button>
@@ -329,7 +333,7 @@
   <div class="cal-tools">
     <button class="btn" type="button" id="calToday">Today</button>
     <button class="btn" type="button" id="calIcs">Export calendar</button>
-    <button class="btn" type="button" id="calShare">🔗 Parent link</button>
+    <button class="btn" type="button" id="calShare" data-feature="plink">🔗 Parent link</button>
     <button class="btn edit-only" type="button" id="calAddGame">+ Game</button>
     <button class="btn edit-only" type="button" data-photo="schedule">📷 Add from a photo</button>
     <span class="help" id="calHint">Tap a day to see it, open its practice plan, or change it.</span>
@@ -351,11 +355,11 @@
   <nav class="tm-nav" role="tablist" aria-label="Team sections">
     <button type="button" role="tab" data-tm="teams" aria-selected="true">My teams</button>
     <button type="button" role="tab" data-tm="roster" aria-selected="false">Roster</button>
-    <button type="button" role="tab" data-tm="game" aria-selected="false">Gameplan</button>
-    <button type="button" role="tab" data-tm="scout" aria-selected="false">Scouting report</button>
-    <button type="button" role="tab" data-tm="stats" aria-selected="false">Stats</button>
-    <button type="button" role="tab" data-tm="sched" aria-selected="false">Schedule</button>
-    <button type="button" class="tm-group" id="tmParentBtn" aria-haspopup="menu" aria-expanded="false" aria-selected="false">Parent Admin<span class="tm-sub" id="tmParentSub"></span> ▾</button>
+    <button type="button" role="tab" data-tm="game" aria-selected="false" data-feature="game">Gameplan</button>
+    <button type="button" role="tab" data-tm="scout" aria-selected="false" data-feature="scout">Scouting report</button>
+    <button type="button" role="tab" data-tm="stats" aria-selected="false" data-feature="stats">Stats</button>
+    <button type="button" role="tab" data-tm="sched" aria-selected="false" data-feature="sched">Schedule</button>
+    <button type="button" class="tm-group" id="tmParentBtn" data-feature="bus food plink" aria-haspopup="menu" aria-expanded="false" aria-selected="false">Parent Admin<span class="tm-sub" id="tmParentSub"></span> ▾</button>
     <button type="button" role="tab" data-tm="staff" aria-selected="false">Staff</button>
   </nav>
   <div class="tm-pane" id="tm-teams"></div>
@@ -372,7 +376,7 @@
 
 <section id="view-settings" class="view" hidden>
   <nav class="set-nav" aria-label="Settings sections">
-    <button type="button" data-acc="team">Team</button><button type="button" data-acc="schedule">Schedule</button><button type="button" data-acc="games">Games</button><button type="button" data-acc="special">Special days</button><button type="button" data-acc="data">Export</button><button type="button" data-acc="account">Account</button>
+    <button type="button" data-acc="team">Team</button><button type="button" data-acc="schedule">Schedule</button><button type="button" data-acc="games">Games</button><button type="button" data-acc="special">Special days</button><button type="button" data-acc="features">Features</button><button type="button" data-acc="data">Export</button><button type="button" data-acc="account">Account</button>
   </nav>
   <div class="set-save edit-only"><button class="btn primary" id="sSave">Save settings</button><span class="saved" id="sStatus" style="margin-left:0"></span></div>
   <div class="settings acc-list">
@@ -449,6 +453,14 @@
       </div>
     </details>
     <p class="help set-moved">Your teams, roster, coaching staff, bus lists and parent sign-ups are on the <button type="button" class="linkbtn" data-goteam="teams">Team</button> tab.</p>
+    <details class="acc st-edit" id="acc-features">
+      <summary><span class="acc-t">Features</span><span class="acc-s" id="accSub-features"></span></summary>
+      <div class="acc-body">
+      <p class="help">Turn off what this team doesn't use and it disappears from the app. Nothing is deleted: turn it back on and everything's still there.</p>
+      <div class="prog-pick small" id="sProg"></div>
+      <div class="feat-list" id="sFeatures"></div>
+      </div>
+    </details>
     <details class="acc" id="acc-data">
       <summary><span class="acc-t">Export &amp; import</span><span class="acc-s" id="accSub-data">Export plays, drills, calendar or a full backup</span></summary>
       <div class="acc-body">
@@ -487,9 +499,9 @@
 </dialog>
 
 <div class="tm-menu" id="tmParentMenu" role="menu" hidden>
-  <button type="button" role="menuitem" data-tm="bus">🚌 Bus list<small>Who's riding, departure times</small></button>
-  <button type="button" role="menuitem" data-tm="food">🍕 Game-day food<small>Parent sign-up sheet</small></button>
-  <button type="button" role="menuitem" data-tm="plink">🔗 Parent calendar link<small>Always-current schedule for parents</small></button>
+  <button type="button" role="menuitem" data-tm="bus" data-feature="bus">🚌 Bus list<small>Who's riding, departure times</small></button>
+  <button type="button" role="menuitem" data-tm="food" data-feature="food">🍕 Game-day food<small>Parent sign-up sheet</small></button>
+  <button type="button" role="menuitem" data-tm="plink" data-feature="plink">🔗 Parent calendar link<small>Always-current schedule for parents</small></button>
 </div>
 <dialog id="calShareDlg" aria-labelledby="csTitle">
   <div class="dlg" id="csBody"></div>

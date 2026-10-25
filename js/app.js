@@ -153,6 +153,36 @@ async function pdfLogo(doc,left,top,box){
   try{doc.addImage(g.url,"PNG",left,top+(box-h)/2,w,h);}catch{return 0;}
   return w+12;
 }
+/* ---------- features a team uses ----------
+   Every team doesn't need everything: an AAU or club team has no bus or snack sign-up, a rec team
+   may skip scouting and stats. Each team keeps its own list (settings.features); anything not listed
+   is on, so older teams see everything. Turning a feature off only hides it: nothing is deleted. */
+const FEATURES=[
+  ["plans","Practice plans","Timed plans for each practice","Practice"],
+  ["plays","Plays & playbook","Draw plays, share them with players","Practice"],
+  ["drills","Drill library","Your drills, by category","Practice"],
+  ["game","Gameplans","Starters, matchups, plays to run, the result","Games"],
+  ["scout","Scouting reports","Notes on each opponent","Games"],
+  ["stats","Stats & live tracker","Track games live, box scores, season stats","Games"],
+  ["sched","Game & bus schedule","Every game with bus and food times","Games"],
+  ["bus","Bus lists","Who's riding, check-ins, departure times","Parents & travel"],
+  ["food","Game-day food sign-up","Parents sign up to bring food or snacks","Parents & travel"],
+  ["plink","Parent calendar link","An always-current schedule for families","Parents & travel"]
+];
+const PROGRAMS={
+  school:{label:"School team",help:"Middle school or high school: everything, including bus lists and game-day food.",off:[]},
+  aau:{label:"AAU or club",help:"Travel team: no bus lists, food sign-ups or scouting. Plays, stats and the parent calendar stay on.",off:["bus","food","scout"]},
+  rec:{label:"Rec or youth league",help:"Keep it simple: practice plans, drills, plays, snack sign-up and the parent calendar.",off:["game","scout","stats","sched","bus"]}
+};
+const featuresFor=prog=>{const off=(PROGRAMS[prog]||PROGRAMS.school).off;return Object.fromEntries(FEATURES.map(([k])=>[k,!off.includes(k)]));};
+function hasFeature(k){const f=(typeof SETTINGS!=="undefined"&&SETTINGS.features)||{};return f[k]!==false;}
+/* Hide what this team doesn't use: top tabs, Team sections, Parent Admin items, Home buttons. */
+function applyFeatures(){
+  document.querySelectorAll("[data-feature]").forEach(el=>{el.hidden=!el.dataset.feature.split(" ").some(hasFeature);});
+  const vis=document.querySelector("section.view:not([hidden])");
+  if(vis){const tab=document.querySelector(`.tabs [data-tab="${vis.id.replace("view-","")}"]`);if(tab&&tab.hidden&&typeof setTab==="function")setTab("home");}
+  if(window.onFeaturesChange)window.onFeaturesChange();
+}
 function applySettings(st){
   SETTINGS={...DEFAULT_SETTINGS,...(st||{})};
   PRACTICES=computePractices(SETTINGS);
@@ -165,6 +195,7 @@ function applySettings(st){
   document.title=(SETTINGS.mascot||SETTINGS.school||"Coach")+" Practice Planner";
   const tc=document.querySelector('meta[name="theme-color"]');if(tc)tc.content=SETTINGS.color||"#5b2a86";
   if(cur){buildDateSelect();renderPlan();}
+  applyFeatures();
   if(window.onCalChange)window.onCalChange();
 }
 

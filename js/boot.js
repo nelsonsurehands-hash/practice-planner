@@ -303,6 +303,20 @@ async function readItems(teamId,kind){
   if(error)throw error;return (data||[]).map(r=>[r.id,r.data]);
 }
 $("#suBack").addEventListener("click",()=>{show("app");});
+/* ---------- which features a team uses (new team form and Settings → Features) ---------- */
+function progHTML(name,cur){return Object.entries(PROGRAMS).map(([k,p])=>`<label class="prog"><input type="radio" name="${name}" value="${k}"${k===cur?" checked":""}><span><b>${p.label}</b><small>${p.help}</small></span></label>`).join("");}
+function featHTML(f){
+  const groups=[...new Set(FEATURES.map(x=>x[3]))];
+  return groups.map(g=>`<div class="feat-g"><h4>${g}</h4>${FEATURES.filter(x=>x[3]===g).map(([k,l,h])=>`<label class="feat"><input type="checkbox" data-feat="${k}"${f[k]!==false?" checked":""}><span><b>${l}</b><small>${h}</small></span></label>`).join("")}</div>`).join("")+
+    `<p class="help feat-always">Always on: Home, Calendar, Roster, Staff and Settings.</p>`;
+}
+const readFeat=box=>Object.fromEntries([...box.querySelectorAll("[data-feat]")].map(x=>[x.dataset.feat,x.checked]));
+/* Which preset matches these features exactly (or none = custom). */
+const progOf=f=>Object.keys(PROGRAMS).find(k=>FEATURES.every(([x])=>(f[x]!==false)===featuresFor(k)[x]))||"";
+function renderSuFeatures(prog){$("#suProg").innerHTML=progHTML("suProg",prog);$("#suFeatures").innerHTML=featHTML(featuresFor(prog));}
+renderSuFeatures("school");
+$("#suProg").addEventListener("change",e=>{if(e.target.name==="suProg")$("#suFeatures").innerHTML=featHTML(featuresFor(e.target.value));});
+$("#suFeatures").addEventListener("change",()=>{const p=progOf(readFeat($("#suFeatures")));document.querySelectorAll('[name="suProg"]').forEach(r=>r.checked=r.value===p);});
 let suLogo="";
 $("#suLogo").addEventListener("change",async e=>{
   const f=e.target.files[0];e.target.value="";if(!f)return;
@@ -312,6 +326,8 @@ $("#suLogo").addEventListener("change",async e=>{
     if(cs.length)apply(cs[0],cs[1]||"");showLogoColors($("#suLogoColors"),cs,apply);}
   catch{msg($("#setupMsg"),"That file couldn't be read as an image. Try a PNG or JPG.","err");}
 });
+$("#sProg").addEventListener("change",e=>{if(e.target.name!=="sProg")return;$("#sFeatures").innerHTML=featHTML(featuresFor(e.target.value));$("#sStatus").textContent="Unsaved changes";});
+$("#sFeatures").addEventListener("change",()=>{const p=progOf(readFeat($("#sFeatures")));document.querySelectorAll('[name="sProg"]').forEach(r=>r.checked=r.value===p);$("#sStatus").textContent="Unsaved changes";});
 $("#suLogoRm").addEventListener("click",()=>{suLogo="";$("#suLogoPrev").textContent="Logo";$("#suLogoRm").hidden=true;$("#suLogoColors").hidden=true;});
 $("#setupForm").addEventListener("submit",async e=>{
   e.preventDefault();
@@ -322,6 +338,7 @@ $("#setupForm").addEventListener("submit",async e=>{
     weekdayStart:$("#suWdS").value||"16:00",weekdayEnd:$("#suWdE").value||"18:00",
     color2:$("#suUseC2").checked?$("#suColor2").value:""};
   if(suLogo)settings.logo=suLogo;
+  settings.features=readFeat($("#suFeatures"));settings.program=progOf(settings.features)||"custom";
   const src=teams.find(x=>x.id===$("#suCopyFrom").value)||null,sst=src&&src.settings||{};
   if(src&&$("#suCpSched").checked){
     ["practiceDays","weekendStart","weekendEnd","minPractices"].forEach(k=>{if(sst[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(sst[k]));});
@@ -430,6 +447,7 @@ function readForm(){
   draft.minPractices=+$("#sMinPr").value||0;
   draft.special.forEach(x=>{if(!x.start)delete x.start;if(!x.end)delete x.end;});
   draft.practiceDays=[...document.querySelectorAll("#sDays input:checked")].map(x=>+x.value);
+  if($("#sFeatures").children.length){draft.features=readFeat($("#sFeatures"));draft.program=progOf(draft.features)||"custom";}
   return draft;
 }
 /* ---------- Settings sections (accordion) ---------- */
@@ -446,6 +464,7 @@ function accSummaries(){
   const sp=(draft.special||[]).filter(x=>x.date),off=sp.filter(x=>x.kind==="off").length,ex=sp.filter(x=>x.kind==="extra").length;
   sub("special",sp.length?`${off} day${off===1?"":"s"} off · ${ex} extra practice${ex===1?"":"s"} · ${sp.length-off-ex} with notes`:"Holidays, extra practices and notes");
   sub("staff",members.length?`${members.length} on staff`:"");
+  {const f=draft.features||{},on=FEATURES.filter(([k])=>f[k]!==false).length,pr=PROGRAMS[progOf(f)];sub("features",`${pr?pr.label+" · ":""}${on} of ${FEATURES.length} on`);}
   sub("account",HOSTED&&user?user.email||"":"Demo mode");
 }
 const ampm12=x=>{const [h,m]=x.split(":").map(Number);return `${((h+11)%12)+1}:${String(m).padStart(2,"0")}${h<12?"am":"pm"}`;};
@@ -475,6 +494,7 @@ window.onSettingsTab=function(){
   $("#sWdS").value=draft.weekdayStart||"";$("#sWdE").value=draft.weekdayEnd||"";$("#sWeS").value=draft.weekendStart||"";$("#sWeE").value=draft.weekendEnd||"";
   $("#sStart").value=draft.seasonStart||"";$("#sEnd").value=draft.seasonEnd||"";$("#sMinPr").value=draft.minPractices||"";
   document.querySelectorAll("#sDays input").forEach(x=>x.checked=(draft.practiceDays||[]).includes(+x.value));
+  {const f=draft.features||{};$("#sProg").innerHTML=progHTML("sProg",progOf(f));$("#sFeatures").innerHTML=featHTML(f);}
   renderRows();updatePreview();$("#sStatus").textContent="";
   renderStaff();renderAccount();$("#importBox").innerHTML="";
   document.querySelectorAll("#view-settings .st-edit .acc-body :is(input,select,button)").forEach(el=>el.disabled=!PERM.schedule);
