@@ -109,10 +109,10 @@ function currentKey(){
   if(id==="team"){const p=(window.TM&&TM.pane)||"teams";return "team:"+p;}
   return id;
 }
-/* the button, next to the main tabs */
+/* the button, top right next to the logo */
 const btn=document.createElement("button");btn.type="button";btn.className="btn help-q page-help";btn.id="pageHelpBtn";btn.textContent="?";
 btn.title="How to use this page";btn.setAttribute("aria-label","How to use this page");
-const tabs=document.querySelector(".top-right .tabs");if(tabs)tabs.insertAdjacentElement("afterend",btn);
+const bar=document.querySelector(".app-bar");if(bar)bar.appendChild(btn);else{const tabs=document.querySelector(".top-right .tabs");if(tabs)tabs.insertAdjacentElement("afterend",btn);}
 const dlg=document.createElement("dialog");dlg.className="help-dlg";dlg.id="pageHelpDlg";dlg.setAttribute("aria-labelledby","phTitle");document.body.appendChild(dlg);
 function open(key){
   key=key||currentKey();

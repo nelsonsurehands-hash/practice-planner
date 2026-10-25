@@ -1256,3 +1256,10 @@ body:has(#screen-landing:not([hidden])){padding:0;max-width:none;background:#0a1
 .us-feat i{height:10px;border-radius:5px;background:var(--accent);display:block}
 .us-feat b{font-variant-numeric:tabular-nums}.us-feat small{color:var(--muted);min-width:64px}
 .us-feat:not(:has(i)){grid-template-columns:1fr auto}
+/* Top-right corner of the app: brand mark and the "?" how-to */
+.app-bar{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:-6px 0 6px}
+.app-bar .app-mark{color:var(--ink);font-size:15px;opacity:.9}
+.app-bar .app-mark img{border-radius:7px}
+.app-bar .app-mark b{background:linear-gradient(180deg,#FFB547,#E5560F);-webkit-background-clip:text;background-clip:text;color:transparent}
+.app-bar .page-help{width:34px;height:34px;min-height:34px;font-size:16px}
+@media print{.app-bar{display:none}}
