@@ -94,6 +94,7 @@ function render(){
   const st=SETTINGS,{days,practices}=buildDays(st),months=monthsToShow(st,days);
   $("#calEyebrow").textContent=[st.school&&st.mascot?st.school+" "+st.mascot:st.school||st.mascot,st.teamLabel].filter(Boolean).join(" · ");
   const fmtM=iso=>iso?`${MONTHS[+iso.slice(5,7)-1]} ${iso.slice(0,4)}`:"";
+  {const a=+st.arriveEarly||0,el=$("#calArrive");if(el){el.hidden=!a;el.textContent=a?`⏰ Players arrive ${a} minutes before every practice`:"";}}
   $("#calSeason").innerHTML=st.seasonStart?`<b>${fmtM(st.seasonStart)} – ${fmtM(st.seasonEnd)}</b><small>${practices.length} practices · ${(st.games||[]).length} games</small>`:"";
   $("#calAddGame").hidden=!editable();
   if(!months.length){

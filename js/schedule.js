@@ -129,6 +129,7 @@ function render(){
   renderNext();renderCalButtons();
   const fmtM=iso=>iso?`${MONTHS[+iso.slice(5,7)-1]} ${iso.slice(0,4)}`:"";
   const nP=DAYS.filter(d=>d.practice).length,games=DAYS.filter(d=>d.game);
+  {const a=early(),el=$("#scArrive");if(el){el.hidden=!a;el.textContent=a?`⏰ Players arrive ${a} minutes before every practice`:"";}}
   $("#scSeason").innerHTML=st.seasonStart?`<b>${fmtM(st.seasonStart)} – ${fmtM(st.seasonEnd)}</b><small>${[show.practices!==false?`${nP} practices`:"",show.games!==false?`${games.length} games`:""].filter(Boolean).join(" · ")}</small>`:"";
   /* legend: only what this calendar can show */
   document.querySelectorAll("#scLegend span").forEach(x=>{const k=x.querySelector("i").className.replace("sw ","");

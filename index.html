@@ -418,7 +418,7 @@
 
 <section id="view-cal" class="view" hidden>
   <div class="cal-head">
-    <div><div class="eyebrow" id="calEyebrow"></div><h2 class="cal-title">Practice &amp; Game Calendar</h2></div>
+    <div><div class="eyebrow" id="calEyebrow"></div><h2 class="cal-title">Practice &amp; Game Calendar</h2><div class="cal-arrive" id="calArrive" hidden></div></div>
     <label class="cal-teamsel" id="calTeamWrap" hidden><span>Team</span><select id="calTeam" aria-label="Show the calendar for"></select></label>
     <div class="cal-season" id="calSeason"></div>
   </div>
@@ -455,7 +455,6 @@
         <label class="f">Weekday end<input id="sWdE" type="time"></label>
         <label class="f">Weekend start<input id="sWeS" type="time"></label>
         <label class="f">Weekend end<input id="sWeE" type="time"></label>
-        <label class="f">Players arrive<select id="sArrive"><option value="0">Right at practice time</option><option value="10">10 minutes early</option><option value="15">15 minutes early</option><option value="20">20 minutes early</option><option value="30">30 minutes early</option></select></label>
       </div>
       <label class="f">Note on every practice<input id="sPrNote" maxlength="160" placeholder="e.g. Players arrive 20 minutes before practice. Bring water."></label>
       <p class="help" style="margin-top:-4px">Shows on every practice in the app and on the parent calendar. Change it to fit your team.</p>
@@ -516,6 +515,7 @@
       </div>
       <div class="grid2">
         <div class="f">Grade/Level<div class="lvl-pick"><select id="sLabelSel" aria-label="Grade or level" data-lvl="sLabel"></select><input id="sLabel" placeholder="Type it, e.g. 14U, 6th Grade" hidden></div></div>
+        <label class="f">Arrival time for practice<select id="sArrive"><option value="0">Right at practice time</option><option value="10">10 minutes early</option><option value="15">15 minutes early</option><option value="20">20 minutes early</option><option value="30">30 minutes early</option></select></label>
       </div>
       <div class="set-save edit-only"><button class="btn primary st-save" type="button">Save</button><span class="saved st-status"></span></div>
       </div>
