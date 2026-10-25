@@ -1272,16 +1272,10 @@ body:has(#screen-landing:not([hidden])){padding:0;max-width:none;background:#0a1
 .cal-cell .gev{display:block;font-size:11px;font-weight:700;color:inherit;opacity:.8;line-height:1.15;margin-bottom:3px;overflow-wrap:anywhere;white-space:normal}
 .gl-ev{display:block;font-size:12px;font-weight:500;color:var(--muted)}
 .day-ev .gev-h{display:block;font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.link-list{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px}
-.link-t{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;font-weight:500;text-transform:none;letter-spacing:0;font-size:14px;color:var(--ink)}
 .link-games{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .link-games legend{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:0 4px}
 .lg-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
 .lg-row b{font-size:14px}
-.link-mode{display:flex;flex-direction:column;gap:6px;margin:8px 0 4px;text-transform:none;letter-spacing:0;font-weight:400}
-.link-mode label{display:flex;gap:8px;align-items:flex-start;font-size:14px;color:var(--ink)}
-.link-mode label span b{display:block;font-weight:600}
-.link-mode label span{color:var(--muted)}
 .day-link{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;font-size:13.5px;color:var(--muted)}
 .hub-key{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
 .hub-key span{display:inline-flex;align-items:center;gap:6px}
@@ -1298,3 +1292,22 @@ body:has(#screen-landing:not([hidden])){padding:0;max-width:none;background:#0a1
 .hub-day{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-left:5px solid var(--tc);background:var(--surface);border:1px solid var(--line);border-left-width:5px;border-left-color:var(--tc);border-radius:10px}
 .hub-day .btn{align-self:flex-start;margin-top:4px}
 .hub-day .muted{color:var(--muted)}
+/* Team tab: shared practice calendar */
+.link-teams{display:flex;flex-direction:column;gap:12px;padding-top:14px;margin-top:2px;border-top:1px solid var(--line)}
+.lt-head{display:flex;flex-direction:column;gap:3px}
+.lt-title{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lt-sub{font-size:13.5px;color:var(--muted);line-height:1.4}
+.link-list{display:flex;flex-wrap:wrap;gap:8px}
+.link-t{display:inline-flex;align-items:center;gap:8px;padding:8px 14px 8px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:14.5px;font-weight:600;color:var(--ink);white-space:nowrap;cursor:pointer;line-height:1}
+.link-t input,.lm-opt input{width:18px;height:18px;min-width:18px;padding:0;margin:0;flex:none;accent-color:var(--accent)}
+.link-t:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.link-mode{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.link-mode[hidden]{display:none}
+.lm-opt{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;text-transform:none;letter-spacing:0}
+.lm-opt input{margin-top:2px}
+.lm-opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent) inset}
+.lm-text{display:flex;flex-direction:column;gap:3px}
+.lm-text b{font-size:14.5px;font-weight:600;color:var(--ink)}
+.lm-text small{font-size:13px;color:var(--muted);line-height:1.4}
+.day-link .link-t{padding:6px 12px 6px 8px;font-size:13.5px}
+@media (max-width:560px){.link-mode{grid-template-columns:1fr}}

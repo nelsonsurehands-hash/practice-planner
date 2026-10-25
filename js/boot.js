@@ -694,7 +694,9 @@ const teamShort=t=>{const s=t.settings||{};return s.teamLabel||t.name;};
 function linkableTeams(){return (typeof teams!=="undefined"?teams:[]).filter(t=>team&&t.id!==team.id&&(HOSTED?permsFor(t.role,t.perms).schedule:true));}
 function linkedTeams(st){const ids=(st||team.settings||{}).calLink||[];return linkableTeams().filter(t=>ids.includes(t.id));}
 function renderLinkTeams(ids){const w=$("#sLinkWrap"),list=linkableTeams();if(!w)return;w.hidden=!list.length;
-  $("#sLinkTeams").innerHTML=list.map(t=>`<label class="link-t"><input type="checkbox" value="${esc(t.id)}"${ids.includes(t.id)?" checked":""}> ${esc(teamShort(t))}</label>`).join("");}
+  $("#sLinkTeams").innerHTML=list.map(t=>`<label class="link-t"><input type="checkbox" value="${esc(t.id)}"${ids.includes(t.id)?" checked":""}><span>${esc(teamShort(t))}</span></label>`).join("");
+  $("#sLinkMode").hidden=!ids.length;}
+document.addEventListener("change",e=>{if(e.target.closest&&e.target.closest("#sLinkTeams"))$("#sLinkMode").hidden=!document.querySelector("#sLinkTeams input:checked");});
 async function saveTeamSettings(t,st){
   if(HOSTED){const {error}=await sb.from("teams").update({settings:st}).eq("id",t.id);if(error)throw error;}
   else writeDemoTeams(readDemoTeams().map(x=>x.id===t.id?{...x,settings:st}:x));
