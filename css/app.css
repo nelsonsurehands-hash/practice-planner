@@ -1130,3 +1130,18 @@ body.pb-full{overflow:hidden}
 .sc-teams{display:flex;flex-wrap:wrap;gap:6px 14px}
 .sc-t{display:inline-flex;align-items:center;gap:6px;font-size:14px;text-transform:none;letter-spacing:0;color:var(--ink);font-weight:500}
 .sc-t input{width:auto}
+
+/* ? next to the main tabs, and the welcome tour */
+.top-right .tabs{flex:1 1 0;min-width:0}
+@media (min-width:900px){.top-right .tabs{flex:0 1 auto}}
+.page-help{width:38px;height:38px;min-height:38px;padding:0;border-radius:50%;font-weight:800;font-size:17px;flex:none}
+.ph-tip{background:var(--accent-soft);border-radius:8px;padding:8px 10px;color:var(--ink)}
+.dlg.tour{max-width:420px;text-align:center}
+.tour-top{display:flex;justify-content:space-between;align-items:center;text-align:left}
+.tour-top small{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tour-ic{font-size:46px;line-height:1;margin:14px 0 6px}
+.dlg.tour h2{font-size:28px;margin:0 0 6px}
+.dlg.tour p{font-size:15.5px;margin:0 0 14px}
+.tour-dots{display:flex;justify-content:center;gap:6px;margin:0 0 16px}
+.tour-dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.tour-dots i.on{background:var(--accent);width:20px;border-radius:4px}

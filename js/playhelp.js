@@ -29,7 +29,7 @@ function build(){
   const setup=section("setup","Set up the court","Every play starts with players in their spots. These tools add or move them.",[
     step(1,"Set",`Fills the court with a ready-made formation (for example 5-Out or 1-4 High). It replaces your offense but keeps any defenders. <b>Empty</b> clears the court.`),
     step(2,"+ Player",`Tap the court to place players 1 through ${n}, in order. ${tryIt("o","+ Player")}`),
-    defend?step(3,"+ Defender / Add defense",`<b>+ Defender</b> places X1, X2… one tap at a time. <b>Add defense</b> (under the court) puts a defender on every offensive player for you.`):step(3,"+ Defender",`Tap the court to place defenders. ${tryIt("d","+ Defender")}`),
+    defend?step(3,"+ Defender / Add defense",`Pick a <b>Defense</b> (next to Speed): man-to-man, 2-3, 3-2 or box-and-1, and the defenders place themselves and move with the ball when you play it through. Or choose <b>Place my own</b> and use <b>+ Defender</b> to put X1, X2… where you want.`):step(3,"+ Defender",`Tap the court to place defenders. ${tryIt("d","+ Defender")}`),
     step(4,"Ball",`Tap a player to give them the ${ball}. ${tryIt("ball","Ball")}`),
     step(5,"Label",`Tap a player to give them a short label like PG, 5 or QB (up to 3 letters). ${tryIt("label","Label")}`),
     step(6,"Move",`Drag any player, defender or the ${ball} to a new spot. Lines attached to a player move with them. ${tryIt("move","Move")}`)
