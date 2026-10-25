@@ -1278,3 +1278,23 @@ body:has(#screen-landing:not([hidden])){padding:0;max-width:none;background:#0a1
 .link-games legend{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:0 4px}
 .lg-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
 .lg-row b{font-size:14px}
+.link-mode{display:flex;flex-direction:column;gap:6px;margin:8px 0 4px;text-transform:none;letter-spacing:0;font-weight:400}
+.link-mode label{display:flex;gap:8px;align-items:flex-start;font-size:14px;color:var(--ink)}
+.link-mode label span b{display:block;font-weight:600}
+.link-mode label span{color:var(--muted)}
+.day-link{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;font-size:13.5px;color:var(--muted)}
+.hub-key{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+.hub-key span{display:inline-flex;align-items:center;gap:6px}
+.hub-key i,.hub-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
+.hub-dot{margin-right:6px;vertical-align:-1px}
+.cal-cell.hub{align-items:stretch}
+.hub-ev{display:block;font-size:11.5px;line-height:1.2;text-align:left;padding:2px 4px;border-radius:5px;margin-top:2px}
+.hub-ev b{font-weight:600}.hub-ev small{display:block;font-size:10.5px;color:var(--muted)}
+.hub-ev.game{background:color-mix(in srgb,#b3283c 14%,transparent)}
+.hub-ev.practice{background:color-mix(in srgb,#2b7a78 12%,transparent)}
+.hub-ev.off{background:color-mix(in srgb,#888 14%,transparent)}
+.hub-ev.note{background:color-mix(in srgb,#c76a1f 12%,transparent)}
+.hub-dots{display:inline-flex;gap:2px;margin-right:4px;vertical-align:1px}.hub-dots i{width:7px;height:7px;border-radius:50%;display:block}
+.hub-day{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-left:5px solid var(--tc);background:var(--surface);border:1px solid var(--line);border-left-width:5px;border-left-color:var(--tc);border-radius:10px}
+.hub-day .btn{align-self:flex-start;margin-top:4px}
+.hub-day .muted{color:var(--muted)}

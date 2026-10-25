@@ -519,7 +519,11 @@
       </div>
       <div class="f link-teams" id="sLinkWrap" hidden>Shared practice calendar
         <div class="link-list" id="sLinkTeams"></div>
-        <small class="help">Check a team to give it this team's practices, days off, season dates and arrival time. After that, a change on either team updates both. Each team keeps its own games and bus times.</small>
+        <div class="link-mode" id="sLinkMode" role="radiogroup" aria-label="How linked teams update">
+          <label><input type="radio" name="sLinkMode" value="auto"> <span><b>Keep them in sync</b> Every practice change updates the checked teams.</span></label>
+          <label><input type="radio" name="sLinkMode" value="ask"> <span><b>I'll choose each time</b> Changes stay on this team unless you check a team when you make the change.</span></label>
+        </div>
+        <small class="help">Uncheck a team to unlink it. With "Keep them in sync", checking a team gives it this team's practices, days off, season dates and arrival time. Each team always keeps its own games and bus times.</small>
       </div>
       <div class="set-save edit-only"><button class="btn primary st-save" type="button">Save</button><span class="saved st-status"></span></div>
       </div>

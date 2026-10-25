@@ -510,7 +510,7 @@ function readForm(){
   {const r=document.querySelector('input[name="sIconBg"]:checked');if(r)draft.iconBg=r.value;const c=$("#sIconBgColor");if(c&&draft.iconBg==="custom")draft.iconBgColor=c.value;}
   draft.weekdayStart=$("#sWdS").value;draft.weekdayEnd=$("#sWdE").value;draft.weekendStart=$("#sWeS").value;draft.weekendEnd=$("#sWeE").value;draft.arriveEarly=+$("#sArrive").value||0;draft.practiceNote=$("#sPrNote").value.trim();
   draft.seasonStart=$("#sStart").value;draft.seasonEnd=$("#sEnd").value;
-  if(!$("#sLinkWrap").hidden)draft.calLink=[...document.querySelectorAll("#sLinkTeams input:checked")].map(x=>x.value);
+  if(!$("#sLinkWrap").hidden){draft.calLink=[...document.querySelectorAll("#sLinkTeams input:checked")].map(x=>x.value);const m=document.querySelector('input[name="sLinkMode"]:checked');draft.calLinkMode=m?m.value:"auto";}
   draft.minPractices=+$("#sMinPr").value||0;
   draft.special.forEach(x=>{if(!x.start)delete x.start;if(!x.end)delete x.end;});
   draft.practiceDays=[...document.querySelectorAll("#sDays input:checked")].map(x=>+x.value);
@@ -567,7 +567,7 @@ window.onSettingsTab=function(force){
   $("#sSchool").value=draft.school||"";$("#sMascot").value=draft.mascot||"";setLevel("sLabelSel",draft.teamLabel||"");$("#sColor").value=draft.color||"#5b2a86";
   $("#sColor2").value=draft.color2||"#f2b705";$("#sUseC2").checked=!!draft.color2;renderLogoEdit();renderIconPick();
   $("#sWdS").value=draft.weekdayStart||"";$("#sWdE").value=draft.weekdayEnd||"";$("#sWeS").value=draft.weekendStart||"";$("#sWeE").value=draft.weekendEnd||"";$("#sArrive").value=String(draft.arriveEarly||0);$("#sPrNote").value=draft.practiceNote||"";
-  renderLinkTeams(draft.calLink||[]);
+  renderLinkTeams(draft.calLink||[]);{const r=document.querySelector(`input[name="sLinkMode"][value="${draft.calLinkMode==="ask"?"ask":"auto"}"]`);if(r)r.checked=true;}
   $("#sStart").value=draft.seasonStart||"";$("#sEnd").value=draft.seasonEnd||"";$("#sMinPr").value=draft.minPractices||"";
   document.querySelectorAll("#sDays input").forEach(x=>x.checked=(draft.practiceDays||[]).includes(+x.value));
   {const f=draft.features||{};$("#sProg").innerHTML=progHTML("sProg",progOf(f));$("#sFeatures").innerHTML=featHTML(f);}
@@ -700,21 +700,38 @@ async function saveTeamSettings(t,st){
   else writeDemoTeams(readDemoTeams().map(x=>x.id===t.id?{...x,settings:st}:x));
   t.settings=st;teams=teams.map(x=>x.id===t.id?t:x);
 }
-async function syncLinked(st,before){
-  const now=st.calLink||[],was=(before&&before.calLink)||[],out=[];
+/* Dates whose practice/day entries (not bus times) changed between two versions of the schedule. */
+function changedDates(a,b){const key=l=>JSON.stringify((l||[]).filter(x=>!isBusEntry(x)).map(x=>({...x})).sort((p,q)=>JSON.stringify(p)<JSON.stringify(q)?-1:1));
+  const by=l=>{const m={};(l||[]).forEach(x=>{if(x&&x.date)(m[x.date]=m[x.date]||[]).push(x);});return m;};
+  const A=by(a),B=by(b);return [...new Set([...Object.keys(A),...Object.keys(B)])].filter(d=>key(A[d])!==key(B[d]));}
+/* opts.linkTo: the teams this change should go to (from the day's "Also change" boxes).
+   Without it: "Keep them in sync" teams get every change; "I'll choose" teams get nothing. */
+async function syncLinked(st,before,opts){
+  const now=st.calLink||[],was=(before&&before.calLink)||[],auto=st.calLinkMode!=="ask",out=[];
+  const pick=opts&&opts.linkTo,dates=changedDates(before&&before.special,st.special);
   for(const t of linkableTeams()){
     const on=now.includes(t.id),off=!on&&was.includes(t.id);if(!on&&!off)continue;
     const o=JSON.parse(JSON.stringify(t.settings||{}));let links=new Set(o.calLink||[]);
     if(off){if(!links.has(team.id))continue;links.delete(team.id);o.calLink=[...links];}
-    else{LINK_KEYS.forEach(k=>{if(st[k]!==undefined)o[k]=JSON.parse(JSON.stringify(st[k]));});
-      o.special=(o.special||[]).filter(isBusEntry).concat((st.special||[]).filter(x=>!isBusEntry(x)).map(x=>({...x}))).sort((a,b)=>a.date<b.date?-1:1);
-      links.add(team.id);o.calLink=[...links];}
+    else{
+      const fresh=!was.includes(t.id)||((before&&before.calLinkMode)==="ask"&&auto);
+      const send=pick?pick.includes(t.id):auto;
+      if(auto&&fresh){   // just linked (or switched to sync): give it this team's whole practice calendar
+        LINK_KEYS.forEach(k=>{if(st[k]!==undefined)o[k]=JSON.parse(JSON.stringify(st[k]));});
+        o.special=(o.special||[]).filter(isBusEntry).concat((st.special||[]).filter(x=>!isBusEntry(x)).map(x=>({...x})));
+      }else if(send){
+        if(auto&&!pick)LINK_KEYS.forEach(k=>{if(st[k]!==undefined)o[k]=JSON.parse(JSON.stringify(st[k]));});
+        const set=new Set(dates);
+        o.special=(o.special||[]).filter(x=>isBusEntry(x)||!set.has(x.date)).concat((st.special||[]).filter(x=>!isBusEntry(x)&&set.has(x.date)).map(x=>({...x})));
+      }
+      o.special=(o.special||[]).sort((a,b)=>a.date<b.date?-1:1);
+      links.add(team.id);o.calLink=[...links];if(!o.calLinkMode)o.calLinkMode=st.calLinkMode||"auto";}
     if(JSON.stringify(o)===JSON.stringify(t.settings||{}))continue;
     try{await saveTeamSettings(t,o);out.push(teamShort(t));}catch(e){console.warn("shared calendar",t.name,e);}
   }
   return out;
 }
-async function saveSettings(st){
+async function saveSettings(st,opts){
   const before=JSON.parse(JSON.stringify(team.settings||{}));
   st.games=(st.games||[]).filter(g=>g.date).sort((a,b)=>a.date<b.date?-1:1);
   st.special=(st.special||[]).filter(x=>x.date).sort((a,b)=>a.date<b.date?-1:1);
@@ -726,7 +743,7 @@ async function saveSettings(st){
   const sportChanged=(team.settings||{}).sport!==st.sport;
   team.name=name;team.settings=st;teams=teams.map(t=>t.id===team.id?team:t);saveSplash();
   applySettings(st);renderSwitcher();
-  try{if((st.calLink&&st.calLink.length)||(before.calLink&&before.calLink.length))await syncLinked(st,before);}catch(e){console.warn(e);}
+  try{if((st.calLink&&st.calLink.length)||(before.calLink&&before.calLink.length))await syncLinked(st,before,opts);}catch(e){console.warn(e);}
   if(sportChanged){play=blankPlay();fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();renderAllDrills();}
 }
 document.querySelectorAll(".st-save").forEach(b=>b.addEventListener("click",async()=>{

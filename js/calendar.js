@@ -84,12 +84,70 @@ function renderTeamPick(){
   const w=$("#calTeamWrap");if(typeof teams==="undefined"||teams.length<2){w.hidden=true;return;}
   const groups=new Map();teams.forEach(t=>{const st=t.settings||{},k=[st.school,st.mascot].filter(Boolean).join(" ")||t.name;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(t);});
   $("#calTeam").innerHTML=[...groups.entries()].map(([k,list])=>`<optgroup label="${esc(k)}">${list.sort((a,b)=>String((a.settings||{}).teamLabel||"").localeCompare(String((b.settings||{}).teamLabel||""),undefined,{numeric:true}))
-    .map(t=>`<option value="${t.id}"${t.id===team.id?" selected":""}>${esc((t.settings||{}).teamLabel||t.name)}</option>`).join("")}</optgroup>`).join("");
+    .map(t=>`<option value="${t.id}"${!hubOn&&t.id===team.id?" selected":""}>${esc((t.settings||{}).teamLabel||t.name)}</option>`).join("")}</optgroup>`).join("")+`<option value="__all"${hubOn?" selected":""}>📅 All my teams</option>`;
   w.hidden=false;
 }
-$("#calTeam").addEventListener("change",async e=>{const t=teams.find(x=>x.id===e.target.value);if(t&&t.id!==team.id){await openTeam(t);setTab("cal");}});
+$("#calTeam").addEventListener("change",async e=>{
+  if(e.target.value==="__all"){hubOn=true;try{localStorage.setItem("cpp:calHub","1");}catch{}render();return;}
+  hubOn=false;try{localStorage.removeItem("cpp:calHub");}catch{}
+  const t=teams.find(x=>x.id===e.target.value);if(t&&t.id!==team.id){await openTeam(t);setTab("cal");}else render();});
+/* ---------- All my teams: one calendar with every team's practices and games ---------- */
+let hubOn=false;try{hubOn=localStorage.getItem("cpp:calHub")==="1";}catch{}
+const shortLabel=t=>{const s=t.settings||{},l=s.teamLabel||t.name||"Team";return l.replace(/\s+(girls|boys)?\s*(basketball|volleyball|soccer|football|baseball|softball)$/i,"").replace(/\s+(girls|boys)$/i,"")||l;};
+function hubData(){
+  const list=[...teams].sort((a,b)=>String((a.settings||{}).teamLabel||a.name).localeCompare(String((b.settings||{}).teamLabel||b.name),undefined,{numeric:true}));
+  return list.map(t=>({t,label:shortLabel(t),color:(t.settings||{}).color||"#5b2a86",days:buildDays(t.settings||{}).days}));
+}
+function hubItems(H,iso){
+  const groups=new Map(),add=(kind,text,h)=>{const k=kind+"|"+text;if(!groups.has(k))groups.set(k,{kind,text,teams:[]});groups.get(k).teams.push(h);};
+  H.forEach(h=>{const d=h.days[iso];if(!d)return;
+    if(d.game){const g=d.game;add("game",`${g.home===false?"at":"vs"} ${g.opponent||"Game"}${g.time?" "+ampm(g.time).replace(":00",""):""}`,h);}
+    if(d.practice)add("practice",`Practice ${ampm(d.practice.start).replace(":00","")}`,h);
+    if(d.off&&d.off.note)add("off",/^no practice$/i.test(d.off.note)?"No practice":d.off.note,h);
+    (d.tags||[]).filter(n=>!isBus(n)).forEach(n=>add("note",n,h));});
+  return [...groups.values()];
+}
+function renderHub(){
+  const H=hubData(),all={};H.forEach(h=>Object.assign(all,h.days));
+  const st={seasonStart:H.map(h=>(h.t.settings||{}).seasonStart).filter(Boolean).sort()[0],seasonEnd:H.map(h=>(h.t.settings||{}).seasonEnd).filter(Boolean).sort().pop()};
+  const months=monthsToShow(st,all);
+  $("#calEyebrow").textContent="All my teams";$("#calArrive").hidden=true;$("#calCallout").hidden=true;$("#calAddGame").hidden=true;
+  $("#calSeason").innerHTML=`<div class="hub-key">${H.map(h=>`<span><i style="background:${esc(h.color)}"></i>${esc(h.label)}</span>`).join("")}</div>`;
+  if(!months.length){$("#calMonths").innerHTML=`<div class="empty">No events on your teams yet.</div>`;$("#calGames").innerHTML="";$("#calFoot").textContent="";return;}
+  const keys=months.map(([y,m])=>y+"-"+m);
+  if(!calMonth||!keys.includes(calMonth)){const t=todayISO(),tk=+t.slice(0,4)+"-"+(+t.slice(5,7)-1);calMonth=keys.includes(tk)?tk:keys[0];}
+  const idx=keys.indexOf(calMonth),one=calView==="month";
+  document.querySelectorAll("[data-calview]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.calview===calView));
+  $("#calNav").hidden=!one;$("#calNavLabel").textContent=one?`${MONTHS[months[idx][1]]} ${months[idx][0]}`:"";
+  $("#calPrev").disabled=idx<=0;$("#calNext").disabled=idx>=keys.length-1;$("#calMonths").classList.toggle("one-month",one);
+  const cell=iso=>{const items=hubItems(H,iso),today=iso===todayISO();
+    return `<button type="button" class="cal-cell hub${today?" today":""}" data-day="${iso}"><span class="d">${+iso.slice(8)}</span>${items.map(x=>`<span class="hub-ev ${x.kind}"><span class="hub-dots">${x.teams.map(h=>`<i style="background:${esc(h.color)}" title="${esc(h.label)}"></i>`).join("")}</span><b>${esc(x.text)}</b>${x.teams.length<H.length||x.kind==="game"?`<small>${esc(x.teams.map(h=>h.label).join(", "))}</small>`:""}</span>`).join("")}</button>`;};
+  $("#calMonths").innerHTML=(one?[months[idx]]:months).map(([y,m])=>{const first=new Date(y,m,1),n=new Date(y,m+1,0).getDate(),pad=first.getDay();
+    const isoD=dd=>`${y}-${String(m+1).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;let c="";for(let i=0;i<pad;i++)c+=`<div class="cal-cell pad"></div>`;
+    for(let dd=1;dd<=n;dd++)c+=cell(isoD(dd));const tail=(7-((pad+n)%7))%7;for(let i=0;i<tail;i++)c+=`<div class="cal-cell pad"></div>`;
+    return `<section class="cal-month"><h3>${MONTHS[m]} ${y}</h3><div class="cal-grid">${DOW.map(x=>`<div class="dow">${x}</div>`).join("")}${c}</div></section>`;}).join("");
+  const games=[];H.forEach(h=>((h.t.settings||{}).games||[]).forEach(g=>{if(g.date)games.push({g,h});}));games.sort((a,b)=>a.g.date<b.g.date?-1:a.g.date>b.g.date?1:0);
+  $("#calGames").innerHTML=games.length?`<caption>Game list · all teams</caption><thead><tr><th>Date</th><th>Team</th><th>Opponent</th><th>Time</th><th>Location</th></tr></thead><tbody>`+
+    games.map(({g,h})=>`<tr data-day="${g.date}"><td>${longDay(g.date)}</td><td><i class="hub-dot" style="background:${esc(h.color)}"></i>${esc(h.label)}</td><td class="opp">${esc(g.opponent||"")}${g.event?`<small class="gl-ev">${esc(g.event)}</small>`:""}</td><td>${g.time?ampm(g.time):"TBD"}</td><td>${g.home===false?"Away":"Home"}${g.location?" · "+esc(g.location):""}</td></tr>`).join("")+`</tbody>`:"";
+  $("#calFoot").textContent="Every team you coach, on one calendar. Tap a day to see each team's plans, or to change it on one team.";
+}
+function openHubDay(iso){
+  const H=hubData();let h=`<h2 id="dayTitle">${fullDay(iso)}</h2>`;
+  H.forEach(x=>{const d=x.days[iso];const lines=[];
+    if(d&&d.game){const g=d.game;lines.push(`${g.event?esc(g.event)+": ":""}${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")} · ${g.time?ampm(g.time):"Time TBD"}${g.location?" · "+esc(g.location):""}`);}
+    if(d&&d.practice)lines.push(`Practice ${span(d.practice.start,d.practice.end)}`);
+    if(d&&d.off&&d.off.note)lines.push(esc(/^no practice$/i.test(d.off.note)?"No practice":d.off.note+" (no practice)"));
+    (d&&d.tags||[]).forEach(n=>lines.push(esc(n)));
+    h+=`<div class="hub-day" style="--tc:${esc(x.color)}"><b>${esc(x.label)}</b>${lines.length?lines.map(l=>`<span>${l}</span>`).join(""):`<span class="muted">Nothing scheduled</span>`}<button class="btn" type="button" data-hubgo="${esc(x.t.id)}" data-hubday="${iso}">Change on ${esc(x.label)}</button></div>`;});
+  h+=`<div class="actions" style="margin:0"><button class="btn" type="button" data-act="close">Close</button></div>`;
+  $("#dayBody").innerHTML=h;const dl=$("#dayDlg");if(!dl.open)dl.showModal();
+}
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-hubgo]");if(!b)return;const t=teams.find(x=>x.id===b.dataset.hubgo),iso=b.dataset.hubday;
+  $("#dayDlg").close();hubOn=false;try{localStorage.removeItem("cpp:calHub");}catch{}
+  if(t&&t.id!==team.id)await openTeam(t);setTab("cal");openDay(iso);});
 function render(){
   renderTeamPick();
+  if(hubOn&&typeof teams!=="undefined"&&teams.length>1){renderHub();return;}
   if(typeof SETTINGS==="undefined"||!$("#calMonths"))return;
   const st=SETTINGS,{days,practices}=buildDays(st),months=monthsToShow(st,days);
   $("#calEyebrow").textContent=[st.school&&st.mascot?st.school+" "+st.mascot:st.school||st.mascot,st.teamLabel].filter(Boolean).join(" · ");
@@ -147,7 +205,8 @@ document.addEventListener("keydown",e=>{if($("#view-cal").hidden||calView!=="mon
 
 /* ---------- day dialog ---------- */
 let dayIso=null,lastMark=null;
-function openDay(iso){dayIso=iso;lastMark=null;renderDay();const d=$("#dayDlg");if(!d.open)d.showModal();}
+let dayPick=null;
+function openDay(iso){dayIso=iso;lastMark=null;dayPick=null;renderDay();const d=$("#dayDlg");if(!d.open)d.showModal();}
 const entriesOn=(st,iso)=>(st.special||[]).filter(x=>x.date===iso);
 const isRegular=(st,iso)=>(st.practiceDays||[]).includes(dObj(iso).getDay())&&!!st.seasonStart&&iso>=st.seasonStart&&iso<=st.seasonEnd&&!(st.games||[]).some(g=>g.date===iso);
 /* Marks stack: check as many as apply. Unchecking removes only that mark. */
@@ -178,6 +237,10 @@ function renderDay(){
   const iso=dayIso,st=SETTINGS,{days}=buildDays(st),d=days[iso]||{},ed=editable();
   const regular=isRegular(st,iso),list=entriesOn(st,iso);
   let h=`<h2 id="dayTitle">${fullDay(iso)}</h2>`;
+  /* Linked teams: which of them this day's changes go to (games have their own rows below). */
+  {const L=ed&&typeof linkedTeams==="function"?linkedTeams(st):[];
+    if(L.length){const auto=st.calLinkMode!=="ask";if(!dayPick)dayPick=auto?L.map(t=>t.id):[];
+      h+=`<div class="day-link"><span>Also change on:</span>${L.map(t=>`<label class="link-t"><input type="checkbox" data-dlink="${esc(t.id)}"${dayPick.includes(t.id)?" checked":""}> ${esc(teamShort(t))}</label>`).join("")}</div>`;}}
   if(ed){const marks=MARKS.filter(m=>!m.only||m.only(regular,d));
     h+=`<fieldset class="marks"><legend>Mark this day <small>(check all that apply)</small></legend>${marks.map(m=>`<label class="mark ${m.cls}"><input type="checkbox" data-mark="${m.id}"${list.some(m.test)?" checked":""}><span>${m.label}</span></label>`).join("")}</fieldset>`;
     const lm=lastMark&&MARKS.find(m=>m.id===lastMark&&list.some(m.test));
@@ -245,6 +308,7 @@ function mdDays(){
 function mdPreview(){const p=$("#mdPreview");if(!p)return;const l=mdDays();
   p.textContent=l.length?`${l.length} more day${l.length>1?"s":""}: ${longDay(l[0])}${l.length>1?" to "+longDay(l[l.length-1]):""}.`:"Pick a later date.";}
 $("#dayBody").addEventListener("change",e=>{
+  if(e.target.dataset.dlink!==undefined){dayPick=[...document.querySelectorAll("#dayBody [data-dlink]:checked")].map(x=>x.dataset.dlink);return;}
   if(e.target.id==="dgTbd"){const t=$("#dgTime");t.disabled=e.target.checked;if(e.target.checked)t.value="";else t.focus();return;}
   if(e.target.id==="mdTo"||e.target.id==="mdOnly"){mdPreview();return;}
   if(e.target.dataset.mdday){mdCount();return;}
@@ -281,7 +345,8 @@ function gameForm(g){
 async function change(fn,done){
   const st=JSON.parse(JSON.stringify(team.settings||{}));st.games=st.games||[];st.special=st.special||[];
   fn(st);msg($("#dayMsg"),"Saving…");
-  try{await saveSettings(st);render();renderDay();msg($("#dayMsg"),done||"Saved","ok");}
+  const pick=document.querySelector("#dayBody .day-link")?[...document.querySelectorAll("#dayBody [data-dlink]:checked")].map(x=>x.dataset.dlink):null;
+  try{await saveSettings(st,pick?{linkTo:pick}:undefined);render();renderDay();msg($("#dayMsg"),done||"Saved","ok");}
   catch(err){msg($("#dayMsg"),"Not saved: "+(err.message||"check your connection"),"err");}
 }
 $("#dayBody").addEventListener("click",e=>{
@@ -356,8 +421,9 @@ $("#dayBody").addEventListener("click",e=>{
     change(st=>{st.games=st.games.filter(x=>x.date!==iso);},"Game deleted");
   }
 });
-$("#calMonths").addEventListener("click",e=>{const c=e.target.closest("[data-day]");if(c)openDay(c.dataset.day);});
-$("#calGames").addEventListener("click",e=>{const r=e.target.closest("[data-day]");if(r)openDay(r.dataset.day);});
+const dayOpen=iso=>hubOn&&typeof teams!=="undefined"&&teams.length>1?openHubDay(iso):openDay(iso);
+$("#calMonths").addEventListener("click",e=>{const c=e.target.closest("[data-day]");if(c)dayOpen(c.dataset.day);});
+$("#calGames").addEventListener("click",e=>{const r=e.target.closest("[data-day]");if(r)dayOpen(r.dataset.day);});
 $("#calAddGame").addEventListener("click",()=>{openDay(todayISO()>=(SETTINGS.seasonStart||"")?todayISO():SETTINGS.seasonStart);const det=$("#dayBody").querySelector("details.day-edit:has(.day-game)");if(det)det.open=true;});
 $("#calToday").addEventListener("click",()=>{
   const t=todayISO();
