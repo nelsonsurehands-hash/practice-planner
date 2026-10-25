@@ -159,7 +159,7 @@ async function checkAdmin(){
   if(isAdmin===null){const {data,error}=await sb.rpc("is_app_admin");isAdmin=!error&&!!data;}
   $("#acc-usage").hidden=!isAdmin;
 }
-const ago=iso=>{if(!iso)return "never";const m=Math.round((Date.now()-new Date(iso))/60000);
+const usageAgo=iso=>{if(!iso)return "never";const m=Math.round((Date.now()-new Date(iso))/60000);
   if(m<2)return "just now";if(m<60)return m+" min ago";const h=Math.round(m/60);if(h<24)return h+" hr ago";const d=Math.round(h/24);return d===1?"yesterday":d<31?d+" days ago":new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});};
 async function renderUsage(){
   const box=$("#usageBody");box.innerHTML=`<p class="help">Loading…</p>`;
@@ -173,7 +173,7 @@ async function renderUsage(){
     <div class="us-bars" role="img" aria-label="Coaches active each day for the last 30 days">${days.map(d=>{const x=by[d];const n=x?x.coaches:0;return `<span title="${d}: ${n} coach${n===1?"":"es"}, ${x?x.opens:0} opens" style="height:${Math.max(3,Math.round(n/mx*100))}%"${n?"":' class="z"'}></span>`;}).join("")}</div>
     <h4 class="us-h">Coaches <small>most recent first</small></h4>
     <div class="us-wrap"><table class="us-table"><thead><tr><th>Coach</th><th>Teams</th><th>Last used</th><th>Days used<br><small>30 days</small></th><th>Opens<br><small>30 days</small></th><th>Joined</th></tr></thead><tbody>
-    ${(r.users||[]).map(u=>`<tr><td><b>${esc(u.name||(u.email||"").split("@")[0])}</b><small>${esc(u.email||"")}</small></td><td>${esc((u.teams||[]).join(", ")||"—")}</td><td>${esc(ago(u.last_seen||u.last_sign_in))}</td><td>${u.days_30}</td><td>${u.opens_30}</td><td>${u.joined?esc(new Date(u.joined).toLocaleDateString("en-US",{month:"short",day:"numeric"})):"—"}</td></tr>`).join("")}</tbody></table></div>
+    ${(r.users||[]).map(u=>`<tr><td><b>${esc(u.name||(u.email||"").split("@")[0])}</b><small>${esc(u.email||"")}</small></td><td>${esc((u.teams||[]).join(", ")||"—")}</td><td>${esc(usageAgo(u.last_seen||u.last_sign_in))}</td><td>${u.days_30}</td><td>${u.opens_30}</td><td>${u.joined?esc(new Date(u.joined).toLocaleDateString("en-US",{month:"short",day:"numeric"})):"—"}</td></tr>`).join("")}</tbody></table></div>
     <p class="help">An "open" is each time a coach starts the app or comes back to it after 30 minutes away. Counting started when this was turned on, so earlier use isn't included.</p>
     <div class="actions" style="margin:0"><button class="btn" type="button" id="usageRefresh">Refresh</button></div>`;
 }
