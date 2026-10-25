@@ -6,6 +6,7 @@
 --   * Add from a photo: a usage count for the monthly cap (table ai_usage).
 --   * A parent calendar link: an always-current season calendar parents open with no account.
 --   * A school staff code: one code adds a coach to several of your teams at once.
+--   * App usage: how often coaches open the app (only the app's owner can see it).
 -- Run once in Supabase → SQL Editor → New query → paste → Run. Safe to run again.
 -- It includes the roles and permissions setup, so it works whether or not roles.sql was run.
 
@@ -354,3 +355,69 @@ begin
     on conflict (team_id, user_id) do nothing;
   return t;
 end $$;
+
+-- ---------------------------------------------------------------------------
+-- App usage (for the app's owner): how often each coach opens the app.
+-- One row per coach per day; only app admins can read the report.
+-- ---------------------------------------------------------------------------
+create table if not exists public.app_usage (
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  day        date not null default current_date,
+  team_id    uuid references public.teams(id) on delete set null,
+  opens      int  not null default 1,
+  last_seen  timestamptz not null default now(),
+  primary key (user_id, day)
+);
+alter table public.app_usage enable row level security;   -- no policies: read only through usage_report()
+create table if not exists public.app_admins (email text primary key);
+alter table public.app_admins enable row level security;
+insert into public.app_admins (email) values ('cornelison.brian@gmail.com') on conflict do nothing;
+
+create or replace function public.log_open(p_team uuid default null) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then return; end if;
+  insert into app_usage (user_id, team_id) values (auth.uid(), p_team)
+  on conflict (user_id, day) do update set opens = app_usage.opens + 1, last_seen = now(),
+    team_id = coalesce(excluded.team_id, app_usage.team_id);
+end $$;
+revoke all on function public.log_open(uuid) from public;
+grant execute on function public.log_open(uuid) to authenticated;
+
+create or replace function public.is_app_admin() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from app_admins where lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')));
+$$;
+grant execute on function public.is_app_admin() to authenticated;
+
+create or replace function public.usage_report() returns jsonb
+language plpgsql stable security definer set search_path = public, auth as $$
+declare out jsonb;
+begin
+  if not is_app_admin() then raise exception 'Only the app''s owner can see usage.'; end if;
+  select jsonb_build_object(
+    'coaches', (select count(*) from auth.users),
+    'teams', (select count(*) from teams),
+    'active_today', (select count(distinct user_id) from app_usage where day = current_date),
+    'active_7', (select count(distinct user_id) from app_usage where day > current_date - 7),
+    'active_30', (select count(distinct user_id) from app_usage where day > current_date - 30),
+    'opens_7', (select coalesce(sum(opens), 0) from app_usage where day > current_date - 7),
+    'by_day', coalesce((select jsonb_agg(jsonb_build_object('day', d.day, 'coaches', d.n, 'opens', d.o) order by d.day)
+       from (select day, count(distinct user_id) n, sum(opens) o from app_usage where day > current_date - 30 group by day) d), '[]'::jsonb),
+    'users', coalesce((select jsonb_agg(r order by r->>'last_seen' desc nulls last) from (
+       select jsonb_build_object(
+         'email', u.email,
+         'name', (select display_name from team_members m where m.user_id = u.id and display_name is not null limit 1),
+         'joined', to_jsonb(u) ->> 'created_at',
+         'last_sign_in', to_jsonb(u) ->> 'last_sign_in_at',
+         'last_seen', (select max(last_seen) from app_usage a where a.user_id = u.id),
+         'opens_30', (select coalesce(sum(opens), 0) from app_usage a where a.user_id = u.id and day > current_date - 30),
+         'days_30', (select count(*) from app_usage a where a.user_id = u.id and day > current_date - 30),
+         'opens_all', (select coalesce(sum(opens), 0) from app_usage a where a.user_id = u.id),
+         'teams', (select coalesce(jsonb_agg(t.name order by t.name), '[]'::jsonb) from team_members m join teams t on t.id = m.team_id where m.user_id = u.id)
+       ) r from auth.users u) x), '[]'::jsonb)
+  ) into out;
+  return out;
+end $$;
+revoke all on function public.usage_report() from public;
+grant execute on function public.usage_report() to authenticated;

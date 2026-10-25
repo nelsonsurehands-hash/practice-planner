@@ -142,6 +142,43 @@ async function loadMembers(){
   if(error&&PERMS_DB){PERMS_DB=false;({data}=await sb.from("team_members").select("user_id,role,email,display_name,title,joined_at").eq("team_id",team.id).order("joined_at"));}
   members=data||[];
 }
+/* ---------- app usage ----------
+   Each coach's app counts one "open" when it starts and when they come back after 30 minutes away.
+   Only the app's owner (app_admins) can see the report, in Settings → App usage. */
+function logOpen(){
+  if(!HOSTED||!user||!team)return;
+  let last=0;try{last=+sessionStorage.getItem("cpp:lastOpen")||0;}catch{}
+  if(Date.now()-last<30*60*1000)return;
+  try{sessionStorage.setItem("cpp:lastOpen",String(Date.now()));}catch{}
+  sb.rpc("log_open",{p_team:team.id}).then(()=>{},()=>{});
+}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")logOpen();});
+let isAdmin=null;
+async function checkAdmin(){
+  if(!HOSTED||!user){isAdmin=false;return;}
+  if(isAdmin===null){const {data,error}=await sb.rpc("is_app_admin");isAdmin=!error&&!!data;}
+  $("#acc-usage").hidden=!isAdmin;
+}
+const ago=iso=>{if(!iso)return "never";const m=Math.round((Date.now()-new Date(iso))/60000);
+  if(m<2)return "just now";if(m<60)return m+" min ago";const h=Math.round(m/60);if(h<24)return h+" hr ago";const d=Math.round(h/24);return d===1?"yesterday":d<31?d+" days ago":new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});};
+async function renderUsage(){
+  const box=$("#usageBody");box.innerHTML=`<p class="help">Loading…</p>`;
+  const {data:r,error}=await sb.rpc("usage_report");
+  if(error){box.innerHTML=`<p class="msg err">${/function|schema cache|does not exist/i.test(error.message)?"Usage tracking needs one database step: run supabase/team-tools.sql in Supabase → SQL Editor.":esc(error.message)}</p>`;return;}
+  const tile=(n,l)=>`<div class="us-tile"><b>${n}</b><small>${l}</small></div>`;
+  const days=[];for(let i=29;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push(d.toISOString().slice(0,10));}
+  const by=Object.fromEntries((r.by_day||[]).map(x=>[String(x.day).slice(0,10),x])),mx=Math.max(1,...(r.by_day||[]).map(x=>x.coaches));
+  box.innerHTML=`<div class="us-tiles">${tile(r.coaches,"coaches signed up")}${tile(r.teams,"teams")}${tile(r.active_today,"used it today")}${tile(r.active_7,"this week")}${tile(r.active_30,"last 30 days")}${tile(r.opens_7,"opens this week")}</div>
+    <h4 class="us-h">Coaches using it each day <small>last 30 days</small></h4>
+    <div class="us-bars" role="img" aria-label="Coaches active each day for the last 30 days">${days.map(d=>{const x=by[d];const n=x?x.coaches:0;return `<span title="${d}: ${n} coach${n===1?"":"es"}, ${x?x.opens:0} opens" style="height:${Math.max(3,Math.round(n/mx*100))}%"${n?"":' class="z"'}></span>`;}).join("")}</div>
+    <h4 class="us-h">Coaches <small>most recent first</small></h4>
+    <div class="us-wrap"><table class="us-table"><thead><tr><th>Coach</th><th>Teams</th><th>Last used</th><th>Days used<br><small>30 days</small></th><th>Opens<br><small>30 days</small></th><th>Joined</th></tr></thead><tbody>
+    ${(r.users||[]).map(u=>`<tr><td><b>${esc(u.name||(u.email||"").split("@")[0])}</b><small>${esc(u.email||"")}</small></td><td>${esc((u.teams||[]).join(", ")||"—")}</td><td>${esc(ago(u.last_seen||u.last_sign_in))}</td><td>${u.days_30}</td><td>${u.opens_30}</td><td>${u.joined?esc(new Date(u.joined).toLocaleDateString("en-US",{month:"short",day:"numeric"})):"—"}</td></tr>`).join("")}</tbody></table></div>
+    <p class="help">An "open" is each time a coach starts the app or comes back to it after 30 minutes away. Counting started when this was turned on, so earlier use isn't included.</p>
+    <div class="actions" style="margin:0"><button class="btn" type="button" id="usageRefresh">Refresh</button></div>`;
+}
+document.addEventListener("click",e=>{if(e.target.id==="usageRefresh")renderUsage();});
+$("#acc-usage").addEventListener("toggle",e=>{if(e.target.open)renderUsage();});
 async function openTeam(t){
   if(!team||team.id!==t.id){schoolCode=null;schoolPick=null;}
   if(team&&t&&team.id!==t.id&&window.guardPlay&&!guardPlay(()=>openTeam(t)))return;
@@ -161,6 +198,7 @@ async function openTeam(t){
   if(!$("#view-settings").hidden)window.onSettingsTab();
   if(window.onTeamOpen)window.onTeamOpen();
   startPresence();
+  logOpen();
 }
 
 /* ---------- team switcher (header) ---------- */
@@ -504,6 +542,7 @@ let settingsDirty=false;
 document.addEventListener("input",e=>{if(inForm(e)&&e.target.closest(".st-edit"))settingsDirty=true;},true);
 window.onSettingsTab=function(force){
   if(!team)return;
+  checkAdmin();
   if(settingsDirty&&draft&&!force)return;
   settingsDirty=false;
   draft=JSON.parse(JSON.stringify({...DEFAULT_SETTINGS,...(team.settings||{})}));
