@@ -199,7 +199,8 @@ function renderDay(){
     if(ed)h+=`<details class="day-edit"><summary>Change time or add a note</summary>
       <div class="grid2"><label class="f">Starts<input type="time" id="dpStart" value="${p.start}"></label><label class="f">Ends<input type="time" id="dpEnd" value="${p.end}"></label></div>
       <label class="f">Add a note<input id="dpNote" placeholder="e.g. Bring white jerseys"></label>
-      <div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="savePractice">Save</button></div></details>`;
+      ${moreDaysPicker(iso)}
+      <div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="savePractice" id="dpSave">Save</button></div></details>`;
   }
   if(d.off){
     const offs=list.map((x,i)=>({x,i})).filter(o=>o.x.kind==="off");
@@ -216,6 +217,18 @@ function renderDay(){
   h+=`<div class="msg" id="dayMsg"></div><div class="actions" style="margin:0"><button class="btn" type="button" data-act="close">Close</button></div>`;
   $("#dayBody").innerHTML=h;mdPreview();
 }
+/* "Change time" for more than one practice: pick any of the coming practice days to get the same time. */
+const DOWL=["Sundays","Mondays","Tuesdays","Wednesdays","Thursdays","Fridays","Saturdays"];
+function moreDaysPicker(iso){
+  const days=PRACTICES.map(p=>p[0]).filter(d=>d>iso).slice(0,60);
+  if(!days.length)return "";
+  const dow=dObj(iso).getDay();
+  return `<div class="md-pick"><div class="md-head"><b>Apply to more practices</b><small id="mdCount">Just this day</small></div>
+    <div class="md-quick"><button type="button" class="btn" data-mdq="dow">Every ${DOWL[dow].slice(0,-1)}</button><button type="button" class="btn" data-mdq="week">Rest of this week</button><button type="button" class="btn" data-mdq="all">All ${days.length}</button><button type="button" class="linkbtn" data-mdq="none">Clear</button></div>
+    <div class="md-chips">${days.map(d=>`<label class="md-chip${dObj(d).getDay()===dow?" same":""}"><input type="checkbox" data-mdday="${d}"><span>${esc(longDay(d))}${PRACTICES.find(p=>p[0]===d)[1]?" ·":""}</span></label>`).join("")}</div></div>`;
+}
+function mdPicked(){return [...document.querySelectorAll("#dayBody [data-mdday]:checked")].map(x=>x.dataset.mdday);}
+function mdCount(){const n=mdPicked().length,c=$("#mdCount"),b=$("#dpSave");if(c)c.textContent=n?`This day + ${n} more`:"Just this day";if(b)b.textContent=n?`Save for ${n+1} practices`:"Save";}
 /* "Add to more days": every day after this one through the chosen date gets the same mark
    (with its name and times), added alongside whatever is already there. */
 function mdDays(){
@@ -228,6 +241,7 @@ function mdPreview(){const p=$("#mdPreview");if(!p)return;const l=mdDays();
   p.textContent=l.length?`${l.length} more day${l.length>1?"s":""}: ${longDay(l[0])}${l.length>1?" to "+longDay(l[l.length-1]):""}.`:"Pick a later date.";}
 $("#dayBody").addEventListener("change",e=>{
   if(e.target.id==="mdTo"||e.target.id==="mdOnly"){mdPreview();return;}
+  if(e.target.dataset.mdday){mdCount();return;}
   if(e.target.id==="dpBus"){const t=e.target.value;if(!t)return;
     change(st=>{const x=st.special.find(s=>s.date===dayIso&&(s.bus!==undefined||isBus(s.note)));if(x){x.bus=t;x.note="Bus departs "+ampm(t);}},"Bus time saved");return;}
   const c=e.target.closest("[data-mark]");if(!c||c.tagName!=="INPUT")return;
@@ -256,6 +270,11 @@ async function change(fn,done){
   catch(err){msg($("#dayMsg"),"Not saved: "+(err.message||"check your connection"),"err");}
 }
 $("#dayBody").addEventListener("click",e=>{
+  const q=e.target.closest("[data-mdq]");
+  if(q){const k=q.dataset.mdq,dow=dObj(dayIso).getDay(),wkEnd=addDays(dayIso,6-dow);
+    document.querySelectorAll("#dayBody [data-mdday]").forEach(x=>{const d=x.dataset.mdday;
+      if(k==="none")x.checked=false;else if(k==="all")x.checked=true;else if(k==="dow"){if(dObj(d).getDay()===dow)x.checked=true;}else if(k==="week"){if(d<=wkEnd)x.checked=true;}});
+    mdCount();return;}
   const b=e.target.closest("[data-act],[data-go],[data-rmentry]");if(!b)return;const iso=dayIso,st0=SETTINGS;
   if(b.dataset.go==="plan"){
     $("#dayDlg").close();setTab("plan");
@@ -282,19 +301,21 @@ $("#dayBody").addEventListener("click",e=>{
     return;
   }
   if(a==="savePractice"){
-    const start=$("#dpStart").value,end=$("#dpEnd").value,note=$("#dpNote").value.trim();
+    const start=$("#dpStart").value,end=$("#dpEnd").value,note=$("#dpNote").value.trim(),more=mdPicked();
     if(start&&end&&end<=start){msg($("#dayMsg"),"The end time needs to be after the start time.","err");return;}
-    const wk=[0,6].includes(dObj(iso).getDay()),ds=wk?st0.weekendStart:st0.weekdayStart,de=wk?st0.weekendEnd:st0.weekdayEnd;
-    const custom=!(start===ds&&end===de);
-    change(st=>{
-      const mine=st.special.filter(x=>x.date===iso&&x.kind!=="off");
-      mine.forEach(x=>{delete x.start;delete x.end;});
-      if(!regular&&!st.special.some(x=>x.date===iso&&x.kind==="extra"))st.special.push({date:iso,kind:"extra",note:""});
-      if(custom){const host=st.special.find(x=>x.date===iso&&x.kind==="extra")||st.special.find(x=>x.date===iso&&x.kind==="note"&&!x.note);
-        if(host)Object.assign(host,{start,end});else st.special.push({date:iso,kind:"note",note:"",start,end});}
-      st.special=st.special.filter(x=>!(x.date===iso&&x.kind==="note"&&!x.note&&!x.start));
-      if(note)st.special.push({date:iso,kind:"note",note});
-    },"Practice saved");
+    /* Set one day's practice time (a custom time is kept only when it differs from the usual time for that day). */
+    const setTime=(st,d,withNote)=>{
+      const reg=isRegular(st,d),wk=[0,6].includes(dObj(d).getDay()),ds=wk?st.weekendStart:st.weekdayStart,de=wk?st.weekendEnd:st.weekdayEnd;
+      const custom=!(start===ds&&end===de);
+      st.special.filter(x=>x.date===d&&x.kind!=="off").forEach(x=>{delete x.start;delete x.end;});
+      if(!reg&&!st.special.some(x=>x.date===d&&x.kind==="extra"))st.special.push({date:d,kind:"extra",note:""});
+      if(custom){const host=st.special.find(x=>x.date===d&&x.kind==="extra")||st.special.find(x=>x.date===d&&x.kind==="note"&&!x.note);
+        if(host)Object.assign(host,{start,end});else st.special.push({date:d,kind:"note",note:"",start,end});}
+      st.special=st.special.filter(x=>!(x.date===d&&x.kind==="note"&&!x.note&&!x.start));
+      if(withNote&&note)st.special.push({date:d,kind:"note",note});
+    };
+    change(st=>{setTime(st,iso,true);more.forEach(d=>setTime(st,d,false));},
+      more.length?`Practice time saved for ${more.length+1} practices (${span(start,end)}).`:"Practice saved");
   }
   if(a==="restore")change(st=>{st.special=st.special.filter(x=>!(x.date===iso&&x.kind==="off"));},"Day off removed");
   if(a==="delPractice")change(st=>{
