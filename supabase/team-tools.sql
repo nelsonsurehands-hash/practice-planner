@@ -7,6 +7,7 @@
 --   * A parent calendar link: an always-current season calendar parents open with no account.
 --   * A school staff code: one code adds a coach to several of your teams at once.
 --   * App usage: how often coaches open the app (only the app's owner can see it).
+--   * Feature use and referrals for the owner's report.
 -- Run once in Supabase → SQL Editor → New query → paste → Run. Safe to run again.
 -- It includes the roles and permissions setup, so it works whether or not roles.sql was run.
 
@@ -414,6 +415,132 @@ begin
          'opens_30', (select coalesce(sum(opens), 0) from app_usage a where a.user_id = u.id and day > current_date - 30),
          'days_30', (select count(*) from app_usage a where a.user_id = u.id and day > current_date - 30),
          'opens_all', (select coalesce(sum(opens), 0) from app_usage a where a.user_id = u.id),
+         'teams', (select coalesce(jsonb_agg(t.name order by t.name), '[]'::jsonb) from team_members m join teams t on t.id = m.team_id where m.user_id = u.id)
+       ) r from auth.users u) x), '[]'::jsonb)
+  ) into out;
+  return out;
+end $$;
+revoke all on function public.usage_report() from public;
+grant execute on function public.usage_report() to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Feature use (for the app's owner): which parts of the app coaches use most.
+-- One row per coach, day and feature with a count. Read only through usage_report().
+-- ---------------------------------------------------------------------------
+create table if not exists public.feature_usage (
+  user_id  uuid not null references auth.users(id) on delete cascade,
+  day      date not null default current_date,
+  feature  text not null,
+  n        int  not null default 1,
+  primary key (user_id, day, feature)
+);
+alter table public.feature_usage enable row level security;
+-- p_counts: {"tab:plays": 3, "play:run": 1, …}
+create or replace function public.log_features(p_counts jsonb) returns void
+language plpgsql security definer set search_path = public as $$
+declare k text; v int;
+begin
+  if auth.uid() is null or p_counts is null then return; end if;
+  for k, v in select key, least(greatest(coalesce((value)::text::int, 0), 0), 500) from jsonb_each(p_counts) loop
+    if v > 0 and length(k) <= 40 then
+      insert into feature_usage (user_id, feature, n) values (auth.uid(), k, v)
+      on conflict (user_id, day, feature) do update set n = feature_usage.n + excluded.n;
+    end if;
+  end loop;
+end $$;
+revoke all on function public.log_features(jsonb) from public;
+grant execute on function public.log_features(jsonb) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Referrals: each coach has a short invite code; a new coach who signs up from
+-- an invite link is credited to the coach who shared it.
+-- ---------------------------------------------------------------------------
+create table if not exists public.referral_codes (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  code    text not null unique
+);
+create table if not exists public.referrals (
+  referred_user uuid primary key references auth.users(id) on delete cascade,
+  referrer      uuid references auth.users(id) on delete set null,
+  code          text not null,
+  created_at    timestamptz not null default now()
+);
+alter table public.referral_codes enable row level security;
+alter table public.referrals enable row level security;
+create or replace function public.my_referral_code() returns text
+language plpgsql security definer set search_path = public as $$
+declare c text;
+begin
+  if auth.uid() is null then raise exception 'Sign in first.'; end if;
+  select code into c from referral_codes where user_id = auth.uid();
+  if c is not null then return c; end if;
+  loop
+    c := lower(random_join_code());
+    exit when not exists (select 1 from referral_codes where code = c);
+  end loop;
+  insert into referral_codes (user_id, code) values (auth.uid(), c);
+  return c;
+end $$;
+grant execute on function public.my_referral_code() to authenticated;
+-- Credit an invite once, only for a coach who signed up in the last 2 days, and never yourself.
+create or replace function public.record_referral(p_code text) returns boolean
+language plpgsql security definer set search_path = public, auth as $$
+declare r uuid; joined timestamptz;
+begin
+  if auth.uid() is null then return false; end if;
+  select (to_jsonb(u) ->> 'created_at')::timestamptz into joined from auth.users u where u.id = auth.uid();
+  if joined is not null and joined < now() - interval '2 days' then return false; end if;   -- only brand-new accounts count
+  select user_id into r from referral_codes where code = lower(trim(p_code));
+  if r is null or r = auth.uid() then
+    if r is null and lower(trim(p_code)) ~ '^[a-z]{2,20}$' then   -- a named source like "parent" or "playbook"
+      insert into referrals (referred_user, referrer, code) values (auth.uid(), null, lower(trim(p_code))) on conflict do nothing;
+      return true;
+    end if;
+    return false;
+  end if;
+  insert into referrals (referred_user, referrer, code) values (auth.uid(), r, lower(trim(p_code))) on conflict do nothing;
+  return true;
+end $$;
+grant execute on function public.record_referral(text) to authenticated;
+-- How many coaches you've brought in (shown next to your invite link).
+create or replace function public.my_referral_count() returns int
+language sql stable security definer set search_path = public as $$
+  select count(*)::int from referrals where referrer = auth.uid();
+$$;
+grant execute on function public.my_referral_count() to authenticated;
+
+-- The owner's usage report, now with feature use and referrals.
+create or replace function public.usage_report() returns jsonb
+language plpgsql stable security definer set search_path = public, auth as $$
+declare out jsonb;
+begin
+  if not is_app_admin() then raise exception 'Only the app''s owner can see usage.'; end if;
+  select jsonb_build_object(
+    'coaches', (select count(*) from auth.users),
+    'teams', (select count(*) from teams),
+    'active_today', (select count(distinct user_id) from app_usage where day = current_date),
+    'active_7', (select count(distinct user_id) from app_usage where day > current_date - 7),
+    'active_30', (select count(distinct user_id) from app_usage where day > current_date - 30),
+    'opens_7', (select coalesce(sum(opens), 0) from app_usage where day > current_date - 7),
+    'referred', (select count(*) from referrals),
+    'by_day', coalesce((select jsonb_agg(jsonb_build_object('day', d.day, 'coaches', d.n, 'opens', d.o) order by d.day)
+       from (select day, count(distinct user_id) n, sum(opens) o from app_usage where day > current_date - 30 group by day) d), '[]'::jsonb),
+    'features', coalesce((select jsonb_agg(jsonb_build_object('feature', f.feature, 'uses', f.uses, 'coaches', f.coaches) order by f.uses desc)
+       from (select feature, sum(n) uses, count(distinct user_id) coaches from feature_usage where day > current_date - 30 group by feature) f), '[]'::jsonb),
+    'sources', coalesce((select jsonb_agg(jsonb_build_object('source', s.src, 'n', s.n) order by s.n desc)
+       from (select coalesce((select coalesce(m.display_name, uu.email) from auth.users uu left join team_members m on m.user_id = uu.id where uu.id = r.referrer limit 1), r.code) src, count(*) n
+             from referrals r group by 1) s), '[]'::jsonb),
+    'users', coalesce((select jsonb_agg(r order by r->>'last_seen' desc nulls last) from (
+       select jsonb_build_object(
+         'email', u.email,
+         'name', (select display_name from team_members m where m.user_id = u.id and display_name is not null limit 1),
+         'joined', to_jsonb(u) ->> 'created_at',
+         'last_sign_in', to_jsonb(u) ->> 'last_sign_in_at',
+         'last_seen', (select max(last_seen) from app_usage a where a.user_id = u.id),
+         'opens_30', (select coalesce(sum(opens), 0) from app_usage a where a.user_id = u.id and day > current_date - 30),
+         'days_30', (select count(*) from app_usage a where a.user_id = u.id and day > current_date - 30),
+         'opens_all', (select coalesce(sum(opens), 0) from app_usage a where a.user_id = u.id),
+         'invited', (select count(*) from referrals x where x.referrer = u.id),
          'teams', (select coalesce(jsonb_agg(t.name order by t.name), '[]'::jsonb) from team_members m join teams t on t.id = m.team_id where m.user_id = u.id)
        ) r from auth.users u) x), '[]'::jsonb)
   ) into out;

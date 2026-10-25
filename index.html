@@ -3,11 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Coach Practice Planner</title>
-<meta name="description" content="Plan timed basketball practices, keep a drill library, and draw and animate plays with your coaching staff.">
+<title>The Extra Coach | Practice plans, plays and parent tools for coaches</title>
+<meta name="description" content="The Extra Coach: timed practice plans, animated plays with auto defense, a season calendar with a parent link, live stats, bus lists and game-day food sign-ups, shared by your whole coaching staff.">
+<meta property="og:title" content="The Extra Coach">
+<meta property="og:description" content="Plan it. Draw it. Run it. Practice plans, plays, the calendar, live stats and parent tools in one app for your coaching staff.">
+<meta property="og:image" content="https://theextracoach.com/icons/icon-512.png">
+<meta property="og:url" content="https://theextracoach.com/">
 <meta name="theme-color" content="#5b2a86">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon-192.png">
+<link rel="icon" href="brand/mark.svg" type="image/svg+xml">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Practice Planner">
@@ -29,7 +34,7 @@
       <img id="spLogo" alt="" hidden>
       <svg id="spBall" class="sp-ball" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29"/><path d="M3 32H61M32 3V61M11 11Q32 32 11 53M53 11Q32 32 53 53"/></svg>
     </div>
-    <div class="sp-name" id="spName">Practice Planner</div>
+    <div class="sp-name" id="spName">The Extra Coach</div>
     <div class="sp-label" id="spLabel"></div>
     <div class="sp-msg">Loading<span class="sp-dots"><i>.</i><i>.</i><i>.</i></span></div>
   </div>
@@ -49,9 +54,97 @@
 }catch(e){}})();
 </script>
 
+<!-- Homepage for visitors who aren't signed in -->
+<div id="screen-landing" class="lp" hidden>
+  <header class="lp-top">
+    <a class="lp-logo" href="/" aria-label="The Extra Coach home"><img src="brand/mark.svg" alt="" width="40" height="40"><span>The Extra <b>Coach</b></span></a>
+    <button class="lp-btn ghost" type="button" data-lp="in">Sign in</button>
+  </header>
+
+  <section class="lp-hero">
+    <div class="lp-hero-copy">
+      <p class="lp-eyebrow">The assistant coach in your pocket</p>
+      <h1>Plan it. Draw it. <span>Run it.</span></h1>
+      <p class="lp-lede">Practice plans, animated plays, the season calendar, live stats and everything parents need, in one app your whole staff shares.</p>
+      <div class="lp-ctas">
+        <button class="lp-btn primary" type="button" data-lp="up">Create your team</button>
+        <button class="lp-btn ghost" type="button" data-lp="in">I already have an account</button>
+      </div>
+      <p class="lp-fine">Works on any phone, tablet or computer. Add it to your home screen like an app.</p>
+    </div>
+    <div class="lp-phones" aria-hidden="true">
+      <div class="lp-phone back"><img src="img/shots/play.jpg" alt=""></div>
+      <div class="lp-phone front"><img src="img/shots/home.jpg" alt=""></div>
+    </div>
+  </section>
+
+  <section class="lp-strip" aria-label="Built for">
+    <span>School teams</span><i></i><span>AAU and club</span><i></i><span>Rec leagues</span><i></i><span>Basketball and more</span>
+  </section>
+
+  <section class="lp-sec" id="lp-features">
+    <p class="lp-eyebrow">What it does</p>
+    <h2>Everything off your clipboard</h2>
+    <div class="lp-grid">
+      <article><div class="lp-ic">⏱️</div><h3>Timed practice plans</h3><p>Build practice from your drill library, see every block on the clock, and print a copy for the gym.</p></article>
+      <article><div class="lp-ic">🏀</div><h3>Plays that move</h3><p>Draw a play once and watch it run step by step. Add man, 2-3, 3-2 or box-and-1 defense automatically.</p></article>
+      <article><div class="lp-ic">📅</div><h3>One season calendar</h3><p>Practices, games, days off and bus times in one place, with a single link parents can always open.</p></article>
+      <article><div class="lp-ic">🔴</div><h3>Live stat tracker</h3><p>Tap shots, rebounds and assists during the game. Season totals add themselves up.</p></article>
+      <article><div class="lp-ic">🚌</div><h3>Parent admin</h3><p>Bus list check-in, game-day food sign-ups and a schedule page parents can read without an account.</p></article>
+      <article><div class="lp-ic">📸</div><h3>Snap a photo to import</h3><p>Take a picture of a paper schedule or whiteboard play and the app reads it in for you.</p></article>
+    </div>
+  </section>
+
+  <section class="lp-sec lp-show">
+    <div class="lp-show-row">
+      <div class="lp-shot"><img src="img/shots/play.jpg" alt="An animated play with a 2-3 zone defense" loading="lazy"></div>
+      <div><p class="lp-eyebrow">Playbook</p><h2>Teach it the way it looks on the floor</h2>
+        <p>Every step of a play animates with notes underneath, so players see the cut, the screen and the pass. Share the playbook with players by link.</p></div>
+    </div>
+    <div class="lp-show-row flip">
+      <div class="lp-shot"><img src="img/shots/cal.jpg" alt="A month of practices and games on the calendar" loading="lazy"></div>
+      <div><p class="lp-eyebrow">Calendar</p><h2>Parents stop asking "what time is practice?"</h2>
+        <p>Change a practice time once and every coach and parent sees it. Parents can add the whole season to their phone's calendar.</p></div>
+    </div>
+  </section>
+
+  <section class="lp-sec">
+    <p class="lp-eyebrow">Getting started</p>
+    <h2>Up and running in five minutes</h2>
+    <ol class="lp-steps">
+      <li><b>Create your team</b><span>Pick your sport, colors and the features you want. Snap your logo and the app pulls the team colors from it.</span></li>
+      <li><b>Bring your staff</b><span>Send one code. Assistant coaches join with the right access, even across every team at your school.</span></li>
+      <li><b>Send parents one link</b><span>A short link to the schedule that's always up to date. No account, no app to download.</span></li>
+    </ol>
+  </section>
+
+  <section class="lp-sec">
+    <p class="lp-eyebrow">Your program, your way</p>
+    <h2>Turn on only what you use</h2>
+    <div class="lp-progs">
+      <div><h3>School</h3><p>Full staff, bus lists, parent calendar, practice plans and the playbook.</p></div>
+      <div><h3>AAU and club</h3><p>Tournament weekends, plays and live stats without the school extras.</p></div>
+      <div><h3>Rec</h3><p>A simple calendar and a few plays for volunteer coaches. Nothing to learn.</p></div>
+    </div>
+  </section>
+
+  <section class="lp-final">
+    <img src="brand/mark.svg" alt="" width="72" height="72">
+    <h2>Your extra coach is ready</h2>
+    <button class="lp-btn primary" type="button" data-lp="up">Create your team</button>
+  </section>
+
+  <footer class="lp-foot">
+    <span class="lp-logo small"><img src="brand/mark.svg" alt="" width="24" height="24"><span>The Extra <b>Coach</b></span></span>
+    <span>© 2026 The Extra Coach · Made for coaches, by a coach</span>
+    <button class="lp-link" type="button" data-lp="in">Sign in</button>
+  </footer>
+</div>
+
 <!-- Sign in -->
 <div id="screen-auth" class="screen" hidden>
-  <div class="brand-mark"><img src="icons/icon-192.png" alt=""><div><div class="eyebrow">For coaching staffs</div><h1>Practice Planner</h1></div></div>
+  <button class="linkbtn auth-back" type="button" id="authBack" hidden>← Back to the homepage</button>
+  <div class="brand-mark"><img src="brand/mark.svg" alt=""><div><div class="eyebrow">For coaching staffs</div><h1>The Extra Coach</h1></div></div>
   <div class="card auth-card">
     <div class="auth-tabs" role="tablist">
       <button type="button" role="tab" id="authTabIn" aria-selected="true">Sign in</button>
@@ -80,7 +173,7 @@
 
 <!-- Team setup -->
 <div id="screen-setup" class="screen" hidden>
-  <div class="brand-mark"><img src="icons/icon-192.png" alt=""><div><div class="eyebrow">Practice Planner</div><h1>Set up your team</h1></div></div>
+  <div class="brand-mark"><img src="brand/mark.svg" alt=""><div><div class="eyebrow">The Extra Coach</div><h1>Set up your team</h1></div></div>
   <form class="card" id="setupForm">
     <h2>New team</h2>
     <div class="grid2">
@@ -498,7 +591,15 @@
     </details>
   </div>
 </section>
+  <footer class="app-foot">
+    <span class="lp-logo small"><img src="brand/mark.svg" alt="" width="22" height="22"><span>The Extra <b>Coach</b></span></span>
+    <button class="btn" type="button" id="inviteCoach">🎁 Invite a coach</button>
+  </footer>
 </div>
+
+<dialog id="inviteDlg" aria-labelledby="invTitle">
+  <div class="dlg" id="invBody"></div>
+</dialog>
 
 <dialog id="calExpDlg" aria-labelledby="expTitle">
   <div class="dlg">
@@ -584,5 +685,7 @@
 <script src="js/home.js"></script>
 <script src="js/pagehelp.js"></script>
 <script src="js/update.js"></script>
+<script src="js/brand.js"></script>
+<script src="js/track.js"></script>
 </body>
 </html>

@@ -44,7 +44,10 @@ const STARTERS={
 };
 function startersFor(sport){return (STARTERS[sport]||[]).map(([id,d])=>[id,{...d,category:d.categories[0],createdAt:Date.now()}]);}
 
-const screens=["screen-loading","screen-auth","screen-setup","app"];
+const screens=["screen-loading","screen-landing","screen-auth","screen-setup","app"];
+/* Signed-out visitors on the website see the homepage first; the installed app goes straight to sign in. */
+const isInstalled=()=>{try{return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;}catch{return false;}};
+function showWelcome(){if(isInstalled()){show("screen-auth");return;}$("#authBack").hidden=false;show("screen-landing");}
 function show(id){
   screens.forEach(x=>{if(x==="screen-loading")return;$("#"+x).hidden=x!==id;});window.scrollTo(0,0);
   const sp=$("#screen-loading");   // the splash fades out instead of vanishing
@@ -93,6 +96,7 @@ async function init(){
   document.querySelectorAll(".hosted-only").forEach(x=>x.hidden=!HOSTED);
   document.querySelectorAll(".demo-only").forEach(x=>x.hidden=HOSTED);
   if(!HOSTED){
+    if(new URLSearchParams(location.search).has("landing")){show("screen-landing");return;}   // preview the homepage in demo
     $("#demoBar").hidden=false;$("#joinForm").hidden=true;$("#joinDivider").hidden=true;
     /* The test copy of the app (test.theextracoach.com): say so plainly, so nobody mistakes it for the real one. */
     if(CFG.env==="test"){const bar=$("#demoBar");bar.classList.add("test-bar");bar.innerHTML="<strong>🧪 TEST VERSION.</strong> Try new features here. Nothing you do here touches the real app or your team's data, and it's saved only on this device. To bring your real plays in: Settings → Import a backup.";}
@@ -114,7 +118,7 @@ async function init(){
   });
   const {data:{session}}=await sb.auth.getSession();
   if(session){history.replaceState(null,"",location.pathname);if(RECOVERY){showNewPassword();return;}afterLogin(session.user);return;}
-  show("screen-auth");
+  if(linkErr)show("screen-auth");else showWelcome();
   if(linkErr){
     history.replaceState(null,"",location.pathname);
     msg($("#authMsg"),/expired|invalid/i.test(linkErr)?"That email link has expired or was already used. Tap Forgot password to get a new one.":"Sign-in didn't finish: "+linkErr.replace(/\+/g," "),"err");
@@ -161,6 +165,14 @@ async function checkAdmin(){
 }
 const usageAgo=iso=>{if(!iso)return "never";const m=Math.round((Date.now()-new Date(iso))/60000);
   if(m<2)return "just now";if(m<60)return m+" min ago";const h=Math.round(m/60);if(h<24)return h+" hr ago";const d=Math.round(h/24);return d===1?"yesterday":d<31?d+" days ago":new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});};
+/* Friendly names for the feature counts js/track.js sends. */
+const FEAT_NAMES={"tab:home":"Home","tab:plan":"Practice plan","tab:plays":"Plays","tab:lib":"Drill library","tab:cal":"Calendar","tab:team":"Team","tab:settings":"Settings",
+  "play:run":"Run a play","play:speed":"Change play speed","plays:share":"Share plays with players","plays:print":"Print plays","plan:print":"Print practice plan",
+  "cal:export":"Export calendar","cal:setup":"Season setup","cal:multiday":"Apply time to more days","parentlink:open":"Parent link opened","parentlink:send":"Parent link sent",
+  "food:send":"Food sign-up link sent","stats:live":"Live stat tracker","stats:tracking":"Stats tapped in a game","stats:season":"Season stats","bus:print":"Bus list printed",
+  "bus:copy":"Bus list copied","bus:checkin":"Bus check-in","schedule:print":"Schedule printed","schedule:copy":"Schedule copied","export":"Backup exported","help":"How-to (?) opened",
+  "drill:save":"Drill saved","team:create":"Team created","team:join":"Joined a team","staff:schoolcode":"School staff code","invite:open":"Invite a coach opened"};
+const featName=k=>FEAT_NAMES[k]||(k.startsWith("team:")?"Team → "+k.slice(5):k.startsWith("defense:")?"Auto defense: "+k.slice(8):k.startsWith("home:")?"Home tile: "+k.slice(5):k.startsWith("photo:")?"Photo import: "+k.slice(6):k.startsWith("cal:export:")?"Calendar export: "+k.slice(11):k);
 async function renderUsage(){
   const box=$("#usageBody");box.innerHTML=`<p class="help">Loading…</p>`;
   const {data:r,error}=await sb.rpc("usage_report");
@@ -168,12 +180,15 @@ async function renderUsage(){
   const tile=(n,l)=>`<div class="us-tile"><b>${n}</b><small>${l}</small></div>`;
   const days=[];for(let i=29;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push(d.toISOString().slice(0,10));}
   const by=Object.fromEntries((r.by_day||[]).map(x=>[String(x.day).slice(0,10),x])),mx=Math.max(1,...(r.by_day||[]).map(x=>x.coaches));
-  box.innerHTML=`<div class="us-tiles">${tile(r.coaches,"coaches signed up")}${tile(r.teams,"teams")}${tile(r.active_today,"used it today")}${tile(r.active_7,"this week")}${tile(r.active_30,"last 30 days")}${tile(r.opens_7,"opens this week")}</div>
+  box.innerHTML=`<div class="us-tiles">${tile(r.coaches,"coaches signed up")}${tile(r.teams,"teams")}${tile(r.active_today,"used it today")}${tile(r.active_7,"this week")}${tile(r.active_30,"last 30 days")}${tile(r.opens_7,"opens this week")}${r.referred!=null?tile(r.referred,"came from invites"):""}</div>
     <h4 class="us-h">Coaches using it each day <small>last 30 days</small></h4>
     <div class="us-bars" role="img" aria-label="Coaches active each day for the last 30 days">${days.map(d=>{const x=by[d];const n=x?x.coaches:0;return `<span title="${d}: ${n} coach${n===1?"":"es"}, ${x?x.opens:0} opens" style="height:${Math.max(3,Math.round(n/mx*100))}%"${n?"":' class="z"'}></span>`;}).join("")}</div>
+    ${r.features?`<h4 class="us-h">Most used features <small>last 30 days</small></h4>
+    ${r.features.length?`<div class="us-feats">${(()=>{const fm=Math.max(1,...r.features.map(f=>f.uses));return r.features.slice(0,25).map(f=>`<div class="us-feat"><span>${esc(featName(f.feature))}</span><i style="width:${Math.max(2,Math.round(f.uses/fm*100))}%"></i><b>${f.uses}</b><small>${f.coaches} coach${f.coaches===1?"":"es"}</small></div>`).join("");})()}</div>`:`<p class="help">No feature use counted yet. It starts adding up as coaches use the app.</p>`}`:""}
+    ${r.sources&&r.sources.length?`<h4 class="us-h">Where new coaches came from</h4><div class="us-feats">${r.sources.map(x=>`<div class="us-feat"><span>${esc({parent:"Parent calendar page",food:"Food sign-up page",playbook:"Player playbook page"}[x.source]||x.source)}</span><b>${x.n}</b></div>`).join("")}</div>`:""}
     <h4 class="us-h">Coaches <small>most recent first</small></h4>
-    <div class="us-wrap"><table class="us-table"><thead><tr><th>Coach</th><th>Teams</th><th>Last used</th><th>Days used<br><small>30 days</small></th><th>Opens<br><small>30 days</small></th><th>Joined</th></tr></thead><tbody>
-    ${(r.users||[]).map(u=>`<tr><td><b>${esc(u.name||(u.email||"").split("@")[0])}</b><small>${esc(u.email||"")}</small></td><td>${esc((u.teams||[]).join(", ")||"—")}</td><td>${esc(usageAgo(u.last_seen||u.last_sign_in))}</td><td>${u.days_30}</td><td>${u.opens_30}</td><td>${u.joined?esc(new Date(u.joined).toLocaleDateString("en-US",{month:"short",day:"numeric"})):"—"}</td></tr>`).join("")}</tbody></table></div>
+    <div class="us-wrap"><table class="us-table"><thead><tr><th>Coach</th><th>Teams</th><th>Last used</th><th>Days used<br><small>30 days</small></th><th>Opens<br><small>30 days</small></th><th>Invited</th><th>Joined</th></tr></thead><tbody>
+    ${(r.users||[]).map(u=>`<tr><td><b>${esc(u.name||(u.email||"").split("@")[0])}</b><small>${esc(u.email||"")}</small></td><td>${esc((u.teams||[]).join(", ")||"—")}</td><td>${esc(usageAgo(u.last_seen||u.last_sign_in))}</td><td>${u.days_30}</td><td>${u.opens_30}</td><td>${u.invited||0}</td><td>${u.joined?esc(new Date(u.joined).toLocaleDateString("en-US",{month:"short",day:"numeric"})):"—"}</td></tr>`).join("")}</tbody></table></div>
     <p class="help">An "open" is each time a coach starts the app or comes back to it after 30 minutes away. Counting started when this was turned on, so earlier use isn't included.</p>
     <div class="actions" style="margin:0"><button class="btn" type="button" id="usageRefresh">Refresh</button></div>`;
 }
