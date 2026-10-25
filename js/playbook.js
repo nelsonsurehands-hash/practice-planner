@@ -35,7 +35,7 @@ function start(){
   $("#pbEyebrow").textContent=[t.school&&t.mascot?t.school+" "+t.mascot:t.name,t.teamLabel].filter(Boolean).join(" · ");
   $("#pbTitle").textContent=BOOK.title||"Playbook";
   document.title=`${BOOK.title||"Playbook"} · ${t.name||"Team"}`;
-  BOOK.plays=(BOOK.plays||[]).filter(p=>p.frames&&p.frames.length);
+  BOOK.plays=(BOOK.plays||[]).filter(p=>p.frames&&p.frames.length).map(p=>({...p,name:window.titleCase?titleCase(p.name||""):p.name}));
   $("#pbCount").textContent=`${BOOK.plays.length} play${BOOK.plays.length===1?"":"s"}`;
   const L=SPORTS[SPORT].tools;
   $("#pbLegend").textContent="Key: "+[`solid arrow = ${L.cut.toLowerCase()}`,`dashed arrow = ${L.pass.toLowerCase()}`,L.dribble&&`zigzag = ${L.dribble.toLowerCase()}`,L.screen&&`line with a bar = ${L.screen.toLowerCase()}`,L.shot&&`dotted arc = ${L.shot.toLowerCase()}`].filter(Boolean).join(" · ");

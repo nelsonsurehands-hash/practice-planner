@@ -588,7 +588,7 @@ $("#drillForm").addEventListener("submit",async e=>{
   e.preventDefault();
   const cs=getCats();
   if(!cs.length){$("#dCatErr").hidden=false;return;}
-  const body={editedBy:ME.name,name:$("#dName").value.trim(),categories:cs,category:cs[0],minutes:Math.max(1,parseInt($("#dMin").value)||10),description:$("#dDesc").value.trim(),points:$("#dPoints").value.trim()};
+  const body={editedBy:ME.name,name:titleCase($("#dName").value.trim()),categories:cs,category:cs[0],minutes:Math.max(1,parseInt($("#dMin").value)||10),description:$("#dDesc").value.trim(),points:$("#dPoints").value.trim()};
   if(!body.name)return;
   const id=editing||uid()+uid();
   const prev=drills.find(d=>d.id===id);
@@ -1021,6 +1021,7 @@ $("#pNotes").addEventListener("input",e=>{play.notes=e.target.value;markDirty();
 /* Save play: publishes to the play library. It replaces any draft of this play. Returns true when saved. */
 async function savePlay(){
   if(!play.name.trim()){pflash("Give the play a name before saving.");$("#pName").focus();return false;}
+  play.name=titleCase(play.name.trim());$("#pName").value=play.name;
   const id=play.id||uid()+uid();
   const body={name:play.name.trim(),type:play.type,notes:play.notes||"",frames:play.frames,updatedAt:Date.now(),editedBy:ME.name};
   play.id=id;delete play.draftOf;delete play.draft;pdirty=false;
@@ -1193,13 +1194,13 @@ function startPlanner(store,settings){
   let firstPlans=true;
   const err=()=>showNotice("Couldn't load your team's data. Check your connection and reload.");
   unsubs.push(db.collection("drills").onSnapshot(s=>{
-    drills=s.docs.map(d=>({id:d.id,...d.data()}));sortDrills();renderAllDrills();
+    drills=s.docs.map(d=>{const x={id:d.id,...d.data()};x.name=titleCase(x.name||"");return x;});sortDrills();renderAllDrills();
   },err));
   unsubs.push(db.collection("plays").onSnapshot(s=>{
-    plays=s.docs.map(d=>({id:d.id,...d.data()}));renderPlayLib();renderPickCats();renderPick();
+    plays=s.docs.map(d=>{const x={id:d.id,...d.data()};x.name=titleCase(x.name||"");return x;});renderPlayLib();renderPickCats();renderPick();
   },err));
   unsubs.push(db.collection("plans").onSnapshot(s=>{
-    plans={};s.docs.forEach(d=>{plans[d.id]=d.data();});
+    plans={};s.docs.forEach(d=>{const x=d.data();(x.blocks||[]).forEach(b=>{if(b&&b.name)b.name=titleCase(b.name);});plans[d.id]=x;});
     buildDateSelect();if(window.renderHome)renderHome();
     const inc=plans[cur.date];
     if(firstPlans||(!saveTimer&&inc&&!s.metadata.hasPendingWrites&&JSON.stringify(inc)!==JSON.stringify(cur))){firstPlans=false;loadPlan($("#planDate").value);}

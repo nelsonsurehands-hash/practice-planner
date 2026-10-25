@@ -332,8 +332,8 @@ const delBtn=(act,label)=>`<button class="btn danger day-del" type="button" data
 function gameForm(g,tid){
   const gt=teams.find(t=>t.id===(tid||team.id))||team,bus=((gt.settings||{}).special||[]).find(x=>x.date===g.date&&(x.bus!==undefined||isBus(x.note)));
   const teamSel=dayTeams?(tid&&g.opponent?`<input type="hidden" id="dgTeam" value="${esc(gt.id)}">`:`<label class="f">Team<select id="dgTeam">${teams.filter(canSchedule).map(t=>`<option value="${esc(t.id)}"${t.id===gt.id?" selected":""}>${esc(teamShort(t))}</option>`).join("")}</select></label>`):"";
-  return `<div class="day-game" data-orig="${esc(g.date||"")}">${teamSel}<label class="f">Event or tournament <small>(optional)</small><input id="dgEvent" list="dgEventList" value="${esc(g.event||"")}" placeholder="e.g. Conference Tournament"></label><datalist id="dgEventList">${[...new Set((SETTINGS.games||[]).map(x=>x.event).filter(Boolean))].map(v=>`<option value="${esc(v)}">`).join("")}</datalist>
-    <label class="f">Opponent<input id="dgOpp" value="${esc(g.opponent||"")}" placeholder="e.g. Waynesville"></label>
+  return `<div class="day-game" data-orig="${esc(g.date||"")}">${teamSel}<label class="f">Event or tournament <small>(optional)</small><input id="dgEvent" data-tc list="dgEventList" value="${esc(g.event||"")}" placeholder="e.g. Conference Tournament"></label><datalist id="dgEventList">${[...new Set((SETTINGS.games||[]).map(x=>x.event).filter(Boolean))].map(v=>`<option value="${esc(v)}">`).join("")}</datalist>
+    <label class="f">Opponent<input id="dgOpp" data-tc value="${esc(g.opponent||"")}" placeholder="e.g. Waynesville"></label>
     <div class="grid2"><label class="f">Date<input type="date" id="dgDate" value="${esc(g.date||dayIso)}"></label><div class="f">Time<span class="tbd-wrap"><input type="time" id="dgTime" aria-label="Game time" value="${esc(g.tbd?"":g.time||"")}"${g.tbd?" disabled":""}><label class="tbd"><input type="checkbox" id="dgTbd"${g.tbd?" checked":""}> TBD</label></span></div></div>
     <label class="f">Where<select id="dgHome"><option value="1"${g.home!==false?" selected":""}>Home</option><option value="0"${g.home===false?" selected":""}>Away</option></select></label>
     <label class="f">Location <small>(optional)</small><input id="dgLoc" list="dgLocList" value="${esc(g.location||"")}" placeholder="e.g. Ozark High School, 1350 W Bluff Dr"></label><datalist id="dgLocList">${[...new Set((SETTINGS.games||[]).map(x=>x.location).filter(Boolean))].map(v=>`<option value="${esc(v)}">`).join("")}</datalist>
@@ -405,10 +405,10 @@ $("#dayBody").addEventListener("click",e=>{
     if(isRegular(st,iso)){if(!st.special.some(x=>x.date===iso&&x.kind==="off"))st.special.push({date:iso,kind:"off",note:"No practice"});}
     else st.special=st.special.filter(x=>!(x.date===iso&&x.kind==="extra"));},"Practice cancelled");
   if(a==="saveGame"){
-    const box=b.closest(".day-game"),orig=box.dataset.orig,date=$("#dgDate").value,opp=$("#dgOpp").value.trim();
+    const box=b.closest(".day-game"),orig=box.dataset.orig,date=$("#dgDate").value,opp=titleCase($("#dgOpp").value.trim());
     if(!date||!opp){msg($("#dayMsg"),"Add the opponent and date.","err");return;}
     const tbd=$("#dgTbd").checked,g={date,opponent:opp,time:tbd?"":$("#dgTime").value,home:$("#dgHome").value==="1"};
-    {const ev=$("#dgEvent").value.trim(),loc=$("#dgLoc").value.trim();if(ev)g.event=ev;if(loc)g.location=loc;}
+    {const ev=titleCase($("#dgEvent").value.trim()),loc=$("#dgLoc").value.trim();if(ev)g.event=ev;if(loc)g.location=loc;}
     if(tbd||!g.time)g.tbd=true;
     const tid=($("#dgTeam")||{}).value||team.id,busT=$("#dgBus").value;
     change(st=>{st.games=st.games.filter(x=>x.date!==orig&&x.date!==date);st.games.push(g);

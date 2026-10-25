@@ -181,8 +181,8 @@
       <label class="f hosted-only">Your name<input id="suName" placeholder="e.g. Coach Brian"></label>
     </div>
     <div class="grid2">
-      <label class="f">School or club<input id="suSchool" required placeholder="e.g. Riverside"></label>
-      <label class="f">Team name<input id="suMascot" placeholder="e.g. Ravens"></label>
+      <label class="f">School or club<input id="suSchool" data-tc required placeholder="e.g. Riverside"></label>
+      <label class="f">Team name<input id="suMascot" data-tc placeholder="e.g. Ravens"></label>
     </div>
     <div class="f">Grade/Level<div class="lvl-pick"><select id="suLabelSel" aria-label="Grade or level" data-lvl="suLabel"></select><input id="suLabel" placeholder="Type it, e.g. 14U, 6th Grade" hidden></div></div>
     <div class="grid2">
@@ -334,7 +334,7 @@
     <div class="board-card">
       <div class="board-head"><h2 id="pEditTitle">New play</h2><div class="bh-btns"><button class="btn primary edit-toggle" type="button" id="pEditBtn" hidden>✏️ Edit play</button><button class="btn edit-toggle" type="button" id="pDoneBtn" hidden>✓ Done</button><button class="btn primary" type="button" id="pFull" title="Open the play builder full screen">⤢ Full screen</button><button class="btn edit-only" type="button" data-photo="play">📷 From a photo</button><button class="btn narrow-only" type="button" id="pToLib">All plays ›</button></div></div>
       <div class="pmeta">
-        <label class="f f-name">Play name<input id="pName" placeholder="e.g. Horns flare"></label>
+        <label class="f f-name">Play name<input id="pName" data-tc placeholder="e.g. Horns flare"></label>
         <label class="f">Type<select id="pType"></select></label>
         <label class="f">Set<select id="pForm"></select></label>
       </div>
@@ -396,7 +396,7 @@
   <div class="lib-grid">
     <form class="form edit-only" id="drillForm">
       <h2 id="formTitle">Add a drill</h2>
-      <label class="f">Drill name<input id="dName" required placeholder="e.g. 3-Man Weave"></label>
+      <label class="f">Drill name<input id="dName" data-tc required placeholder="e.g. 3-Man Weave"></label>
       <fieldset class="catpick"><legend>Categories (pick one or more)</legend><div class="catboxes" id="dCats"></div><div class="cat-err" id="dCatErr" hidden>Pick at least one category.</div></fieldset>
       <label class="f" style="max-width:140px">Minutes<input id="dMin" type="number" min="1" max="60" value="10"></label>
       <label class="f">How it runs<textarea id="dDesc" placeholder="Setup, rotation, rules"></textarea></label>
@@ -511,8 +511,8 @@
       <label class="f">Sport<select id="sSport"><option value="basketball">Basketball</option><option value="volleyball">Volleyball</option><option value="soccer">Soccer</option><option value="football">Football</option><option value="baseball">Baseball / Softball</option><option value="other">Other sport</option></select></label>
       <p class="help" id="sSportHelp" hidden>Changing the sport switches drill categories and the play board. Plays drawn on the old board keep their positions but will sit on the new court.</p>
       <div class="grid2">
-        <label class="f">School or club<input id="sSchool"></label>
-        <label class="f">Team name<input id="sMascot"></label>
+        <label class="f">School or club<input id="sSchool" data-tc></label>
+        <label class="f">Team name<input id="sMascot" data-tc></label>
       </div>
       <div class="grid2">
         <div class="f">Grade/Level<div class="lvl-pick"><select id="sLabelSel" aria-label="Grade or level" data-lvl="sLabel"></select><input id="sLabel" placeholder="Type it, e.g. 14U, 6th Grade" hidden></div></div>
@@ -646,7 +646,7 @@
   <form method="dialog" class="dlg" id="shareForm">
     <h2 id="shareTitle">Share plays with players</h2>
     <p class="help" id="shareHelp"></p>
-    <label class="f">Playbook name<input id="shareName" placeholder="e.g. Ravens Offense"></label>
+    <label class="f">Playbook name<input id="shareName" data-tc placeholder="e.g. Ravens Offense"></label>
     <fieldset class="catpick"><legend>Plays to include</legend>
       <div class="actions" style="margin:0 0 6px"><button class="btn" type="button" id="shareAll" style="padding:3px 9px;font-size:12.5px">All</button><button class="btn" type="button" id="shareNone" style="padding:3px 9px;font-size:12.5px">None</button></div>
       <div class="share-plays" id="sharePlays"></div>
@@ -677,6 +677,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="version.js"></script>
 <script src="js/config.js"></script>
+<script src="js/text.js"></script>
 <script src="js/store.js"></script>
 <script src="js/sports.js"></script>
 <script src="js/board.js"></script>
