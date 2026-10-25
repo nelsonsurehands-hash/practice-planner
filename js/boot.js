@@ -510,6 +510,7 @@ function readForm(){
   {const r=document.querySelector('input[name="sIconBg"]:checked');if(r)draft.iconBg=r.value;const c=$("#sIconBgColor");if(c&&draft.iconBg==="custom")draft.iconBgColor=c.value;}
   draft.weekdayStart=$("#sWdS").value;draft.weekdayEnd=$("#sWdE").value;draft.weekendStart=$("#sWeS").value;draft.weekendEnd=$("#sWeE").value;draft.arriveEarly=+$("#sArrive").value||0;draft.practiceNote=$("#sPrNote").value.trim();
   draft.seasonStart=$("#sStart").value;draft.seasonEnd=$("#sEnd").value;
+  if(!$("#sLinkWrap").hidden)draft.calLink=[...document.querySelectorAll("#sLinkTeams input:checked")].map(x=>x.value);
   draft.minPractices=+$("#sMinPr").value||0;
   draft.special.forEach(x=>{if(!x.start)delete x.start;if(!x.end)delete x.end;});
   draft.practiceDays=[...document.querySelectorAll("#sDays input:checked")].map(x=>+x.value);
@@ -566,6 +567,7 @@ window.onSettingsTab=function(force){
   $("#sSchool").value=draft.school||"";$("#sMascot").value=draft.mascot||"";setLevel("sLabelSel",draft.teamLabel||"");$("#sColor").value=draft.color||"#5b2a86";
   $("#sColor2").value=draft.color2||"#f2b705";$("#sUseC2").checked=!!draft.color2;renderLogoEdit();renderIconPick();
   $("#sWdS").value=draft.weekdayStart||"";$("#sWdE").value=draft.weekdayEnd||"";$("#sWeS").value=draft.weekendStart||"";$("#sWeE").value=draft.weekendEnd||"";$("#sArrive").value=String(draft.arriveEarly||0);$("#sPrNote").value=draft.practiceNote||"";
+  renderLinkTeams(draft.calLink||[]);
   $("#sStart").value=draft.seasonStart||"";$("#sEnd").value=draft.seasonEnd||"";$("#sMinPr").value=draft.minPractices||"";
   document.querySelectorAll("#sDays input").forEach(x=>x.checked=(draft.practiceDays||[]).includes(+x.value));
   {const f=draft.features||{};$("#sProg").innerHTML=progHTML("sProg",progOf(f));$("#sFeatures").innerHTML=featHTML(f);}
@@ -682,7 +684,38 @@ settingsView.addEventListener("click",e=>{
 });
 $("#sAddGame").addEventListener("click",()=>{draft.games.push({date:"",opponent:"",time:"",home:true});renderRows();$("#sStatus").textContent="Unsaved changes";$("#sGames .row:last-child input").focus();});
 $("#sAddSpecial").addEventListener("click",()=>{draft.special.push({date:"",kind:"off",note:""});renderRows();$("#sSpecial .row:last-child input").focus();});
+/* ---------- shared practice calendar (e.g. 7th and 8th grade) ----------
+   A team can share its practice calendar with other teams the coach runs. Saving one team's
+   calendar copies practices, days off, notes and season dates to the others; games and bus
+   times stay with each team. */
+const LINK_KEYS=["seasonStart","seasonEnd","practiceDays","weekdayStart","weekdayEnd","weekendStart","weekendEnd","minPractices","arriveEarly","practiceNote"];
+const isBusEntry=x=>x&&(x.bus!==undefined||/^bus\b/i.test(x.note||""));
+const teamShort=t=>{const s=t.settings||{};return s.teamLabel||t.name;};
+function linkableTeams(){return (typeof teams!=="undefined"?teams:[]).filter(t=>team&&t.id!==team.id&&(HOSTED?permsFor(t.role,t.perms).schedule:true));}
+function linkedTeams(st){const ids=(st||team.settings||{}).calLink||[];return linkableTeams().filter(t=>ids.includes(t.id));}
+function renderLinkTeams(ids){const w=$("#sLinkWrap"),list=linkableTeams();if(!w)return;w.hidden=!list.length;
+  $("#sLinkTeams").innerHTML=list.map(t=>`<label class="link-t"><input type="checkbox" value="${esc(t.id)}"${ids.includes(t.id)?" checked":""}> ${esc(teamShort(t))}</label>`).join("");}
+async function saveTeamSettings(t,st){
+  if(HOSTED){const {error}=await sb.from("teams").update({settings:st}).eq("id",t.id);if(error)throw error;}
+  else writeDemoTeams(readDemoTeams().map(x=>x.id===t.id?{...x,settings:st}:x));
+  t.settings=st;teams=teams.map(x=>x.id===t.id?t:x);
+}
+async function syncLinked(st,before){
+  const now=st.calLink||[],was=(before&&before.calLink)||[],out=[];
+  for(const t of linkableTeams()){
+    const on=now.includes(t.id),off=!on&&was.includes(t.id);if(!on&&!off)continue;
+    const o=JSON.parse(JSON.stringify(t.settings||{}));let links=new Set(o.calLink||[]);
+    if(off){if(!links.has(team.id))continue;links.delete(team.id);o.calLink=[...links];}
+    else{LINK_KEYS.forEach(k=>{if(st[k]!==undefined)o[k]=JSON.parse(JSON.stringify(st[k]));});
+      o.special=(o.special||[]).filter(isBusEntry).concat((st.special||[]).filter(x=>!isBusEntry(x)).map(x=>({...x}))).sort((a,b)=>a.date<b.date?-1:1);
+      links.add(team.id);o.calLink=[...links];}
+    if(JSON.stringify(o)===JSON.stringify(t.settings||{}))continue;
+    try{await saveTeamSettings(t,o);out.push(teamShort(t));}catch(e){console.warn("shared calendar",t.name,e);}
+  }
+  return out;
+}
 async function saveSettings(st){
+  const before=JSON.parse(JSON.stringify(team.settings||{}));
   st.games=(st.games||[]).filter(g=>g.date).sort((a,b)=>a.date<b.date?-1:1);
   st.special=(st.special||[]).filter(x=>x.date).sort((a,b)=>a.date<b.date?-1:1);
   const name=[st.school,st.mascot].filter(Boolean).join(" ")||team.name;
@@ -693,6 +726,7 @@ async function saveSettings(st){
   const sportChanged=(team.settings||{}).sport!==st.sport;
   team.name=name;team.settings=st;teams=teams.map(t=>t.id===team.id?team:t);saveSplash();
   applySettings(st);renderSwitcher();
+  try{if((st.calLink&&st.calLink.length)||(before.calLink&&before.calLink.length))await syncLinked(st,before);}catch(e){console.warn(e);}
   if(sportChanged){play=blankPlay();fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();renderAllDrills();}
 }
 document.querySelectorAll(".st-save").forEach(b=>b.addEventListener("click",async()=>{

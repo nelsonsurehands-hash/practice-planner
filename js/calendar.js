@@ -263,12 +263,19 @@ $("#dayBody").addEventListener("focusout",e=>{
   change(st=>{const x=st.special.find(s=>s.date===dayIso&&s.kind==="off"&&s.note===(target&&target.note));if(x)x.note=v;},"Name saved");
 });
 const delBtn=(act,label)=>`<button class="btn danger day-del" type="button" data-act="${act}" data-label="${label}">${label}</button>`;
+/* Shared calendar: add the other team's game in the same form (its own home/away and time). */
+function linkRows(g){const L=typeof linkedTeams==="function"?linkedTeams(SETTINGS):[];if(!L.length)return "";const d=g.date||dayIso;
+  return `<fieldset class="link-games"><legend>Also on the shared calendar</legend>${L.map(t=>{const o=((t.settings||{}).games||[]).find(x=>x.date===d),isNew=!g.opponent;
+    const v=o?(o.home===false?"0":"1"):isNew?(g.home===false?"0":"1"):"";
+    return `<div class="lg-row"><b>${esc(teamShort(t))}</b><select data-lg="${esc(t.id)}" aria-label="${esc(teamShort(t))} game"><option value=""${v===""?" selected":""}>No game</option><option value="1"${v==="1"?" selected":""}>Home</option><option value="0"${v==="0"?" selected":""}>Away</option></select><input type="time" data-lgt="${esc(t.id)}" aria-label="${esc(teamShort(t))} game time" value="${esc(o&&o.time||"")}"></div>`;}).join("")}
+    <small class="help">Same opponent, event and location. Leave the time empty if it's not set yet.</small></fieldset>`;}
 function gameForm(g){
   return `<div class="day-game" data-orig="${esc(g.date||"")}"><label class="f">Event or tournament <small>(optional)</small><input id="dgEvent" list="dgEventList" value="${esc(g.event||"")}" placeholder="e.g. Conference Tournament"></label><datalist id="dgEventList">${[...new Set((SETTINGS.games||[]).map(x=>x.event).filter(Boolean))].map(v=>`<option value="${esc(v)}">`).join("")}</datalist>
     <label class="f">Opponent<input id="dgOpp" value="${esc(g.opponent||"")}" placeholder="e.g. Waynesville"></label>
     <div class="grid2"><label class="f">Date<input type="date" id="dgDate" value="${esc(g.date||dayIso)}"></label><div class="f">Time<span class="tbd-wrap"><input type="time" id="dgTime" aria-label="Game time" value="${esc(g.tbd?"":g.time||"")}"${g.tbd?" disabled":""}><label class="tbd"><input type="checkbox" id="dgTbd"${g.tbd?" checked":""}> TBD</label></span></div></div>
     <label class="f">Where<select id="dgHome"><option value="1"${g.home!==false?" selected":""}>Home</option><option value="0"${g.home===false?" selected":""}>Away</option></select></label>
     <label class="f">Location <small>(optional)</small><input id="dgLoc" list="dgLocList" value="${esc(g.location||"")}" placeholder="e.g. Ozark High School, 1350 W Bluff Dr"></label><datalist id="dgLocList">${[...new Set((SETTINGS.games||[]).map(x=>x.location).filter(Boolean))].map(v=>`<option value="${esc(v)}">`).join("")}</datalist>
+    ${linkRows(g)}
     <div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="saveGame">Save game</button></div></div>`;
 }
 async function change(fn,done){
@@ -336,6 +343,13 @@ $("#dayBody").addEventListener("click",e=>{
     {const ev=$("#dgEvent").value.trim(),loc=$("#dgLoc").value.trim();if(ev)g.event=ev;if(loc)g.location=loc;}
     if(tbd||!g.time)g.tbd=true;
     change(st=>{st.games=st.games.filter(x=>x.date!==orig&&x.date!==date);st.games.push(g);},"Game saved");
+    /* the other teams on the shared calendar */
+    document.querySelectorAll("#dayBody [data-lg]").forEach(async sel=>{const t=teams.find(x=>x.id===sel.dataset.lg);if(!t)return;
+      const o=JSON.parse(JSON.stringify(t.settings||{}));o.games=(o.games||[]).filter(x=>x.date!==orig&&x.date!==date);
+      if(sel.value!==""){const tm=(document.querySelector(`#dayBody [data-lgt="${sel.dataset.lg}"]`)||{}).value||"";
+        const lg={date,opponent:opp,time:tm,home:sel.value==="1"};if(!tm)lg.tbd=true;if(g.event)lg.event=g.event;if(g.location)lg.location=g.location;o.games.push(lg);}
+      o.games.sort((a,b)=>a.date<b.date?-1:1);
+      try{await saveTeamSettings(t,o);}catch(err){msg($("#dayMsg"),`Saved here, but not on ${teamShort(t)}: ${err.message||err}`,"err");}});
     if(date!==iso)dayIso=date;
   }
   if(a==="delGame"){
