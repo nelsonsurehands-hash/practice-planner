@@ -50,7 +50,7 @@ async function load(quiet){
   DAYS=prep(CAL.schedule);
   /* One link, several teams (e.g. 7th and 8th grade) */
   TEAMS=Array.isArray(CAL.teams)&&CAL.teams.length>1?CAL.teams.map(x=>{const t=x.team||{},dl=prep(x.schedule);
-    return {id:x.id,label:(t.teamLabel||t.name||"Team").replace(/\s+(girls|boys)?\s*(basketball|volleyball|soccer|football|baseball|softball)$/i,"")||t.teamLabel||t.name,color:t.color||"#5b2a86",team:t,sched:x.schedule||{},days:dl,by:Object.fromEntries(dl.map(d=>[d.date,d]))};}):null;
+    return {id:x.id,label:(t.teamLabel||t.name||"Team").replace(/\s+(basketball|volleyball|soccer|football|baseball|softball)$/i,"")||t.teamLabel||t.name,color:t.color||"#5b2a86",team:t,sched:x.schedule||{},days:dl,by:Object.fromEntries(dl.map(d=>[d.date,d]))};}):null;
   const t=CAL.team||{},root=document.documentElement;
   root.style.setProperty("--team",t.color||"#5b2a86");root.style.setProperty("--team-ink",ink(t.color));
   if(t.color2){root.style.setProperty("--team2",t.color2);root.classList.add("has-c2");}

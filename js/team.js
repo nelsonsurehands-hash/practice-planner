@@ -60,7 +60,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-goteam]");
 function renderSwitch(){
   const el=$("#tmSwitch"),list=typeof teams!=="undefined"?teams:[];if(!el)return;el.hidden=list.length<2;if(list.length<2){el.innerHTML="";return;}
   const school=t=>String((t.settings||{}).school||t.name||"").trim().toLowerCase(),mine=school(team);
-  const lab=t=>{const s=t.settings||{},l=s.teamLabel||t.name||"Team";return (school(t)===mine?"":((s.school||t.name)+" "))+(l.replace(/\s+(girls|boys)?\s*(basketball|volleyball|soccer|football|baseball|softball)$/i,"")||l);};
+  const lab=t=>{const s=t.settings||{},l=s.teamLabel||t.name||"Team";return (school(t)===mine?"":((s.school||t.name)+" "))+(l.replace(/\s+(basketball|volleyball|soccer|football|baseball|softball)$/i,"")||l);};
   const sorted=[...list].sort((a,b)=>(school(a)===mine?0:1)-(school(b)===mine?0:1)||lab(a).localeCompare(lab(b),undefined,{numeric:true}));
   el.innerHTML=sorted.map(t=>{const c=(t.settings||{}).color||"#5b2a86",on=t.id===team.id;
     return `<button type="button" data-tmteam="${esc(t.id)}" aria-pressed="${on}"${on?' class="on"':""}><i style="background:${esc(c)}"></i>${esc(lab(t))}</button>`;}).join("");

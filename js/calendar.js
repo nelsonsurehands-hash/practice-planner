@@ -93,7 +93,7 @@ $("#calTeam").addEventListener("change",async e=>{
   const t=teams.find(x=>x.id===e.target.value);if(t&&t.id!==team.id){await openTeam(t);setTab("cal");}else render();});
 /* ---------- All my teams: one calendar with every team's practices and games ---------- */
 let hubOn=false;try{hubOn=localStorage.getItem("cpp:calHub")==="1";}catch{}
-const shortLabel=t=>{const s=t.settings||{},l=s.teamLabel||t.name||"Team";return l.replace(/\s+(girls|boys)?\s*(basketball|volleyball|soccer|football|baseball|softball)$/i,"").replace(/\s+(girls|boys)$/i,"")||l;};
+const shortLabel=t=>{const s=t.settings||{},l=s.teamLabel||t.name||"Team";return l.replace(/\s+(basketball|volleyball|soccer|football|baseball|softball)$/i,"")||l;};
 function hubData(all){
   const list=[...teams].filter(t=>all||!VF.hideTeams.includes(t.id)).sort((a,b)=>String((a.settings||{}).teamLabel||a.name).localeCompare(String((b.settings||{}).teamLabel||b.name),undefined,{numeric:true}));
   return list.map(t=>({t,label:shortLabel(t),color:(t.settings||{}).color||"#5b2a86",days:all?buildDays(t.settings||{}).days:filterDays(buildDays(t.settings||{}).days)}));
