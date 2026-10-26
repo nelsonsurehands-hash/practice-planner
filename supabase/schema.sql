@@ -515,7 +515,27 @@ begin
       select jsonb_agg(jsonb_build_object('date', g->>'date', 'opponent', g->>'opponent', 'time', g->>'time',
                                           'home', coalesce((g->>'home')::boolean, true),
                                           'past', (g->>'date') < to_char(current_date - 1, 'YYYY-MM-DD'),
-                                          'skip', (g->>'date') = any(b.skip))
+                                          'skip', (g->>'date') = any(b.skip),
+                                          -- other teams from the same school and staff riding the same bus to this game
+                                          'with', (select jsonb_agg(jsonb_build_object('team', coalesce(o.settings->>'teamLabel', o.name),
+                                                     'signups', coalesce((select jsonb_agg(jsonb_build_object('slot', e.slot,
+                                                         'name', regexp_replace(trim(e.name), '^(\S+).*\s(\S)\S*$', '\1 \2.')) order by e.created_at)
+                                                       from signup_boards ob join signup_entries e on e.board_id = ob.id
+                                                      where ob.team_id = o.id and ob.active and e.game_date = (g->>'date')::date), '[]'::jsonb)))
+                                     from teams o
+                                    where o.id <> t.id
+                                      and coalesce((g->>'home')::boolean, true) = false
+                                      and lower(coalesce(o.settings->>'school', '')) = lower(coalesce(t.settings->>'school', '')) and coalesce(t.settings->>'school', '') <> ''
+                                      and exists (select 1 from team_members m1 join team_members m2 on m2.user_id = m1.user_id
+                                                   where m1.team_id = t.id and m2.team_id = o.id)
+                                      and exists (select 1 from jsonb_array_elements(coalesce(o.settings->'games', '[]'::jsonb)) og
+                                                   where og->>'date' = g->>'date' and coalesce((og->>'home')::boolean, true) = false)
+                                      and (select x->>'bus' from jsonb_array_elements(coalesce(t.settings->'special', '[]'::jsonb)) x
+                                            where x->>'date' = g->>'date' and x ? 'bus' limit 1) is not null
+                                      and (select x->>'bus' from jsonb_array_elements(coalesce(o.settings->'special', '[]'::jsonb)) x
+                                            where x->>'date' = g->>'date' and x ? 'bus' limit 1)
+                                        = (select x->>'bus' from jsonb_array_elements(coalesce(t.settings->'special', '[]'::jsonb)) x
+                                            where x->>'date' = g->>'date' and x ? 'bus' limit 1)))
                        order by g->>'date')
         from jsonb_array_elements(coalesce(t.settings->'games', '[]'::jsonb)) g
        where coalesce(g->>'date', '') <> ''
