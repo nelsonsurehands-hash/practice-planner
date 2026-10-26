@@ -2,6 +2,12 @@
 const CFG=window.APP_CONFIG||{};
 const HOSTED=!!(CFG.supabaseUrl&&CFG.supabaseAnonKey&&window.supabase);
 let sb=null, user=null, team=null, teams=[], store=null, members=[];
+/* Staff invite link (theextracoach.com/?join=…): kept until the coach is signed in, then used. */
+let JOIN=null;
+try{const q=new URLSearchParams(location.search),j=(q.get("join")||"").trim().toLowerCase();
+  if(/^[a-z0-9]{8,40}$/.test(j))localStorage.setItem("cpp:join",j);
+  if(q.has("join")){q.delete("join");history.replaceState(null,"",location.pathname+(q.toString()?"?"+q:"")+location.hash);}
+  JOIN=localStorage.getItem("cpp:join");}catch{}
 
 /* Starter drills by sport (offered when a team is created). */
 const STARTERS={
@@ -118,7 +124,8 @@ async function init(){
   });
   const {data:{session}}=await sb.auth.getSession();
   if(session){history.replaceState(null,"",location.pathname);if(RECOVERY){showNewPassword();return;}afterLogin(session.user);return;}
-  if(linkErr)show("screen-auth");else showWelcome();
+  if(linkErr)show("screen-auth");else if(JOIN){show("screen-auth");authTab("up");}else showWelcome();
+  if(JOIN)showJoinInvite();
   if(linkErr){
     history.replaceState(null,"",location.pathname);
     msg($("#authMsg"),/expired|invalid/i.test(linkErr)?"That email link has expired or was already used. Tap Forgot password to get a new one.":"Sign-in didn't finish: "+linkErr.replace(/\+/g," "),"err");
@@ -127,9 +134,40 @@ async function init(){
 function pickLast(){let last=null;try{last=localStorage.getItem("cpp:lastTeam");}catch{}return teams.find(x=>x.id===last)||teams[0];}
 async function afterLogin(u){
   user=u;
+  const joined=JOIN?await useJoin():null;
   await loadTeams();
+  const jt=joined&&teams.find(t=>t.id===joined);
+  if(jt){try{localStorage.setItem("cpp:lastTeam",jt.id);}catch{}await openTeam(jt);setTab("home");joinedToast(jt);return;}
   if(teams.length)openTeam(pickLast());else showSetup(false);
 }
+/* ---------- staff invite links ---------- */
+let JOIN_INFO=null;
+const ACCESS_LABEL=(role,perms)=>{if(role==="owner")return "Head coach";
+  const p=permsFor(role,perms);const key=Object.keys(PRESETS).find(k=>AREAS.every(a=>!!PRESETS[k].perms[a]===!!p[a]));
+  return key?PRESETS[key].label:AREAS.some(a=>p[a])?"Coach (custom access)":"View only";};
+const inviteTeamName=list=>{const t=list[0]||{},base=[t.school,t.mascot].filter(Boolean).join(" ")||t.name||"the team";
+  const g=list.map(x=>x.teamLabel||x.name).filter(Boolean);return list.length>1||t.teamLabel?`${base} ${g.join(" & ")}`:base;};
+const accessLine=i=>{const a=ACCESS_LABEL(i.role,i.perms),t=(i.title||"").trim();return !t||t.toLowerCase()===a.toLowerCase()?a:`${t} · ${a}`;};
+async function showJoinInvite(){
+  const box=$("#joinInvite");if(!box)return;
+  let d=null;try{({data:d}=await sb.rpc("staff_invite_info",{p_id:JOIN}));}catch{}
+  JOIN_INFO=d;
+  if(!d){box.hidden=true;return;}
+  if(!d.ok){box.hidden=false;box.className="join-invite bad";box.innerHTML=`<b>This invite link ${d.reason==="used"?"was already used or has expired":"isn't valid"}.</b><span>Ask your head coach to send a new one. You can still sign in below.</span>`;
+    try{localStorage.removeItem("cpp:join");}catch{}JOIN=null;return;}
+  const t=(d.teams||[])[0]||{},color=/^#[0-9a-f]{6}$/i.test(t.color||"")?t.color:"#5b2a86";
+  box.hidden=false;box.className="join-invite";box.style.setProperty("--jc",color);
+  box.innerHTML=`${t.logo?`<img src="${esc(t.logo)}" alt="">`:""}<div><small>You're invited to join the coaching staff</small><b>${esc(inviteTeamName(d.teams||[]))}</b>
+    <span>${esc(accessLine(d))}. Create an account or sign in to join.</span></div>`;
+}
+async function useJoin(){
+  const id=JOIN;JOIN=null;try{localStorage.removeItem("cpp:join");}catch{}
+  const {data,error}=await sb.rpc("accept_staff_invite",{p_id:id,p_display_name:(user.user_metadata||{}).full_name||null});
+  if(error){setTimeout(()=>alertBar(/function|does not exist|schema cache/i.test(error.message)?"Invite links need one database step: run supabase/staff-invites.sql in Supabase → SQL Editor.":error.message),800);return null;}
+  return data;
+}
+function alertBar(text,ok){const b=document.createElement("div");b.className="join-toast"+(ok?" ok":"");b.setAttribute("role","status");b.textContent=text;document.body.appendChild(b);setTimeout(()=>b.classList.add("out"),5200);setTimeout(()=>b.remove(),6000);}
+function joinedToast(t){alertBar(`You're on the ${(t.settings||{}).teamLabel||t.name} staff. Welcome, coach!`,true);}
 async function loadTeams(){
   if(!HOSTED){teams=readDemoTeams();return;}
   let {data,error}=await sb.from("team_members").select("role,title,display_name,perms, teams(id,name,settings,join_code,viewer_code)").eq("user_id",user.id);
@@ -195,6 +233,7 @@ async function renderUsage(){
 document.addEventListener("click",e=>{if(e.target.id==="usageRefresh")renderUsage();});
 $("#acc-usage").addEventListener("toggle",e=>{if(e.target.open)renderUsage();});
 async function openTeam(t){
+  if(typeof INV!=="undefined"){INV.teams=null;INV.list=[];INV.url="";INV.err="";invLoaded=false;}
   if(!team||team.id!==t.id){schoolCode=null;schoolPick=null;}
   if(team&&t&&team.id!==t.id&&window.guardPlay&&!guardPlay(()=>openTeam(t)))return;
   team=t;
@@ -263,7 +302,7 @@ $("#authForm").addEventListener("submit",async e=>{
   $("#authBtn").disabled=true;msg($("#authMsg"),authMode==="up"?"Creating your account…":"Signing in…");
   if(authMode==="up"){
     const name=$("#authName").value.trim();
-    const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname,data:name?{full_name:name}:{}}});
+    const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname+(JOIN?"?join="+JOIN:""),data:name?{full_name:name}:{}}});
     $("#authBtn").disabled=false;
     if(error){msg($("#authMsg"),authErr(error.message),"err");return;}
     if(!data.session){
@@ -751,10 +790,12 @@ async function renderStaff(){
       <div class="perm-presets"><span>Quick set:</span>${Object.entries(PRESETS).map(([k,v])=>`<button class="btn" type="button" data-preset="${k}" data-uid="${m.user_id}">${v.label}</button>`).join("")}</div>
       <div class="perm-grid">${AREAS.map(a=>`<label><input type="checkbox" data-perm="${a}" data-uid="${m.user_id}"${p[a]?" checked":""}${a==="staff"&&!owner?" disabled":""}> ${AREA_LABELS[a]}</label>`).join("")}</div></details>`;
   };
-  box.innerHTML=(team.role==="viewer"&&!mgr?"":
+  if(mgr&&!invLoaded){invLoaded=true;loadInvites();}
+  box.innerHTML=(mgr?inviteHTML():"")+(team.role==="viewer"&&!mgr?"":
+      `<details class="inv-codes"${mgr?"":" open"}><summary>Join codes</summary>`+
       codeRow("Staff code",team.join_code,"staff","Coaches who join with this code can edit plans, drills, plays and the calendar. You can narrow that per person below.")+
-      codeRow("View-only code",team.viewer_code,"viewer","For team managers, trainers or players: they can see and print plans and play through plays. You can let them edit some areas below (for example, the calendar)."))+
-    schoolCodeHTML()+
+      codeRow("View-only code",team.viewer_code,"viewer","For team managers, trainers or players: they can see and print plans and play through plays. You can let them edit some areas below (for example, the calendar).")+
+    schoolCodeHTML()+`</details>`)+
     (!PERMS_DB&&owner?`<p class="msg err">Per-person permissions need one database update. Run supabase/roles.sql in Supabase (SQL Editor) to turn them on.</p>`:"")+
     `<ul class="members">${members.map(m=>{
       const me=m.user_id===user.id,name=esc(m.display_name||(m.email||"").split("@")[0]);
@@ -765,6 +806,54 @@ async function renderStaff(){
       return `<li class="member"><div class="who"><b>${name}${me?" (you)":""}</b><small>${esc(m.email||"")}</small></div>${title}${roleSel}${rm}<div class="perm-row">${permUI(m)}</div></li>`;}).join("")}</ul>
     <div class="msg" id="staffMsg"></div>
     <div class="actions" style="margin:0"><button class="btn danger" id="leaveTeam">Leave this team</button></div>`;
+}
+/* Invite link: one tap for a new coach, with their access chosen ahead of time. */
+let INV={access:"assistant",perms:{...PRESETS.assistant.perms},title:"Assistant Coach",one:true,teams:null,url:"",list:[],err:""},invLoaded=false;
+const INV_ACCESS={assistant:{label:"Assistant coach",title:"Assistant Coach"},manager:{label:"Team manager",title:"Team Manager"},view:{label:"View only",title:""},custom:{label:"Custom",title:""},owner:{label:"Head coach",title:"Head Coach"}};
+function invTeams(){const list=schoolTeams();if(!INV.teams)INV.teams=new Set([team.id]);return list;}
+function inviteHTML(){
+  const owner=team.role==="owner",list=invTeams(),keys=Object.keys(INV_ACCESS).filter(k=>k!=="owner"||owner);
+  const nm=x=>esc((x.settings||{}).teamLabel||x.name);
+  const live=INV.list.map(i=>{const tn=i.team_ids.map(id=>(teams.find(t=>t.id===id)||{})).filter(t=>t.id).map(nm).join(" & ")||"This team";
+    const left=i.max_uses?`${i.uses} of ${i.max_uses} used`:`${i.uses} joined`;
+    return `<li><div><b>${esc(accessLine(i))}</b><small>${tn} · ${left} · ends ${esc(new Date(i.expires_at).toLocaleDateString("en-US",{month:"short",day:"numeric"}))}</small></div>
+      <div class="actions" style="margin:0"><button class="btn" type="button" data-invcopy="${esc(i.id)}">Copy link</button><button class="btn" type="button" data-invend="${esc(i.id)}">Turn off</button></div></li>`;}).join("");
+  return `<div class="inv-card">
+    <div class="eyebrow">Invite a coach with a link</div>
+    <p class="help" style="margin:2px 0 10px">Pick what they can do, then text or email the link. They tap it, sign in, and they're on the staff. No code to type.</p>
+    <div class="inv-step">Access</div>
+    <div class="seg inv-seg" role="group" aria-label="Access">${keys.map(k=>`<button type="button" data-invacc="${k}" aria-pressed="${INV.access===k}">${INV_ACCESS[k].label}</button>`).join("")}</div>
+    ${INV.access==="owner"?`<p class="perm-sum">Can change everything, including the staff.</p>`:
+      `<div class="perm-grid inv-perms">${AREAS.map(a=>`<label><input type="checkbox" data-invperm="${a}"${INV.perms[a]?" checked":""}${a==="staff"&&!owner?" disabled":""}> ${AREA_LABELS[a]}</label>`).join("")}</div>`}
+    <div class="inv-row">
+      <label class="f">Title<input id="invTitle" value="${esc(INV.title)}" placeholder="e.g. Assistant Coach"></label>
+      ${list.length>1?`<div class="f"><span>Teams</span><div class="sc-teams">${list.map(x=>`<label class="sc-t"><input type="checkbox" data-invteam="${x.id}"${INV.teams.has(x.id)?" checked":""}> ${nm(x)}</label>`).join("")}</div></div>`:""}
+    </div>
+    <label class="inv-one"><input type="checkbox" id="invOne"${INV.one?" checked":""}> Only one person can use this link <small>(link works for 30 days)</small></label>
+    ${INV.url?`<div class="inv-out"><div class="fd-url"><input readonly value="${esc(INV.url)}" id="invOut" aria-label="Invite link"><button class="btn primary" type="button" data-invsend="copy">Copy link</button>${navigator.share?`<button class="btn" type="button" data-invsend="share">Send…</button>`:""}<a class="btn" href="sms:?&body=${encodeURIComponent(invMsg())}">Text</a></div>
+      <p class="help" style="margin:6px 0 0">Change anything above to make a different link. This one keeps working until it's used${INV.one?"":" or turned off"}.</p></div>`:
+      `<div class="actions" style="margin:4px 0 0"><button class="btn primary" type="button" data-invmake>Create invite link</button></div>`}
+    ${INV.err?`<p class="msg err">${esc(INV.err)}</p>`:""}
+    ${live?`<div class="inv-live"><div class="inv-step">Open invite links</div><ul>${live}</ul></div>`:""}
+  </div>`;
+}
+const invMsg=()=>{const ids=[...(INV.teams||[])],ts=ids.map(id=>teams.find(t=>t.id===id)).filter(Boolean);
+  const st=(ts[0]||team).settings||{},base=[st.school,st.mascot].filter(Boolean).join(" ")||(ts[0]||team).name;
+  return `You're invited to join the ${base} ${ts.map(t=>(t.settings||{}).teamLabel||"").filter(Boolean).join(" & ")} coaching staff as ${INV.title||INV_ACCESS[INV.access].label}. Tap to join: ${INV.url}`.replace(/\s+/g," ");};
+const invUrl=id=>`${location.origin}/?join=${id}`;
+async function loadInvites(){
+  const {data,error}=await sb.rpc("list_staff_invites",{p_team:team.id});
+  INV.list=error?[]:(data||[]);
+  if(error&&/function|does not exist|schema cache/i.test(error.message))INV.err="Invite links need one database step: run supabase/staff-invites.sql in Supabase → SQL Editor.";
+  if(!$("#tm-staff").hidden||document.querySelector(".inv-card"))renderStaff();
+}
+function invChanged(){INV.url="";INV.err="";renderStaff();}
+async function makeInvite(){
+  const ids=[...INV.teams];if(!ids.length){INV.err="Check at least one team.";renderStaff();return;}
+  const role=INV.access==="owner"?"owner":AREAS.some(a=>INV.perms[a])?"coach":"viewer";
+  const {data,error}=await sb.rpc("create_staff_invite",{p_team_ids:ids,p_role:role,p_perms:role==="owner"?null:{...INV.perms},p_title:INV.title||null,p_days:30,p_max_uses:INV.one?1:null});
+  if(error){INV.err=/function|does not exist|schema cache/i.test(error.message)?"Invite links need one database step: run supabase/staff-invites.sql in Supabase → SQL Editor.":error.message;renderStaff();return;}
+  INV.url=invUrl(data);INV.err="";await loadInvites();renderStaff();
 }
 /* One code for a whole school: adds a coach to every team you pick (7th, 8th, JV…) in one go. */
 let schoolCode=null,schoolPick=null;
@@ -797,10 +886,29 @@ async function savePerms(uid,perms){
   const det=document.querySelector(`.perm-edit [data-uid="${uid}"]`);if(det)det.closest("details").open=!!keep;
   if(uid===user.id){await loadTeams();team=teams.find(t=>t.id===team.id)||team;openTeam(team);}
 }
-$("#staffBody").addEventListener("change",e=>{const c=e.target.closest("[data-scteam]");if(!c)return;
+$("#staffBody").addEventListener("change",e=>{
+  const ip=e.target.closest("[data-invperm]");if(ip){INV.perms[ip.dataset.invperm]=ip.checked;INV.access=Object.keys(PRESETS).find(k=>AREAS.every(a=>!!PRESETS[k].perms[a]===!!INV.perms[a]))||"custom";invChanged();return;}
+  const it=e.target.closest("[data-invteam]");if(it){if(it.checked)INV.teams.add(it.dataset.invteam);else INV.teams.delete(it.dataset.invteam);invChanged();return;}
+  if(e.target.id==="invOne"){INV.one=e.target.checked;invChanged();return;}
+  if(e.target.id==="invTitle"){INV.title=e.target.value.trim();if(INV.url)invChanged();return;}
+  const c=e.target.closest("[data-scteam]");if(!c)return;
   if(c.checked)schoolPick.add(c.dataset.scteam);else schoolPick.delete(c.dataset.scteam);
   if(schoolCode){schoolCode=null;renderStaff();}});
 $("#staffBody").addEventListener("click",async e=>{
+  const ia=e.target.closest("[data-invacc]");
+  if(ia){const k=ia.dataset.invacc;INV.access=k;if(PRESETS[k])INV.perms={...PRESETS[k].perms};
+    if(k==="custom"&&!AREAS.some(a=>INV.perms[a]))INV.perms={...PRESETS.assistant.perms};
+    const known=Object.values(INV_ACCESS).map(v=>v.title);if(!INV.title||known.includes(INV.title))INV.title=INV_ACCESS[k].title||(k==="custom"?INV.title:"");invChanged();return;}
+  if(e.target.closest("[data-invmake]")){const b=e.target.closest("[data-invmake]");b.disabled=true;b.textContent="Making the link…";INV.title=($("#invTitle")||{}).value?.trim()||INV.title;await makeInvite();return;}
+  const is=e.target.closest("[data-invsend]");
+  if(is){if(is.dataset.invsend==="share"){try{await navigator.share({text:invMsg()});}catch{}return;}
+    try{await navigator.clipboard.writeText(INV.url);is.textContent="Copied";}catch{$("#invOut").select();}setTimeout(()=>is.textContent="Copy link",2000);return;}
+  const icp=e.target.closest("[data-invcopy]");
+  if(icp){try{await navigator.clipboard.writeText(invUrl(icp.dataset.invcopy));icp.textContent="Copied";}catch{icp.textContent=invUrl(icp.dataset.invcopy);}setTimeout(()=>icp.textContent="Copy link",2500);return;}
+  const ie=e.target.closest("[data-invend]");
+  if(ie){if(ie.dataset.armed!=="1"){ie.dataset.armed="1";ie.textContent="Tap again to turn off";return;}
+    const {error}=await sb.rpc("end_staff_invite",{p_id:ie.dataset.invend});if(error){INV.err=error.message;}
+    if(INV.url&&INV.url.endsWith(ie.dataset.invend))INV.url="";await loadInvites();return;}
   const sc=e.target.closest("[data-schoolcode]");
   if(sc){if(sc.dataset.schoolcode==="new"&&sc.dataset.armed!=="1"){sc.dataset.armed="1";sc.textContent="Old school code stops working. Tap again";return;}
     await getSchoolCode(sc.dataset.schoolcode==="new");return;}
