@@ -68,7 +68,7 @@ async function load(){
   $("#suEyebrow").textContent=[t.school&&t.mascot?`${t.school} ${t.mascot}`:t.name,t.teamLabel].filter(Boolean).join(" · ");
   $("#suTitle").textContent=SHEET.title||"Game-day food";
   if(t.logo){$("#suLogo").src=t.logo;$("#suLogo").hidden=false;}
-  $("#suNote").hidden=!SHEET.note;$("#suNote").textContent=SHEET.note||"";
+  {const fd=+((SHEET.dropoff||{}).feed)||0,txt=[fd?`Please bring enough for ${fd} (players and coaches).`:"",SHEET.note||""].filter(Boolean).join(" ");$("#suNote").hidden=!txt;$("#suNote").textContent=txt;}
   $("#suDemo").hidden=!DEMO;
   render();
   $("#suLoading").hidden=true;$("#suError").hidden=true;$("#suApp").hidden=false;

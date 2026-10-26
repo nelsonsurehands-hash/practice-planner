@@ -93,7 +93,7 @@ const TM=window.TM={panes:{},opened:[],date:null,get roster(){return ROSTER;},ge
 let openedFor=null;
 window.onTeamOpen=function(){
   openedFor=store;
-  unsubs.forEach(u=>{try{u()}catch{}});unsubs=[];ROSTER=[];TRIPS={};busDate=null;rosterEdit=null;food=null;needsDb="";
+  unsubs.forEach(u=>{try{u()}catch{}});unsubs=[];ROSTER=[];TRIPS={};busDate=null;rosterEdit=null;food=null;foodAll=null;needsDb="";
   unsubs.push(store.collection("players").onSnapshot(s=>{ROSTER=s.docs.map(d=>({id:d.id,...d.data()})).sort(byNum);if(["roster","bus","game","sched"].includes(pane))render();},()=>{}));
   /* Bus lists: redraw only for changes from someone else, so typing here isn't interrupted. */
   unsubs.push(store.collection("trips").onSnapshot(s=>{
@@ -627,17 +627,46 @@ function boardForm(b){
       <p class="help" style="margin:4px 0 0">Each item shows at every game. Spots is how many parents can sign up for that item at one game.</p></fieldset>
     <label class="f fd-hometime">Home games: food delivered by<input type="time" name="homeTime" value="${esc(((b.dropoff||{}).home)||"16:00")}"></label>
     <p class="help" style="margin:-4px 0 0">Away games each get their own time, set next to the game below.</p>
-    <label class="f">Note to parents<textarea name="note" rows="3" placeholder="e.g. Please bring enough for ${Math.max(ROSTER.length,12)} players and coaches. Drop it off with Coach before tip-off.">${esc(b.note||"")}</textarea></label>
+    <label class="f fd-feed">How many to feed <small>(players + coaches)</small><input type="number" name="feed" min="0" max="99" value="${esc(((b.dropoff||{}).feed)||"")}" placeholder="e.g. 15"></label>
+    <label class="f">Note to ${esc(teamShort(team))} parents<textarea name="note" rows="3" placeholder="e.g. Please bring enough for ${Math.max(ROSTER.length,12)} players and coaches. Drop it off with Coach before tip-off.">${esc(b.note||"")}</textarea></label>
     <div class="actions" style="margin:0"><button class="btn primary" type="submit">${food&&food.board?"Save changes":"Create the parent link"}</button></div>
   </form>`;
 }
+/* ---------- all teams' sign-ups on one page (coaches only) ---------- */
+let foodAll=null;   // null = this team's sheet; {loading} or {list:[{t,board,entries}]}
+const foodTeams=()=>{const k=String((team.settings||{}).school||team.name||"").trim().toLowerCase();
+  return (typeof teams!=="undefined"?teams:[]).filter(t=>String((t.settings||{}).school||t.name||"").trim().toLowerCase()===k);};
+async function loadFoodAll(){
+  foodAll={loading:true};renderFood();const list=[];
+  for(const t of foodTeams()){let board=null,entries=[];
+    try{if(HOSTED){const r=await sb.from("signup_boards").select("*").eq("team_id",t.id).order("created_at",{ascending:false}).limit(1);if(r.error)throw r.error;board=(r.data||[])[0]||null;
+        if(board){const q=await sb.from("signup_entries").select("id,game_date,slot,name,contact,player,item,created_at").eq("board_id",board.id).order("created_at");if(q.error)throw q.error;entries=q.data||[];}}
+      else{const v=JSON.parse(localStorage.getItem(`cpp:food:${t.id}`)||"null")||{};board=v.board||null;entries=v.entries||[];}}catch(e){console.warn(e);}
+    list.push({t,board,entries});}
+  foodAll={list};renderFood();
+}
+function renderFoodAll(box){
+  const head=`<div class="tm-card fd-link"><div class="fd-viewsw"><button type="button" class="btn" data-fdview="team">${esc(teamShort(team))}'s sheet</button><button type="button" class="btn on" data-fdview="all" aria-pressed="true">All teams</button></div>`;
+  if(foodAll.loading){box.innerHTML=head+`<p class="help">Loading every team's sign-ups…</p></div>`;return;}
+  const today=todayISO(),rows={};
+  foodAll.list.forEach(x=>{if(!x.board||!x.board.active)return;(x.t.settings.games||[]).filter(g=>g.date&&g.date>=today&&(x.board.games==="all"||(x.board.games==="home")===(g.home!==false))&&!(x.board.skip||[]).includes(g.date)).forEach(g=>{(rows[g.date]=rows[g.date]||[]).push({...x,g});});});
+  const none=foodAll.list.filter(x=>!x.board||!x.board.active);
+  const dates=Object.keys(rows).sort();
+  const block=r=>{const b=r.board,d=dropFor(b,r.g),by={};r.entries.forEach(e=>{if((e.game_date||"").slice(0,10)===r.g.date){(by[e.slot]=by[e.slot]||[]).push(e);}});
+    return `<div class="fd-allteam" style="--tc:${esc((r.t.settings||{}).color||"#5b2a86")}"><div class="fd-allhead"><b>${esc(teamShort(r.t))}</b><span>${r.g.home===false?"at":"vs"} ${esc(r.g.opponent||"Game")}${r.g.time?" · "+hm(r.g.time):""}</span><span>${d.time?`🍎 by ${hm(d.time)}`:"food time not set"}${(b.dropoff||{}).feed?` · feeds ${(b.dropoff||{}).feed}`:""}</span></div>
+      ${(b.slots||[]).map(s=>{const l=by[s.name]||[];return `<div class="fd-srow"><div class="fd-sname">${esc(s.name)} <small>${l.length} of ${s.count}</small></div><ul>${l.map(e=>`<li><b>${esc(e.name)}</b>${e.player?` <span>(${esc(e.player)})</span>`:""}${e.item?` · ${esc(e.item)}`:""}${e.contact?`<small>${esc(e.contact)}</small>`:""}</li>`).join("")||`<li class="none">Open</li>`}</ul></div>`;}).join("")}</div>`;};
+  box.innerHTML=head+`<p class="help" style="margin:0">Every team's food sign-ups by game day. Each team still has its own link for its parents.</p>
+    ${none.length?`<p class="help warn" style="margin:6px 0 0">No sign-up sheet yet for: ${none.map(x=>esc(teamShort(x.t))).join(", ")}. Switch to that team and make one.</p>`:""}</div>
+    ${dates.length?dates.map(d=>`<article class="fd-game"><header><b>${esc(longDay(d))}</b>${rows[d].length>1?`<span class="fd-open">${rows[d].length} teams</span>`:""}</header>${rows[d].map(block).join("")}</article>`).join(""):`<div class="tm-card"><p class="help">No upcoming games with sign-ups.</p></div>`}`;
+}
 function renderFood(){
   const box=$("#tm-food");
+  if(foodAll){renderFoodAll(box);return;}
   if(!food){box.innerHTML=`<div class="tm-card"><p class="help">Loading sign-ups…</p></div>`;loadFood();return;}
   if(food.err==="db"){box.innerHTML=DB_HELP;return;}
   if(food.err){box.innerHTML=`<div class="tm-card"><p class="msg err">${esc(food.err)}</p></div>`;return;}
   const b=food.board,ed=can();
-  if(!b){box.innerHTML=`<div class="tm-card"><h3 class="tm-h">Game-day food sign-up</h3>
+  if(!b){box.innerHTML=`<div class="tm-card">${foodTeams().length>1?`<div class="fd-viewsw"><button type="button" class="btn on" data-fdview="team" aria-pressed="true">${esc(teamShort(team))}'s sheet</button><button type="button" class="btn" data-fdview="all">All teams</button></div>`:""}<h3 class="tm-h">${esc(teamShort(team))} game-day food sign-up</h3>
     <p class="help" style="margin-top:0">Make one link to send to parents. They open it on their phone, pick a game and what they'll bring, and type their name and number. No account or app. You see every sign-up here.</p>
     ${ed?boardForm():`<p class="help">Ask your head coach to set this up.</p>`}<div class="msg" id="fdMsg"></div></div>`;return;}
   const url=signupURL(b.id),today=todayISO(),games=foodGames(b),up=games.filter(g=>g.date>=today),past=games.filter(g=>g.date<today);
@@ -654,11 +683,13 @@ function renderFood(){
         return `<div class="fd-srow"><div class="fd-sname">${esc(s.name)} <small>${list.length} of ${s.count}</small></div><ul>${list.map(e=>`<li><b>${esc(e.name)}</b>${e.player?` <span>(${esc(e.player)})</span>`:""}${e.item?` · ${esc(e.item)}`:""}<small>${/@/.test(e.contact)?`<a href="mailto:${esc(e.contact)}">${esc(e.contact)}</a>`:`<a href="tel:${esc(tel(e.contact))}">${esc(e.contact)}</a>`}</small>${ed?`<button class="icon" type="button" data-fdx="${esc(e.id)}" aria-label="Remove ${esc(e.name)}">✕</button>`:""}</li>`).join("")}${list.length<s.count?`<li class="fd-empty">${s.count-list.length} open</li>`:""}</ul></div>`;}).join("")}
       ${ed?`<button class="linkbtn fd-skip" type="button" data-fdskip="${g.date}">${skip?"Turn sign-ups back on for this game":"No food needed for this game"}</button>`:""}</article>`;};
   const filled=food.entries.filter(e=>(e.game_date||"")>=today).length;
-  box.innerHTML=`<div class="tm-card fd-link"><h3 class="tm-h">${esc(b.title)} <small>${b.active?`${filled} sign-up${filled===1?"":"s"} so far`:"Link is off"}</small></h3>
+  const multi=foodTeams().length>1,sw=multi?`<div class="fd-viewsw"><button type="button" class="btn on" data-fdview="team" aria-pressed="true">${esc(teamShort(team))}'s sheet</button><button type="button" class="btn" data-fdview="all">All teams</button></div>`:"";
+  box.innerHTML=`<div class="tm-card fd-link">${sw}<h3 class="tm-h">${esc(b.title)} <small>${b.active?`${filled} sign-up${filled===1?"":"s"} so far`:"Link is off"}</small></h3>
     ${b.active?`<p class="help" style="margin-top:0">Send this link to parents by text, email or your team app. They don't need an account.</p>
     <div class="fd-url"><input readonly value="${esc(url)}" id="fdUrl" aria-label="Parent sign-up link"><button class="btn primary" type="button" data-fdact="copy">Copy link</button>${navigator.share?`<button class="btn" type="button" data-fdact="share">Send…</button>`:""}<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Open</a></div>
     <div class="actions" style="margin:8px 0 0"><button class="btn" type="button" data-fdact="msg">Copy a message for parents</button></div>`:
     `<p class="help" style="margin-top:0">Parents who open the link see that sign-ups are closed. Sign-ups so far are kept.</p>`}
+    ${(b.dropoff||{}).feed?`<p class="fd-feedline">🍽️ Feeding <b>${(b.dropoff||{}).feed}</b> (players + coaches)</p>`:""}
     <div class="fd-items"><b>Parents can sign up for:</b> ${(b.slots||[]).map(x=>`<span class="fd-item">${esc(x.name)} <small>${x.count} spot${x.count===1?"":"s"}</small></span>`).join("")}</div>
     ${ed?`<details class="fd-edit" id="fdEdit"><summary>${(b.slots||[]).length<2?"Add more items for parents":"Add or change items"}</summary>${boardForm(b)}</details>
     <div class="actions" style="margin:8px 0 0"><button class="btn${b.active?" danger":""}" type="button" data-fdact="toggle">${b.active?"Turn off the link":"Turn the link back on"}</button></div>`:""}
@@ -681,7 +712,7 @@ function readBoardForm(f){
   const slots=[...f.querySelectorAll(".fd-slot")].map(r=>({name:r.querySelector("[data-slotname]").value.trim(),count:Math.max(1,Math.min(20,+r.querySelector("[data-slotcount]").value||1))})).filter(s=>s.name);
   const names=new Set();const uniq=slots.filter(s=>!names.has(s.name.toLowerCase())&&names.add(s.name.toLowerCase()));
   const home=(f.homeTime&&f.homeTime.value)||"16:00";
-  return {dropoff:{...((food&&food.board&&food.board.dropoff)||{}),games:{...(((food&&food.board&&food.board.dropoff)||{}).games||{})},home},title:f.title.value.trim()||"Game-day food",games:(f.querySelector("[name=games]:checked")||{}).value||"all",note:f.note.value.trim(),slots:uniq};
+  return {dropoff:{...((food&&food.board&&food.board.dropoff)||{}),games:{...(((food&&food.board&&food.board.dropoff)||{}).games||{})},home,feed:Math.max(0,Math.min(99,+((f.feed||{}).value)||0))||undefined},title:f.title.value.trim()||"Game-day food",games:(f.querySelector("[name=games]:checked")||{}).value||"all",note:f.note.value.trim(),slots:uniq};
 }
 $("#tm-food").addEventListener("submit",async e=>{
   e.preventDefault();const f=e.target;if(f.id!=="fdForm")return;
@@ -694,6 +725,7 @@ $("#tm-food").addEventListener("submit",async e=>{
 });
 $("#tm-food").addEventListener("change",e=>{const t=e.target.closest("[data-fddrop]");if(t&&can())setDrop(t.dataset.fddrop,t.value);});
 $("#tm-food").addEventListener("click",async e=>{
+  const vw=e.target.closest("[data-fdview]");if(vw){if(vw.dataset.fdview==="all")loadFoodAll();else{foodAll=null;renderFood();}return;}
   const bt=e.target.closest("[data-fdbus]");if(bt&&can()){setDrop(bt.dataset.fdbus,bt.dataset.time);return;}
   const pr=e.target.closest("[data-fdpreset]");
   if(pr){const have=[...document.querySelectorAll("#fdSlots [data-slotname]")].map(i=>i.value.trim().toLowerCase());

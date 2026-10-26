@@ -1348,3 +1348,12 @@ body:has(#screen-landing:not([hidden])){padding:0;max-width:none;background:#0a1
 .cs-pick{display:flex;flex-wrap:wrap;gap:4px;padding:4px;border-radius:12px;background:var(--sunk);margin:2px 0 12px;align-self:flex-start}
 .cs-pick button{border:0;background:transparent;padding:8px 14px;border-radius:9px;font:600 14.5px var(--body,system-ui);color:var(--muted);cursor:pointer}
 .cs-pick button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.fd-viewsw{display:inline-flex;gap:4px;padding:4px;border-radius:12px;background:var(--sunk);margin-bottom:10px}
+.fd-viewsw .btn{border:0;background:transparent;padding:7px 12px;border-radius:9px;font-weight:600;color:var(--muted)}
+.fd-viewsw .btn.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.fd-feed input{max-width:120px}
+.fd-feedline{margin:6px 0 0;font-size:14.5px}
+.fd-allteam{border-left:5px solid var(--tc);padding:8px 0 4px 12px;margin:8px 0;display:flex;flex-direction:column;gap:6px}
+.fd-allhead{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;font-size:14px}
+.fd-allhead span{color:var(--muted)}
+.fd-allteam li.none{color:var(--muted);font-style:italic}
