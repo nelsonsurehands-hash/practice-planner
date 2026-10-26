@@ -1365,7 +1365,13 @@ body:has(#screen-landing:not([hidden])){padding:0;max-width:none;background:#0a1
 .inv-step{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:10px 0 6px}
 .inv-seg{display:flex;flex-wrap:wrap}
 .inv-seg button{flex:1 1 auto}
-.inv-perms{margin:10px 0 2px;padding:10px 12px;border-radius:10px;background:var(--bg)}
+.inv-perms{margin:10px 0 2px;padding:6px 12px 10px;border-radius:10px;background:var(--bg)}
+.inv-prow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.inv-prow:last-of-type{border-bottom:0}
+.inv-pv{flex:none}
+.inv-pv button{min-width:58px;padding:6px 10px;font-size:13.5px}
+.inv-pv button[aria-pressed="true"][data-v="1"]{background:var(--accent);color:var(--accent-ink,#fff)}
+.inv-pv button:disabled{opacity:.45}
 .inv-row{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:flex-start;margin-top:10px}
 .inv-row .f{flex:1 1 200px;margin:0}
 .inv-row .f>span{display:block;font-size:13px;font-weight:600;margin-bottom:6px}

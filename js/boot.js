@@ -158,7 +158,7 @@ async function showJoinInvite(){
   const t=(d.teams||[])[0]||{},color=/^#[0-9a-f]{6}$/i.test(t.color||"")?t.color:"#5b2a86";
   box.hidden=false;box.className="join-invite";box.style.setProperty("--jc",color);
   box.innerHTML=`${t.logo?`<img src="${esc(t.logo)}" alt="">`:""}<div><small>You're invited to join the coaching staff</small><b>${esc(inviteTeamName(d.teams||[]))}</b>
-    <span>${esc(accessLine(d))}. Create an account or sign in to join.</span></div>`;
+    <span>${esc(accessLine(d))}${d.role!=="owner"?(()=>{const p=permsFor(d.role,d.perms),on=AREAS.filter(a=>p[a]&&a!=="share"&&a!=="staff").map(a=>AREA_LABELS[a].split(/[,&]/)[0].trim().toLowerCase());return on.length?` · can edit ${esc(on.join(", "))}`:" · can view everything";})():""}. Create an account or sign in to join.</span></div>`;
 }
 async function useJoin(){
   const id=JOIN;JOIN=null;try{localStorage.removeItem("cpp:join");}catch{}
@@ -824,7 +824,9 @@ function inviteHTML(){
     <div class="inv-step">Access</div>
     <div class="seg inv-seg" role="group" aria-label="Access">${keys.map(k=>`<button type="button" data-invacc="${k}" aria-pressed="${INV.access===k}">${INV_ACCESS[k].label}</button>`).join("")}</div>
     ${INV.access==="owner"?`<p class="perm-sum">Can change everything, including the staff.</p>`:
-      `<div class="perm-grid inv-perms">${AREAS.map(a=>`<label><input type="checkbox" data-invperm="${a}"${INV.perms[a]?" checked":""}${a==="staff"&&!owner?" disabled":""}> ${AREA_LABELS[a]}</label>`).join("")}</div>`}
+      `<div class="inv-perms" role="group" aria-label="What they can view or edit">${AREAS.map(a=>{const yn=a==="share"||a==="staff",dis=a==="staff"&&!owner?" disabled":"",on=!!INV.perms[a];
+        return `<div class="inv-prow"><span>${AREA_LABELS[a]}</span><div class="seg inv-pv">${[[0,yn?"No":"View"],[1,yn?"Yes":"Edit"]].map(([v,l])=>`<button type="button" data-invpv="${a}" data-v="${v}" aria-pressed="${on===!!v}"${dis}>${l}</button>`).join("")}</div></div>`;}).join("")}
+        <p class="help" style="margin:6px 0 0">Everyone on the staff can see plans, plays, drills and the calendar. "Edit" lets them change it.</p></div>`}
     <div class="inv-row">
       <label class="f">Title<input id="invTitle" value="${esc(INV.title)}" placeholder="e.g. Assistant Coach"></label>
       ${list.length>1?`<div class="f"><span>Teams</span><div class="sc-teams">${list.map(x=>`<label class="sc-t"><input type="checkbox" data-invteam="${x.id}"${INV.teams.has(x.id)?" checked":""}> ${nm(x)}</label>`).join("")}</div></div>`:""}
@@ -895,6 +897,8 @@ $("#staffBody").addEventListener("change",e=>{
   if(c.checked)schoolPick.add(c.dataset.scteam);else schoolPick.delete(c.dataset.scteam);
   if(schoolCode){schoolCode=null;renderStaff();}});
 $("#staffBody").addEventListener("click",async e=>{
+  const pv=e.target.closest("[data-invpv]");
+  if(pv){INV.perms[pv.dataset.invpv]=pv.dataset.v==="1";INV.access=Object.keys(PRESETS).find(k=>AREAS.every(a=>!!PRESETS[k].perms[a]===!!INV.perms[a]))||"custom";invChanged();return;}
   const ia=e.target.closest("[data-invacc]");
   if(ia){const k=ia.dataset.invacc;INV.access=k;if(PRESETS[k])INV.perms={...PRESETS[k].perms};
     if(k==="custom"&&!AREAS.some(a=>INV.perms[a]))INV.perms={...PRESETS.assistant.perms};
