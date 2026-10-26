@@ -22,3 +22,13 @@ window.teamBrand=function(t,title){
 };
 window.teamFullName=function(t){t=t||{};const base=t.school&&t.mascot?`${t.school} ${t.mascot}`:(t.school||t.name||"Team"),g=t.teamLabel||"";
   return g&&!base.toLowerCase().includes(g.toLowerCase())?`${base} ${g}`:base;};
+/* Opened from the installed coach app (home-screen app), these pages have no browser bar, so give a way back. */
+(function(){
+  const standalone=(window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone===true;
+  if(!standalone)return;
+  const add=()=>{if(document.getElementById("backToApp"))return;
+    const b=document.createElement("button");b.type="button";b.id="backToApp";b.className="back-to-app";b.innerHTML="<span aria-hidden=\"true\">‹</span> Back to app";
+    b.addEventListener("click",()=>{if(history.length>1)history.back();else location.href="/";setTimeout(()=>{location.href="/";},400);});
+    document.body.prepend(b);document.body.classList.add("has-back");};
+  if(document.body)add();else document.addEventListener("DOMContentLoaded",add);
+})();
