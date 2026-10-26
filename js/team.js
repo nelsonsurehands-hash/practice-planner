@@ -56,11 +56,24 @@ window.onTeamTab=()=>{showPane(pane);if(window.onSettingsTab)window.onSettingsTa
 $(".tm-nav").addEventListener("click",e=>{const b=e.target.closest("[data-tm]");if(b)showPane(b.dataset.tm);});
 document.addEventListener("click",e=>{const b=e.target.closest("[data-goteam]");if(b)window.goTeam(b.dataset.goteam);
   const t=e.target.closest("[data-tab-go]");if(t){setTab(t.dataset.tabGo);scrollTo(0,0);}});
+/* Switch between your teams (e.g. 7th and 8th grade) right here; you stay on the same section. */
+function renderSwitch(){
+  const el=$("#tmSwitch"),list=typeof teams!=="undefined"?teams:[];if(!el)return;el.hidden=list.length<2;if(list.length<2){el.innerHTML="";return;}
+  const school=t=>String((t.settings||{}).school||t.name||"").trim().toLowerCase(),mine=school(team);
+  const lab=t=>{const s=t.settings||{},l=s.teamLabel||t.name||"Team";return (school(t)===mine?"":((s.school||t.name)+" "))+(l.replace(/\s+(girls|boys)?\s*(basketball|volleyball|soccer|football|baseball|softball)$/i,"")||l);};
+  const sorted=[...list].sort((a,b)=>(school(a)===mine?0:1)-(school(b)===mine?0:1)||lab(a).localeCompare(lab(b),undefined,{numeric:true}));
+  el.innerHTML=sorted.map(t=>{const c=(t.settings||{}).color||"#5b2a86",on=t.id===team.id;
+    return `<button type="button" data-tmteam="${esc(t.id)}" aria-pressed="${on}"${on?' class="on"':""}><i style="background:${esc(c)}"></i>${esc(lab(t))}</button>`;}).join("");
+}
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-tmteam]");if(!b||b.classList.contains("on"))return;
+  const t=teams.find(x=>x.id===b.dataset.tmteam);if(!t)return;b.disabled=true;
+  await openTeam(t);setTab("team");scrollTo(0,0);});
 function render(){
   if(typeof team==="undefined"||!team||$("#view-team").hidden)return;
   /* Keep the visible section in step with the remembered one (the app can open straight onto the Team tab). */
   syncNav();
   $("#tmEyebrow").textContent=[team.name,(team.settings||{}).teamLabel].filter(Boolean).join(" · ");
+  renderSwitch();
   if(pane==="teams")renderTeams();
   if(pane==="roster")renderRoster();
   if(pane==="staff")renderStaff();
