@@ -1340,3 +1340,11 @@ body:has(#screen-landing:not([hidden])){padding:0;max-width:none;background:#0a1
 .lk-row input{flex:1;min-width:0;padding:6px 8px;font-size:14px}
 .lk-name{color:var(--muted);font-size:14px}
 :root{--look:#e07a10}
+.cs-own{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:4px 0 10px;font-size:14.5px}
+.cs-own span{flex:1 1 100%}
+.cs-more{margin:0 0 10px;font-size:14px}
+.cs-more summary{cursor:pointer;color:var(--muted);font-weight:600}
+.cs-more .exp-pick{margin-top:8px}
+.cs-pick{display:flex;flex-wrap:wrap;gap:4px;padding:4px;border-radius:12px;background:var(--sunk);margin:2px 0 12px;align-self:flex-start}
+.cs-pick button{border:0;background:transparent;padding:8px 14px;border-radius:9px;font:600 14.5px var(--body,system-ui);color:var(--muted);cursor:pointer}
+.cs-pick button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
