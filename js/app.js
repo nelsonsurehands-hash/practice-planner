@@ -610,6 +610,7 @@ function hints(t){
     cut:`Drag from a player to draw a ${(L.cut||"move").toLowerCase()}.`,pass:`Tap the player to ${(L.pass||"pass").toLowerCase()} to. Keep tapping players to ${(L.pass||"pass").toLowerCase()} again in the same step.`,
     dribble:`Drag from the player with the ball to draw a ${(L.dribble||"dribble").toLowerCase()}.`,screen:`Drag from a player to where she sets the ${(L.screen||"screen").toLowerCase()}.`,
     label:"Tap a player to give them a label, like PG, QB or 1B.",
+    look:"Tap teammates in order: 1st look, 2nd look, 3rd look. Looks are passes the ball carrier can make; they don't move the ball.",
     erase:"Tap a player, the ball or a line to remove it."})[t]||"";
 }
 let plays=[], play=null, fi=0, tool="move", hist=[], pdirty=false, drag=null, temp=null, hintTimer=null;
@@ -625,7 +626,7 @@ function blankPlay(){const f=Object.keys(sp().forms)[0];return {id:null,name:"",
 
 /* geometry */
 /* editor rendering */
-function renderBoard(){$("#board").innerHTML=boardInner(withDefense(frame(),curDefense()),"screen",temp,false,optionGhost());renderOptBanner(fi);}
+function renderBoard(){$("#board").innerHTML=boardInner(withDefense(frame(),curDefense()),"screen",temp,false,optionGhost());renderOptBanner(fi);renderLooks();}
 /* On the first step of an option, show the step it branches from as faint lines, so the play stays in view. */
 function optionGhost(){
   const f=frame();if(!f.opt)return null;const L=playLines(play.frames),o=optionOf(play.frames,L,fi);
@@ -702,6 +703,27 @@ function tapPass(pt){
   const n=fr.actions.filter(a=>a.type==="pass").length;
   pflash(r?`Pass ${n}: ${passer.label||passer.n} → ${r.label||r.n}. Tap the next player to pass again${n>1?"":" in this step"}, or Undo.`:`Pass ${n}: ${passer.label||passer.n} → that spot.`);
 }
+/* Looks: the passes the ball carrier can make this step, numbered in order (1st look, 2nd look…). */
+function tapLook(pt){
+  const fr=frame(),from=finalHolder(fr),passer=from&&fr.tokens.find(x=>x.id===from);
+  if(!passer){pflash("Give a player the ball first (Ball tool), then tap the teammates they look to.");return;}
+  const r=receiverAt(fr,pt,from);if(!r){pflash("Tap a teammate to add a look.");return;}
+  const n=fr.actions.filter(a=>a.type==="look").length;
+  if(fr.actions.some(a=>a.type==="look"&&a.to===r.id)){pflash(`${r.label||r.n} is already a look. Erase it to change the order.`);return;}
+  if(n>=4){pflash("Four looks is the most for one step.");return;}
+  const start=destOf(fr,from),end=destOf(fr,r.id);
+  pushHist();
+  editStep(()=>{fr.actions.push({id:uid(),type:"look",from,to:r.id,x1:start.x,y1:start.y,cx:(start.x+end.x)/2,cy:(start.y+end.y)/2,x2:end.x,y2:end.y,name:""});});
+  markDirty();renderBoard();renderLooks();
+  pflash(`Look ${n+1}: ${passer.label||passer.n} → ${r.label||r.n}. Name it below (optional), or tap the next look.`);
+}
+function renderLooks(){
+  const box=$("#pLooks");if(!box||!play)return;const L=(frame().actions||[]).filter(a=>a.type==="look");box.hidden=!L.length;if(!L.length){box.innerHTML="";return;}
+  const ed=PERM.plays&&!PLAY_LOCK,tok=id=>{const t=frame().tokens.find(x=>x.id===id);return t?(t.label||t.n):"spot";};
+  box.innerHTML=`<span class="lk-h">Looks this step</span>`+L.map((a,i)=>`<div class="lk-row"><b class="lk-n">${i+1}</b><span class="lk-to">${esc(String(tok(a.from)))} → ${esc(String(tok(a.to)))}</span>${ed?`<input data-lookname="${esc(a.id)}" value="${esc(a.name||"")}" maxlength="40" placeholder="Name it, e.g. Roller, Skip, Backdoor" data-tc><button type="button" class="icon" data-lookdel="${esc(a.id)}" aria-label="Remove look ${i+1}">✕</button>`:a.name?`<span class="lk-name">${esc(a.name)}</span>`:""}</div>`).join("");
+}
+document.addEventListener("input",e=>{const id=e.target.dataset&&e.target.dataset.lookname;if(!id||!play)return;const a=frame().actions.find(x=>x.id===id);if(a){a.name=e.target.value;markDirty();}});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-lookdel]");if(!b||!play)return;pushHist();editStep(()=>{frame().actions=frame().actions.filter(x=>x.id!==b.dataset.lookdel);});markDirty();renderBoard();renderLooks();});
 /* Who has the ball after this step's passes (null if the last pass goes to an empty spot). */
 function finalHolder(fr){const h=holderOf(fr);let id=h?h.id:null;fr.actions.forEach(a=>{if(a.type==="pass")id=a.to||null;});return id;}
 /* Players who catch a pass in this step: a later pass from them starts where they caught it. */
@@ -774,6 +796,7 @@ board.addEventListener("pointerdown",e=>{
     const a=hitAct(p);if(a){pushHist();editStep(()=>{fr.actions=fr.actions.filter(x=>x!==a);});markDirty();renderBoard();}
     return;
   }
+  if(tool==="look"){tapLook(p);return;}
   // line tools
   let s=hitTok(p,["o","d"]),st=s?{x:s.x,y:s.y}:null;
   if(tool==="pass"){
@@ -837,6 +860,7 @@ function refreshSportUI(){
   $("#pShot").hidden=!S.tools.shot;
   ["cut","pass","dribble","screen"].forEach(k=>{const b=document.querySelector(`#ptools [data-tool="${k}"]`);if(!b)return;
     b.hidden=!S.tools[k];if(S.tools[k])b.lastChild.textContent=S.tools[k];});
+  {const lb=document.querySelector('#ptools [data-tool="look"]');if(lb)lb.hidden=!S.tools.pass;}
   $("#pDefWrap").hidden=!S.defend;
   $("#board").setAttribute("aria-label",S.board);
   $("#dCats").innerHTML=CATS.map((c,i)=>`<label><input type="checkbox" id="dc${i}" value="${c}"><span>${c}</span></label>`).join("");
@@ -960,7 +984,7 @@ function startAnim(line){
   board.style.cursor="default";animCaption(start);requestAnimationFrame(tick);
 }
 function stopAnim(){
-  if(!anim)return;anim=null;
+  if(!anim)return;anim=null;LOOK_LIT=undefined;
   $("#pPlay").innerHTML="&#9654; Play through";$("#pStop").hidden=true;$("#boardFrame").classList.remove("playing");
   document.querySelectorAll("#pLines [data-line]").forEach(b=>b.removeAttribute("aria-pressed"));
   board.style.cursor="";$("#pAnimCap").textContent="";renderSteps();renderBoard();
@@ -970,7 +994,8 @@ function tick(now){
   const spd=+$("#pSpeed").value||1;
   const dtv=(now-anim.last)*spd;anim.t+=dtv;anim.last=now;
   const tr=anim.tr;
-  const dur=anim.phase==="move"?(tr.moves?(tr.moveDur||DUR.move):0):anim.phase==="pass"?(tr.passCurve?DUR.pass:0):anim.phase==="end"?DUR.end:DUR.hold;
+  const nLooks=(tr.f.actions||[]).filter(a=>a.type==="look").length;
+  const dur=anim.phase==="move"?(tr.moves?(tr.moveDur||DUR.move):0):anim.phase==="pass"?(tr.passCurve?DUR.pass:0):anim.phase==="end"?DUR.end:DUR.hold+(nLooks>2?700*(nLooks-2):0);
   if(anim.t>=dur){
     anim.t=0;
     if(anim.phase==="hold")anim.phase="move";
@@ -988,6 +1013,7 @@ function tick(now){
   }
   const u=dur?anim.t/dur:1;
   const ph=anim.phase==="end"?"pass":anim.phase;
+  {const nl=(tr.f.actions||[]).filter(a=>a.type==="look").length;LOOK_LIT=nl&&anim.phase==="hold"?Math.min(nl,Math.floor(u*(nl+1))):undefined;}
   $("#board").innerHTML=boardInner({tokens:animDefense(anim,animTokens(tr,ph,anim.phase==="end"?1:u),dtv,curDefense()),actions:anim.phase==="end"?[]:tr.f.actions},"screen",null,anim.phase!=="hold");
   requestAnimationFrame(tick);
 }
@@ -1064,6 +1090,7 @@ function enterFull(){
     <div class="fs-row fs-scroll" id="fsTools"></div><div class="fs-row fs-scroll" id="fsSteps"></div><div class="fs-row fs-scroll" id="fsPlay"></div>`;
   card.insertBefore(bar,card.firstChild);
   const head=bar.querySelector(".fs-head");
+  {const u=document.createElement("button");u.type="button";u.className="btn edit-only";u.id="fsUndo";u.textContent="↶ Undo";u.addEventListener("click",()=>$("#pUndo").click());head.insertBefore(u,head.querySelector(".fs-gap"));}
   fsMove($("#pEditBtn"),head);fsMove($("#pDoneBtn"),head);fsMove($("#pSave"),head);fsMove($("#pStatus"),head);fsMove($("#pHelp"),head);
   fsMove($("#ptools"),$("#fsTools"));fsMove(document.querySelector("#view-plays .toolbar.edit-only:not(#ptools)"),$("#fsTools"));
   fsMove($("#pSteps").parentNode,$("#fsSteps"));
@@ -1197,7 +1224,7 @@ function startPlanner(store,settings){
     drills=s.docs.map(d=>{const x={id:d.id,...d.data()};x.name=titleCase(x.name||"");return x;});sortDrills();renderAllDrills();
   },err));
   unsubs.push(db.collection("plays").onSnapshot(s=>{
-    plays=s.docs.map(d=>{const x={id:d.id,...d.data()};x.name=titleCase(x.name||"");return x;});renderPlayLib();renderPickCats();renderPick();
+    plays=s.docs.map(d=>{const x={id:d.id,...d.data()};x.name=titleCase(x.name||"");if(x.frames&&x.frames.some(f=>f.opt))x.frames=optionsToLooks(x.frames);return x;});renderPlayLib();renderPickCats();renderPick();
   },err));
   unsubs.push(db.collection("plans").onSnapshot(s=>{
     plans={};s.docs.forEach(d=>{const x=d.data();(x.blocks||[]).forEach(b=>{if(b&&b.name)b.name=titleCase(b.name);});plans[d.id]=x;});

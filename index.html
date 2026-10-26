@@ -348,6 +348,7 @@
         <button class="tool" data-tool="cut"><svg viewBox="0 0 24 14" aria-hidden="true"><path d="M1 7H18M14 3l5 4-5 4" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round"/></svg>Cut</button>
         <button class="tool" data-tool="pass"><svg viewBox="0 0 24 14" aria-hidden="true"><path d="M1 7H18M14 3l5 4-5 4" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-dasharray:4 3"/></svg>Pass</button>
         <button class="tool" data-tool="dribble"><svg viewBox="0 0 24 14" aria-hidden="true"><path d="M1 7l2-3 2 6 2-6 2 6 2-6 2 3H19M15 3l4 4-4 4" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round"/></svg>Dribble</button>
+        <button class="tool" data-tool="look" title="Looks: passes the ball carrier can make"><svg viewBox="0 0 24 14" aria-hidden="true"><path d="M1 7H13" style="fill:none;stroke:currentColor;stroke-width:2;stroke-dasharray:2 3;stroke-linecap:round"/><circle cx="18" cy="7" r="5.5" style="fill:currentColor"/></svg>Look</button>
         <button class="tool" data-tool="screen"><svg viewBox="0 0 24 14" aria-hidden="true"><path d="M1 7H19M19 2V12" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round"/></svg>Screen</button>
         <button class="tool" data-tool="erase">Erase</button>
       </div>
@@ -364,12 +365,13 @@
         <div class="anim-cap" id="pAnimCap" aria-live="polite"></div>
       </div>
       <div class="lines" id="pLines" hidden></div>
+      <div class="looks-box" id="pLooks" hidden></div>
       <div class="toolbar edit-only">
         <button class="btn" id="pUndo">Undo</button>
         <button class="btn" id="pShot"><svg viewBox="0 0 24 14" width="22" height="13" aria-hidden="true" style="vertical-align:-2px;margin-right:4px"><path d="M2 12Q10 -3 21 6" style="fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-dasharray:0.1 4"/><circle cx="21" cy="7" r="2.6" style="fill:none;stroke:currentColor;stroke-width:1.6"/></svg>Shot</button>
         <button class="btn danger" id="pClear">Clear lines</button>
       </div>
-      <div class="steps"><div class="steps" id="pSteps"></div><button class="btn edit-only" id="pNext">+ Next step</button><button class="btn edit-only" id="pDup">Duplicate step</button><button class="btn danger edit-only" id="pDelStep">Delete step</button><button class="btn edit-only opt-add" id="pAddOpt">+ Add option</button></div>
+      <div class="steps"><div class="steps" id="pSteps"></div><button class="btn edit-only" id="pNext">+ Next step</button><button class="btn edit-only" id="pDup">Duplicate step</button><button class="btn danger edit-only" id="pDelStep">Delete step</button><button hidden class="btn edit-only opt-add" id="pAddOpt">+ Add option</button></div>
       <div class="opt-box edit-only" id="pOptBox" hidden>
         <label class="f">Option name<input id="pOptName" maxlength="40" placeholder="e.g. Backdoor, Skip pass, Kick-out"></label>
         <button class="btn danger" type="button" id="pOptDel">Delete this option</button>

@@ -1331,3 +1331,12 @@ body:has(#screen-landing:not([hidden])){padding:0;max-width:none;background:#0a1
 .tm-switch button{display:inline-flex;align-items:center;gap:7px;border:0;background:transparent;padding:8px 14px;border-radius:9px;font:600 14.5px var(--body,system-ui);color:var(--muted);cursor:pointer;white-space:nowrap}
 .tm-switch button i{width:9px;height:9px;border-radius:50%;flex:none}
 .tm-switch button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+#pAddOpt,.opt-add{display:none!important}
+.looks-box{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.lk-h{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lk-row{display:flex;align-items:center;gap:8px}
+.lk-n{width:22px;height:22px;border-radius:50%;background:var(--look,#e07a10);color:#fff;display:grid;place-items:center;font-size:12px;flex:none}
+.lk-to{font-weight:600;font-size:14px;white-space:nowrap}
+.lk-row input{flex:1;min-width:0;padding:6px 8px;font-size:14px}
+.lk-name{color:var(--muted);font-size:14px}
+:root{--look:#e07a10}

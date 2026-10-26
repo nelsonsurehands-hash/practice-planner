@@ -33,7 +33,19 @@ function arrowHead(pts,col){
   const a={x:e.x-L*Math.cos(ang-s),y:e.y-L*Math.sin(ang-s)},b={x:e.x-L*Math.cos(ang+s),y:e.y-L*Math.sin(ang+s)};
   return `<path d="M${a.x.toFixed(1)} ${a.y.toFixed(1)}L${e.x.toFixed(1)} ${e.y.toFixed(1)}L${b.x.toFixed(1)} ${b.y.toFixed(1)}Z" style="fill:${col};stroke:${col};stroke-width:1.5;stroke-linejoin:round"/>`;
 }
+/* A "look": a pass the ball carrier can make (1st look, 2nd look…). Drawn like a pass in the look
+   color with its number; it doesn't move the ball. */
+var LOOK_LIT;   // while a play runs: how many looks are lit (in order); undefined = all
+function lookSVG(a,n,P){
+  const col=P?"#000":"var(--look,#e07a10)",x1=a.x1,y1=a.y1,x2=a.x2,y2=a.y2,ang=Math.atan2(y2-y1,x2-x1),pad=17;
+  const ex=x2-pad*Math.cos(ang),ey=y2-pad*Math.sin(ang),pts=[{x:x1,y:y1},{x:(x1+ex)/2,y:(y1+ey)/2},{x:ex,y:ey}];
+  const bx=x1+(ex-x1)*.55,by=y1+(ey-y1)*.55;
+  const lit=typeof LOOK_LIT==="number"?LOOK_LIT:99,op=n>lit?0.18:1,halo=n===lit&&!P?`<circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="16" style="fill:none;stroke:${col};stroke-width:2;opacity:.45"/>`:"";
+  return `<g class="look" style="opacity:${op}">${halo}<path d="M${x1.toFixed(1)} ${y1.toFixed(1)}L${ex.toFixed(1)} ${ey.toFixed(1)}" style="fill:none;stroke:${col};stroke-width:2.6;stroke-linecap:round;stroke-dasharray:4 6"/>${arrowHead(pts,col)}
+    <circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="10" style="fill:${P?"#fff":col};stroke:${P?"#000":"var(--surface,#fff)"};stroke-width:2"/><text x="${bx.toFixed(1)}" y="${(by+4.2).toFixed(1)}" text-anchor="middle" style="fill:${P?"#000":"#fff"};font:800 12px Arial,Helvetica,sans-serif">${n}</text></g>`;
+}
 function actSVG(a,col){
+  if(a.type==="look")return "";   // drawn separately with its number
   if(a.type==="pass")a={...a,cx:(a.x1+a.x2)/2,cy:(a.y1+a.y2)/2};   // passes are always straight
   const pts=samples(a), base=`style="fill:none;stroke:${col};stroke-width:3;stroke-linecap:round;stroke-linejoin:round`;
   if(a.type==="cut")return `<path d="${poly(pts)}" ${base}"/>`+arrowHead(pts,col);
@@ -60,6 +72,7 @@ function boardInner(fr,mode,tmp,fade,ghost){
   if(ghost&&ghost.length)s+=`<g style="opacity:.22">`+ghost.map(a=>actSVG(a,c.act)).join("")+`</g>`;
   const acts=[...fr.actions];if(tmp)acts.push(tmp);
   s+=`<g style="opacity:${fade?0.3:1}">`+acts.map(a=>actSVG(a,c.act)).join("")+`</g>`;
+  {let n=0;const looks=acts.filter(a=>a.type==="look");if(looks.length)s+=`<g class="looks${fade?" faded":""}">`+looks.map(a=>lookSVG(a,++n,P)).join("")+`</g>`;}
   fr.tokens.filter(t=>t.kind!=="ball").forEach(t=>{
     if(t.kind==="o")s+=`<g><circle cx="${t.x}" cy="${t.y}" r="15" style="fill:${c.ofill};stroke:${c.o};stroke-width:3"/><text x="${t.x}" y="${t.y+6.5}" text-anchor="middle" style="fill:${c.o};font:700 ${lblSize(t)}px Arial,Helvetica,sans-serif">${esc(t.label||t.n)}</text></g>`;
     else s+=`<text x="${t.x}" y="${t.y+7}" text-anchor="middle" style="fill:${c.d};font:700 20px Arial,Helvetica,sans-serif">X<tspan style="font-size:12px" dy="3">${t.n}</tspan></text>`;
@@ -73,7 +86,7 @@ function boardSVG(fr,mode,w){fr=withDefense(fr,fr.defense);return `<svg xmlns="h
 
 
 /* Cuts, dribbles and screens move a player; passes and shots only move the ball. */
-const isMove=a=>a.type!=="pass"&&a.type!=="shot";
+const isMove=a=>a.type!=="pass"&&a.type!=="shot"&&a.type!=="look";
 function holderOf(fr){const b=fr.tokens.find(t=>t.kind==="ball");if(!b)return null;let h=null,bd=26;fr.tokens.forEach(t=>{if(t.kind==="o"){const d=dist(b,t);if(d<bd){bd=d;h=t;}}});return h;}
 
 function nextTokens(f){
@@ -116,10 +129,16 @@ function buildTransition(frames,i){
      ball arrives; a player who catches and then dribbles starts after the catch; the starting ball
      handler drives first, then passes. Everyone else moves across the whole step. */
   const k=events.length,L=anyMove?0.5:0;
-  const win=events.map((a,n)=>({s:(n+L)/Math.max(k,1),e:(n+1)/Math.max(k,1)}));
+  /* Screens happen first: screeners get to their spot, then the cuts, dribbles and passes run. */
+  const S=f.actions.some(a=>a.type==="screen"&&a.from)?0.42:0,sq=x=>S+x*(1-S);
+  const win=events.map((a,n)=>({s:sq((n+L)/Math.max(k,1)),e:sq((n+1)/Math.max(k,1))}));
   const recv=id=>events.findIndex(a=>a.type==="pass"&&a.to===id);
   const sends=(id,after)=>events.findIndex((a,n)=>n>after&&a.from===id);
   const windowFor=(id,act)=>{
+    if(S&&act&&act.type==="screen")return [0,S];
+    const w=windowRaw(id,act);return S?[sq(w[0]),sq(w[1])]:w;
+  };
+  const windowRaw=(id,act)=>{
     if(!k||!act)return [0,1];
     const r=recv(id);
     if(r>=0){
@@ -167,7 +186,7 @@ function buildTransition(frames,i){
     return carry(c,u);
   };
   return {i,f,g,paths,ballAt,ballMove:ballAt,passCurve:null,moves:moves||!!(b0&&k),
-    moveDur:DUR.move*Math.max(1,0.5+0.5*k),last,added:g.filter(t=>!f.tokens.some(x=>x.id===t.id))};
+    moveDur:DUR.move*Math.max(1,0.5+0.5*k)*(S?1.35:1),last,added:g.filter(t=>!f.tokens.some(x=>x.id===t.id))};
 }
 function animTokens(tr,phase,u){
   const out=[];
@@ -238,6 +257,22 @@ function playLines(frames){
     return {...o,branch:b,letter,title:`Option ${letter}${o.name?": "+o.name:""}`};
   });
   return {main,options};
+}
+/* Old "options" become looks: each option's first pass (or shot) becomes a numbered look on the step it
+   branched from, named after the option. The option's own steps are dropped. Returns a new frames array. */
+function optionsToLooks(frames){
+  if(!frames||!frames.some(f=>f.opt))return frames;
+  const L=playLines(frames),out=clone(frames.filter(f=>!f.opt));
+  L.options.forEach(o=>{
+    const base=frames[L.main[o.branch]];if(!base)return;const tgt=out.find(f=>f.fid&&f.fid===base.fid)||out[o.branch];if(!tgt)return;
+    let act=null,fr=null;for(const i of o.steps){const f=frames[i];act=(f.actions||[]).find(a=>a.type==="pass")||(f.actions||[]).find(a=>a.type==="shot");if(act){fr=f;break;}}
+    if(!act)return;
+    const end=nextTokens(tgt),b=end.find(t=>t.kind==="ball"),hd=holderOf({tokens:end});
+    const x1=hd?hd.x:b?b.x-13:act.x1,y1=hd?hd.y:b?b.y+13:act.y1;
+    tgt.actions=tgt.actions||[];
+    tgt.actions.push({id:"lk"+Math.random().toString(36).slice(2,9),type:"look",from:hd?hd.id:null,to:act.type==="pass"?act.to||null:null,x1,y1,cx:(x1+act.x2)/2,cy:(y1+act.y2)/2,x2:act.x2,y2:act.y2,name:o.name||""});
+  });
+  return out;
 }
 function optionOf(frames,lines,i){const f=frames[i];return f&&f.opt?lines.options.find(o=>o.id===f.opt)||null:null;}
 /* The frame indexes you see when playing a line: the main steps, or the main steps up to the branch then the option. */
