@@ -566,6 +566,7 @@ window.onSettingsTab=function(force){
   $("#sSchool").value=draft.school||"";$("#sMascot").value=draft.mascot||"";setLevel("sLabelSel",draft.teamLabel||"");$("#sColor").value=draft.color||"#5b2a86";
   $("#sColor2").value=draft.color2||"#f2b705";$("#sUseC2").checked=!!draft.color2;renderLogoEdit();renderIconPick();
   $("#sWdS").value=draft.weekdayStart||"";$("#sWdE").value=draft.weekdayEnd||"";$("#sWeS").value=draft.weekendStart||"";$("#sWeE").value=draft.weekendEnd||"";$("#sArrive").value=String(draft.arriveEarly||0);$("#sPrNote").value=draft.practiceNote||"";
+  renderAlso();
   $("#sStart").value=draft.seasonStart||"";$("#sEnd").value=draft.seasonEnd||"";$("#sMinPr").value=draft.minPractices||"";
   document.querySelectorAll("#sDays input").forEach(x=>x.checked=(draft.practiceDays||[]).includes(+x.value));
   {const f=draft.features||{};$("#sProg").innerHTML=progHTML("sProg",progOf(f));$("#sFeatures").innerHTML=featHTML(f);}
@@ -707,10 +708,27 @@ async function saveSettings(st){
 
   if(sportChanged){play=blankPlay();fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();renderAllDrills();}
 }
+/* "Also use on": copy practice times / arrival to your other teams when you save (checked when they match now). */
+const sameKeys=(a,b,keys)=>keys.every(k=>JSON.stringify(a[k]??null)===JSON.stringify(b[k]??null));
+function renderAlso(){
+  const others=(typeof teams!=="undefined"?teams:[]).filter(t=>team&&t.id!==team.id&&canSchedule(t));
+  document.querySelectorAll(".also-teams").forEach(box=>{const keys=box.dataset.keys.split(",");box.hidden=!others.length;
+    box.innerHTML=others.length?`<span class="lt-title">Also use ${esc(box.dataset.what)} on</span><div class="link-list">${others.map(t=>`<label class="link-t"><input type="checkbox" data-also="${esc(t.id)}"${sameKeys(team.settings||{},t.settings||{},keys)?" checked":""}><span>${esc(teamShort(t))}</span></label>`).join("")}</div>`:"";});
+}
+async function applyAlso(form,st){
+  const out=[];for(const box of (form?form.querySelectorAll(".also-teams"):[])){const keys=box.dataset.keys.split(",");
+    for(const x of box.querySelectorAll("[data-also]:checked")){const t=teams.find(y=>y.id===x.dataset.also);if(!t)continue;
+      const o=JSON.parse(JSON.stringify(t.settings||{}));keys.forEach(k=>{if(st[k]!==undefined)o[k]=JSON.parse(JSON.stringify(st[k]));else delete o[k];});
+      if(sameKeys(o,t.settings||{},keys))continue;
+      try{await saveTeamSettings(t,o);out.push(teamShort(t));}catch(e){console.warn(e);}}}
+  return [...new Set(out)];
+}
 document.querySelectorAll(".st-save").forEach(b=>b.addEventListener("click",async()=>{
   if(!draft)window.onSettingsTab(true);
   const st=readForm();$("#sStatus").textContent="Saving…";
-  try{await saveSettings(st);settingsDirty=false;$("#sStatus").textContent="Saved";window.onSettingsTab(true);$("#sStatus").textContent="Saved";}
+  const form=b.closest(".st-form");
+  try{await saveSettings(st);settingsDirty=false;
+    const also=await applyAlso(form,st);$("#sStatus").textContent="Saved";window.onSettingsTab(true);$("#sStatus").textContent=also.length?`Saved here and on ${also.join(", ")}`:"Saved";}
   catch(err){$("#sStatus").textContent="Not saved: "+(err.message||"check your connection");}
 }));
 

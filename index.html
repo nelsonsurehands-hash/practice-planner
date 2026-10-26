@@ -467,6 +467,7 @@
       <fieldset class="catpick"><legend>Regular practice days</legend><div class="catboxes" id="sDays"></div></fieldset>
       <label class="f" style="max-width:320px">Practices required before the first game<input id="sMinPr" type="number" min="0" max="60" placeholder="e.g. 14 (optional)"></label>
       <p class="preview-dates" id="sPreview"></p>
+      <div class="also-teams" data-keys="seasonStart,seasonEnd,practiceDays,weekdayStart,weekdayEnd,weekendStart,weekendEnd,minPractices,practiceNote" data-what="these practice days, times and season dates"></div>
       </div>
     </details>
     <details class="acc st-edit" id="acc-games">
@@ -518,6 +519,7 @@
         <div class="f">Grade/Level<div class="lvl-pick"><select id="sLabelSel" aria-label="Grade or level" data-lvl="sLabel"></select><input id="sLabel" placeholder="Type it, e.g. 14U, 6th Grade" hidden></div></div>
         <label class="f">Arrival time for practice<select id="sArrive"><option value="0">Right at practice time</option><option value="10">10 minutes early</option><option value="15">15 minutes early</option><option value="20">20 minutes early</option><option value="30">30 minutes early</option></select></label>
       </div>
+      <div class="also-teams" data-keys="arriveEarly" data-what="this arrival time"></div>
       <div class="set-save edit-only"><button class="btn primary st-save" type="button">Save</button><span class="saved st-status"></span></div>
       </div>
     </details>

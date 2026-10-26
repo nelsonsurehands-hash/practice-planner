@@ -198,8 +198,15 @@ document.addEventListener("keydown",e=>{if($("#view-cal").hidden||calView!=="mon
 
 /* ---------- day dialog ---------- */
 let dayIso=null,lastMark=null;
-let dayTeams=null;   // All my teams: the teams practice/day changes go to (null = just this team)
-function openDay(iso,hub){dayIso=iso;lastMark=null;dayTeams=hub?teams.filter(canSchedule).map(t=>t.id):null;renderDay();const d=$("#dayDlg");if(!d.open)d.showModal();}
+let dayTeams=null,dayHub=false;   // the teams practice/day changes go to (null = just this team); dayHub = All my teams view
+/* On a team's own calendar, another team is checked too when its day matches (same practice time, or both off). */
+const dayKey=(st,iso)=>{const d=buildDays(st).days[iso]||{};return d.practice?"p "+d.practice.start+"-"+d.practice.end:d.off&&d.off.note?"off":"none";};
+function openDay(iso,hub){dayIso=iso;lastMark=null;dayHub=!!hub;
+  const can=(typeof teams!=="undefined"?teams:[]).filter(canSchedule);
+  if(hub)dayTeams=can.map(t=>t.id);
+  else if(can.length>1&&can.some(t=>t.id===team.id)){const k=dayKey(SETTINGS,iso);dayTeams=[team.id,...can.filter(t=>t.id!==team.id&&dayKey(t.settings||{},iso)===k).map(t=>t.id)];}
+  else dayTeams=null;
+  renderDay();const d=$("#dayDlg");if(!d.open)d.showModal();}
 const entriesOn=(st,iso)=>(st.special||[]).filter(x=>x.date===iso);
 const isRegular=(st,iso)=>(st.practiceDays||[]).includes(dObj(iso).getDay())&&!!st.seasonStart&&iso>=st.seasonStart&&iso<=st.seasonEnd&&!(st.games||[]).some(g=>g.date===iso);
 /* Marks stack: check as many as apply. Unchecking removes only that mark. */
@@ -232,12 +239,12 @@ function renderDay(){
   let h=`<h2 id="dayTitle">${fullDay(iso)}</h2>`;
   /* All my teams: who's doing what today, and which teams the practice and day changes go to. */
   if(dayTeams){const H=hubData(true);
-    h+=`<div class="hub-sum">${H.map(x=>{const d2=x.days[iso],l=[];
+    if(dayHub)h+=`<div class="hub-sum">${H.map(x=>{const d2=x.days[iso],l=[];
       if(d2&&d2.game){const g=d2.game;l.push(`${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")} · ${g.time?ampm(g.time):"TBD"}`);}
       if(d2&&d2.practice)l.push(`Practice ${span(d2.practice.start,d2.practice.end)}`);
       if(d2&&d2.off&&d2.off.note)l.push(esc(/^no practice$/i.test(d2.off.note)?"No practice":d2.off.note));
       return `<div style="--tc:${esc(x.color)}"><b>${esc(x.label)}</b><span>${l.join(" · ")||"Nothing scheduled"}</span></div>`;}).join("")}</div>`;
-    if(ed)h+=`<div class="day-link"><span>Practices and day marks for:</span>${H.filter(x=>canSchedule(x.t)).map(x=>`<label class="link-t"><input type="checkbox" data-dteam="${esc(x.t.id)}"${dayTeams.includes(x.t.id)?" checked":""}><i class="hub-dot" style="background:${esc(x.color)}"></i><span>${esc(x.label)}</span></label>`).join("")}</div>`;}
+    if(ed)h+=`<div class="day-link"><span>${dayHub?"Practices and day marks for:":"Practice and day changes go to:"}</span>${H.filter(x=>canSchedule(x.t)).map(x=>`<label class="link-t"><input type="checkbox" data-dteam="${esc(x.t.id)}"${dayTeams.includes(x.t.id)?" checked":""}><i class="hub-dot" style="background:${esc(x.color)}"></i><span>${esc(x.label)}</span></label>`).join("")}</div>`;}
   if(ed){const marks=MARKS.filter(m=>!m.only||m.only(regular,d));
     h+=`<fieldset class="marks"><legend>Mark this day <small>(check all that apply)</small></legend>${marks.map(m=>`<label class="mark ${m.cls}"><input type="checkbox" data-mark="${m.id}"${list.some(m.test)?" checked":""}><span>${m.label}</span></label>`).join("")}</fieldset>`;
     const lm=lastMark&&MARKS.find(m=>m.id===lastMark&&list.some(m.test));
@@ -248,7 +255,7 @@ function renderDay(){
         <label class="md-opt"><input type="checkbox" id="mdOnly" checked> Only days we'd normally practice (skip weekends and games)</label>
         <p class="help" id="mdPreview"></p></div>`;}
   }
-  if(dayTeams){   // every team's game this day, each editable on its own
+  if(dayHub){   // every team's game this day, each editable on its own
     hubData(true).forEach(x=>{const g=((x.t.settings||{}).games||[]).find(y=>y.date===iso);if(!g)return;const can=canSchedule(x.t);
       const bus=((x.t.settings||{}).special||[]).find(y=>y.date===iso&&(y.bus!==undefined||isBus(y.note)));
       h+=`<div class="day-ev game" style="--tc:${esc(x.color)}"><small class="gev-h"><i class="hub-dot" style="background:${esc(x.color)}"></i>${esc(x.label)}${g.event?" · "+esc(g.event):""}</small><b>${g.home===false?"at ":"vs "}${esc(g.opponent||"Game")}</b><span>${g.time?ampm(g.time):"Time TBD"} · ${g.home===false?"Away":"Home"}${bus?" · "+esc(bus.note):""}</span>${g.location?`<span>📍 ${esc(g.location)}</span>`:""}${can?`<button class="btn danger day-del" type="button" data-act="delGame" data-team="${esc(x.t.id)}" data-label="Delete game">Delete game</button>`:""}</div>`;
@@ -263,7 +270,7 @@ function renderDay(){
   const noteChips=()=>{const ns=list.map((x,i)=>({x,i})).filter(o=>o.x.kind!=="off"&&o.x.note&&!isBus(o.x.note));
     return ns.length?`<div class="note-chips">${ns.map(o=>`<span class="nchip">${esc(o.x.note)}${ed?`<button type="button" class="icon" data-rmentry="${o.i}" aria-label="Remove ${esc(o.x.note)}">✕</button>`:""}</span>`).join("")}</div>`:"";};
   if(d.practice){const p=d.practice,pi=planInfo(iso);
-    h+=`<div class="day-ev practice">${dayTeams?`<small class="gev-h"><i class="hub-dot" style="background:${esc((SETTINGS||{}).color||"#5b2a86")}"></i>${esc(teamShort(team))}'s practice · changes go to the checked teams</small>`:""}<b>${p.notes.some(isTryout)?"Tryouts":"Practice"}</b><span>${span(p.start,p.end)}</span>${prNoteOf(SETTINGS)?`<span class="pr-note">📌 ${esc(prNoteOf(SETTINGS))}</span>`:""}${noteChips()}
+    h+=`<div class="day-ev practice">${dayHub?`<small class="gev-h"><i class="hub-dot" style="background:${esc((SETTINGS||{}).color||"#5b2a86")}"></i>${esc(teamShort(team))}'s practice · changes go to the checked teams</small>`:""}<b>${p.notes.some(isTryout)?"Tryouts":"Practice"}</b><span>${span(p.start,p.end)}</span>${prNoteOf(SETTINGS)?`<span class="pr-note">📌 ${esc(prNoteOf(SETTINGS))}</span>`:""}${noteChips()}
       <span>${pi?`Plan ready: ${pi.used} of ${pi.avail} minutes booked`:"No practice plan yet"}</span>${ed?delBtn("delPractice","Cancel this practice"):""}</div>
       <button class="btn primary" type="button" data-go="plan">${pi?"Open practice plan":"Plan this practice"}</button>`;
     if(ed)h+=`<details class="day-edit"><summary>Change time or add a note</summary><div class="day-form">
@@ -280,7 +287,7 @@ function renderDay(){
   }
   if(d.tags&&!d.practice&&d.tags.some(n=>!isBus(n)))h+=`<div class="day-ev"><b>Notes</b>${noteChips()}</div>`;
   if(!d.game&&!d.practice&&!d.off&&!d.tags)h+=`<p class="help">Nothing scheduled.</p>`;
-  if(ed&&(dayTeams||!d.game))h+=`<details class="day-edit"><summary>Add a game this day</summary>${gameForm({date:iso,home:true,time:"17:30"},dayTeams?((teams.filter(canSchedule).find(t=>!((t.settings||{}).games||[]).some(y=>y.date===iso))||team).id):null)}</details>`;
+  if(ed&&(dayHub||!d.game))h+=`<details class="day-edit"><summary>Add a game this day</summary>${gameForm({date:iso,home:true,time:"17:30"},dayHub?((teams.filter(canSchedule).find(t=>!((t.settings||{}).games||[]).some(y=>y.date===iso))||team).id):null)}</details>`;
   if(ed&&!d.practice&&!d.off){const t=practiceTimes(iso,st);
     h+=`<details class="day-edit"><summary>Add a practice this day</summary><div class="day-form"><div class="grid2"><label class="f">Starts<input type="time" id="dpStart" value="${t.start}"></label><label class="f">Ends<input type="time" id="dpEnd" value="${t.end}"></label></div>
       <label class="f">Add a note<input id="dpNote" placeholder="Optional"></label><div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="savePractice">Add practice</button></div></div></details>`;}
@@ -331,7 +338,7 @@ $("#dayBody").addEventListener("focusout",e=>{
 const delBtn=(act,label)=>`<button class="btn danger day-del" type="button" data-act="${act}" data-label="${label}">${label}</button>`;
 function gameForm(g,tid){
   const gt=teams.find(t=>t.id===(tid||team.id))||team,bus=((gt.settings||{}).special||[]).find(x=>x.date===g.date&&(x.bus!==undefined||isBus(x.note)));
-  const teamSel=dayTeams?(tid&&g.opponent?`<input type="hidden" id="dgTeam" value="${esc(gt.id)}">`:`<label class="f">Team<select id="dgTeam">${teams.filter(canSchedule).map(t=>`<option value="${esc(t.id)}"${t.id===gt.id?" selected":""}>${esc(teamShort(t))}</option>`).join("")}</select></label>`):"";
+  const teamSel=dayHub?(tid&&g.opponent?`<input type="hidden" id="dgTeam" value="${esc(gt.id)}">`:`<label class="f">Team<select id="dgTeam">${teams.filter(canSchedule).map(t=>`<option value="${esc(t.id)}"${t.id===gt.id?" selected":""}>${esc(teamShort(t))}</option>`).join("")}</select></label>`):"";
   return `<div class="day-game" data-orig="${esc(g.date||"")}">${teamSel}<label class="f">Event or tournament <small>(optional)</small><input id="dgEvent" data-tc list="dgEventList" value="${esc(g.event||"")}" placeholder="e.g. Conference Tournament"></label><datalist id="dgEventList">${[...new Set((SETTINGS.games||[]).map(x=>x.event).filter(Boolean))].map(v=>`<option value="${esc(v)}">`).join("")}</datalist>
     <label class="f">Opponent<input id="dgOpp" data-tc value="${esc(g.opponent||"")}" placeholder="e.g. Waynesville"></label>
     <div class="grid2"><label class="f">Date<input type="date" id="dgDate" value="${esc(g.date||dayIso)}"></label><div class="f">Time<span class="tbd-wrap"><input type="time" id="dgTime" aria-label="Game time" value="${esc(g.tbd?"":g.time||"")}"${g.tbd?" disabled":""}><label class="tbd"><input type="checkbox" id="dgTbd"${g.tbd?" checked":""}> TBD</label></span></div></div>

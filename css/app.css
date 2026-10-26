@@ -1324,3 +1324,5 @@ body:has(#screen-landing:not([hidden])){padding:0;max-width:none;background:#0a1
 .vf-chip.on{color:var(--ink);border-color:var(--accent);background:var(--accent-soft)}
 .vf-chip:not(.on) .hub-dot{opacity:.35}
 .vf-chip:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.also-teams{display:flex;flex-direction:column;gap:8px;padding-top:12px;margin-top:4px;border-top:1px solid var(--line)}
+.also-teams[hidden]{display:none}
