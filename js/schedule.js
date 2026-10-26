@@ -136,7 +136,7 @@ function render(){
   renderNext();renderCalButtons();
   const fmtM=iso=>iso?`${MONTHS[+iso.slice(5,7)-1]} ${iso.slice(0,4)}`:"";
   const nP=DAYS.filter(d=>d.practice).length,games=DAYS.filter(d=>d.game);
-  {const a=early(),el=$("#scArrive");if(el){el.hidden=!a;el.textContent=a?`⏰ Players arrive ${a} minutes before every practice`:"";}}
+  {const a=early(),el=$("#scArrive");if(el){el.hidden=!a;el.textContent=a?`⏰ Please have players arrive at practice at least ${a} minutes early.`:"";}}
   $("#scSeason").innerHTML=st.seasonStart?`<b>${fmtM(st.seasonStart)} – ${fmtM(st.seasonEnd)}</b><small>${[show.practices!==false?`${nP} practices`:"",show.games!==false?`${games.length} games`:""].filter(Boolean).join(" · ")}</small>`:"";
   /* legend: only what this calendar can show */
   document.querySelectorAll("#scLegend span").forEach(x=>{const k=x.querySelector("i").className.replace("sw ","");
@@ -188,7 +188,7 @@ function renderMulti(){
   /* arrival heading: one line when every team arrives the same, else per team */
   {const a=TEAMS.map(x=>+(x.sched.arriveEarly||0)),el=$("#scArrive");
     if(el){const same=a.every(v=>v===a[0]);el.hidden=!a.some(Boolean);
-      el.textContent=same?(a[0]?`⏰ Players arrive ${a[0]} minutes before every practice`:""):"⏰ Arrive before practice: "+TEAMS.map((x,i)=>a[i]?`${x.label} ${a[i]} min`:"").filter(Boolean).join(" · ");}}
+      el.textContent=same?(a[0]?`⏰ Please have players arrive at practice at least ${a[0]} minutes early.`:""):"⏰ Please have players arrive at practice at least: "+TEAMS.map((x,i)=>a[i]?`${x.label} ${a[i]} min`:"").filter(Boolean).join(" · ");}}
   $("#scSeason").innerHTML=`<div class="hub-key">${TEAMS.map(x=>`<span><i style="background:${esc(x.color)}"></i>${esc(x.label)}</span>`).join("")}</div>`;
   /* what's next */
   const cards=[],when=d=>d===t?"Today":d===S.addDays(t,1)?"Tomorrow":longDay(d);
