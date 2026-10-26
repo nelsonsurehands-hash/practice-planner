@@ -30,11 +30,11 @@ function start(){
   SPORT=SPORTS[t.sport]?t.sport:"basketball";
   document.documentElement.style.setProperty("--team",t.color||"#5b2a86");
   if(t.color2){document.documentElement.style.setProperty("--team2",t.color2);document.documentElement.classList.add("has-c2");}
-  if(t.logo){const im=$("#pbLogo");im.src=t.logo;im.hidden=false;const fav=document.querySelector('link[rel="icon"]');if(fav)fav.href=t.logo;}
-  document.querySelector('meta[name="theme-color"]').content=t.color||"#5b2a86";
+  if(t.logo){const im=$("#pbLogo");im.src=t.logo;im.hidden=false;}
+  teamBrand(t);
   $("#pbEyebrow").textContent=[t.school&&t.mascot?t.school+" "+t.mascot:t.name,t.teamLabel].filter(Boolean).join(" · ");
   $("#pbTitle").textContent=BOOK.title||"Playbook";
-  document.title=`${BOOK.title||"Playbook"} · ${t.name||"Team"}`;
+  document.title=`${BOOK.title||"Playbook"} · ${teamFullName(t)}`;
   BOOK.plays=(BOOK.plays||[]).filter(p=>p.frames&&p.frames.length).map(p=>({...p,name:window.titleCase?titleCase(p.name||""):p.name,frames:typeof optionsToLooks==="function"?optionsToLooks(p.frames):p.frames}));
   $("#pbCount").textContent=`${BOOK.plays.length} play${BOOK.plays.length===1?"":"s"}`;
   const L=SPORTS[SPORT].tools;

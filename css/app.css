@@ -1252,6 +1252,8 @@ body:has(#screen-landing:not([hidden])){padding:0;max-width:none;background:#0a1
 .made-with img{border-radius:6px}
 .made-with b{font-family:"Saira Condensed",sans-serif;text-transform:uppercase;font-size:17px;letter-spacing:.02em}
 .made-with small{color:var(--muted);font-size:12.5px}
+.made-with.slim{margin:36px auto 4px;padding-top:14px;border-top:1px solid var(--line)}
+.made-with.slim a{font-size:11.5px;font-weight:500;color:var(--muted);letter-spacing:.02em}
 @media print{.made-with,.app-foot{display:none}}
 .us-feats{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
 .us-feat{display:grid;grid-template-columns:minmax(120px,1.3fr) 2fr auto auto;gap:10px;align-items:center;font-size:13.5px}

@@ -54,8 +54,7 @@ async function load(quiet){
   const t=CAL.team||{},root=document.documentElement;
   root.style.setProperty("--team",t.color||"#5b2a86");root.style.setProperty("--team-ink",ink(t.color));
   if(t.color2){root.style.setProperty("--team2",t.color2);root.classList.add("has-c2");}
-  const tc=document.querySelector('meta[name="theme-color"]');if(tc)tc.content=t.color||"#5b2a86";
-  document.title=`${t.mascot||t.name||"Team"} Calendar · The Extra Coach`;
+  teamBrand(t,`${[t.school&&t.mascot?`${t.school} ${t.mascot}`:(t.name||"Team"),TEAMS?TEAMS.map(x=>x.label).join(" & "):t.teamLabel].filter(Boolean).join(" ")} Schedule`);
   $("#scEyebrow").textContent=[t.school&&t.mascot?`${t.school} ${t.mascot}`:t.name,TEAMS?TEAMS.map(x=>x.label).join(" & "):t.teamLabel].filter(Boolean).join(" · ");
   $("#scTitle").textContent=CAL.title||"Practice & Game Calendar";
   if(t.logo){$("#scLogo").src=t.logo;$("#scLogo").hidden=false;}

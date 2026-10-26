@@ -3,19 +3,17 @@
 <head>
 <meta charset="utf-8">
 <base href="/">
-<meta property="og:site_name" content="The Extra Coach">
+<meta property="og:site_name" content="Team">
 <meta property="og:title" content="Team Schedule">
 <meta property="og:description" content="Practices and games, always up to date. No account needed.">
-<meta property="og:image" content="https://theextracoach.com/icons/icon-512.png">
 <meta property="og:type" content="website">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Team Schedule · The Extra Coach</title>
+<title>Team Schedule</title>
 <meta name="description" content="The team's practice and game schedule, always up to date.">
 <meta name="theme-color" content="#5b2a86">
 <meta name="robots" content="noindex">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="icon" href="brand/mark.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <link rel="stylesheet" href="css/app.css">
@@ -75,9 +73,10 @@
   <p class="sc-foot">Tap any day for details. Questions about the schedule? Contact your coach.</p>
 </main>
 <dialog id="scDay" aria-labelledby="scDayTitle"><div class="dlg"><h2 id="scDayTitle"></h2><ul class="sc-dl" id="scDayList"></ul><div class="actions" style="margin:0"><button class="btn" type="button" id="scDayClose">Close</button></div></div></dialog>
-<footer class="made-with"><a href="/?ref=parent"><img src="brand/mark.svg" alt="" width="22" height="22"><span>Made with <b>The Extra Coach</b></span></a><small>Are you a coach? Plan practices, draw plays and keep parents in the loop.</small></footer>
+<footer class="made-with slim"><a href="/?ref=parent">Powered by The Extra Coach</a></footer>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.0/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
+<script src="js/teambrand.js"></script>
 <script src="js/schedule-core.js"></script>
 <script src="js/schedule.js"></script>
 </body>

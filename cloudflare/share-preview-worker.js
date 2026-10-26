@@ -36,21 +36,14 @@ function teamName(t) {
   return sm || clean(t.name) || "Team";
 }
 function texts(kind, d) {
+  // Title = school + mascot + grade ("Hickory Hills Spartans 8th Grade"), so each grade's link reads as its own team
   const t = d.team || {}, many = Array.isArray(d.teams) && d.teams.length > 1;
-  const name = many ? [[t.school, t.mascot].map(clean).filter(Boolean).join(" ") || clean(t.name), d.teams.map(x => clean((x.team || {}).teamLabel) || clean((x.team || {}).name)).join(" & ")].filter(Boolean).join(" ") : teamName(t);
-  const label = many ? "" : clean(t.teamLabel);
-  if (kind === "c") return {
-    title: `${name} Schedule`,
-    desc: `${label ? label + " · " : ""}Practices and games, always up to date. Tap to open. No account needed.`
-  };
-  if (kind === "f") return {
-    title: `${name} · ${clean(d.title) || "Game-day food sign-up"}`,
-    desc: `${label ? label + " · " : ""}Pick a game and what you'll bring. Tap to sign up. No account needed.`
-  };
-  return {
-    title: `${name} · ${clean(d.title) || "Playbook"}`,
-    desc: `${label ? label + " · " : ""}Watch every play step by step. Tap to open.`
-  };
+  const base = [t.school, t.mascot].map(clean).filter(Boolean).join(" ") || clean(t.name) || "Team";
+  const grade = many ? d.teams.map(x => clean((x.team || {}).teamLabel) || clean((x.team || {}).name)).join(" & ") : clean(t.teamLabel);
+  const name = [base, grade].filter(Boolean).join(" ");
+  if (kind === "c") return { title: `${name} Schedule`, desc: "Practices and games, always up to date. Tap to open. No account needed." };
+  if (kind === "f") return { title: `${name} · ${clean(d.title) || "Game-Day Food Sign-Up"}`, desc: "Pick a game and what you'll bring. Tap to sign up. No account needed." };
+  return { title: `${name} · ${clean(d.title) || "Playbook"}`, desc: "Watch every play step by step. Tap to open." };
 }
 
 async function logoResponse(kind, id) {
@@ -88,18 +81,23 @@ export default {
     if (!d) return new Response(page.body, { status: 200, headers });
 
     const t = d.team || {}, x = texts(kind, d), color = /^#[0-9a-f]{6}$/i.test(t.color || "") ? t.color : null;
-    const img = t.logo ? `${SITE}/og/${kind}/${m[2]}` : `${SITE}/icons/icon-512.png`;
+    // The team's own logo, never the app's. No logo: no picture, so the preview is the team name alone.
+    const img = t.logo ? `${SITE}/og/${kind}/${m[2]}` : "";
+    const site = [t.school, t.mascot].map(clean).filter(Boolean).join(" ") || clean(t.name) || "Team";
     const link = `${SITE}/${kind}/${m[2]}`;
     const set = (sel, val) => ({ element(el) { el.setAttribute("content", val); } });
     const rw = new HTMLRewriter()
       .on('meta[property="og:title"]', set(0, x.title))
       .on('meta[property="og:description"]', set(0, x.desc))
-      .on('meta[property="og:image"]', set(0, img))
       .on('meta[name="description"]', set(0, x.desc))
-      .on("title", { element(el) { el.setInnerContent(`${x.title} · The Extra Coach`); } })
+      .on('meta[property="og:site_name"]', set(0, site))
+      .on("title", { element(el) { el.setInnerContent(x.title); } })
       .on("head", { element(el) {
-        el.append(`<meta property="og:url" content="${link}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${x.title.replace(/"/g, "&quot;")}"><meta name="twitter:image" content="${img}">`, { html: true });
+        const q = s => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+        el.append(`<meta property="og:url" content="${link}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${q(x.title)}">` +
+          (img ? `<meta property="og:image" content="${img}"><meta name="twitter:image" content="${img}"><link rel="apple-touch-icon" href="${img}">` : ""), { html: true });
       } });
+    if (img) rw.on('link[rel="icon"]', { element(el) { el.setAttribute("href", img); } });
     if (color) rw.on('meta[name="theme-color"]', set(0, color));
     return rw.transform(new Response(page.body, { status: 200, headers }));
   }

@@ -64,7 +64,7 @@ async function load(){
   document.documentElement.style.setProperty("--team",t.color||"#5b2a86");
   if(t.color2){document.documentElement.style.setProperty("--team2",t.color2);document.documentElement.classList.add("has-c2");}
   document.documentElement.style.setProperty("--team-ink",ink(t.color));
-  document.title=`${SHEET.title} · ${t.name||"Team"}`;
+  teamBrand(t,`${SHEET.title||"Game-day food"} · ${teamFullName(t)}`);
   $("#suEyebrow").textContent=[t.school&&t.mascot?`${t.school} ${t.mascot}`:t.name,t.teamLabel].filter(Boolean).join(" · ");
   $("#suTitle").textContent=SHEET.title||"Game-day food";
   if(t.logo){$("#suLogo").src=t.logo;$("#suLogo").hidden=false;}
