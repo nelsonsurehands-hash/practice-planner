@@ -13,7 +13,10 @@ const ampm=t=>{if(!t)return "";const [h,m]=t.split(":").map(Number);return `${((
 const isoOf=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const yesterday=()=>{const d=new Date();d.setDate(d.getDate()-1);return isoOf(d);};
 /* When the food needs to be there: the game's own time, or the home-game time for home games. */
-function dropOf(g){const d=(SHEET&&SHEET.dropoff)||{home:"16:00"},own=(d.games||{})[g.date];return own||(g.home?(d.home||"16:00"):"");}
+/* Food time: the coach's time for that game, else home-game time, else (away) a set number of minutes before the bus. */
+function dropOf(g){const d=(SHEET&&SHEET.dropoff)||{home:"16:00"},own=(d.games||{})[g.date];if(own)return own;if(g.home)return d.home||"16:00";
+  if(!g.bus)return "";const lead=d.busLead===undefined||d.busLead===null||d.busLead===""||!Number.isFinite(+d.busLead)?45:Math.max(0,+d.busLead);
+  const [h,m]=String(g.bus).split(":").map(Number),x=Math.max(0,h*60+m-lead);return String(Math.floor(x/60)).padStart(2,"0")+":"+String(x%60).padStart(2,"0");}
 const MINE_KEY="cpp:mySignups:"+ID;
 const readMine=()=>{try{return JSON.parse(localStorage.getItem(MINE_KEY)||"[]");}catch{return [];}};
 const writeMine=v=>{try{localStorage.setItem(MINE_KEY,JSON.stringify(v));}catch{}};
@@ -30,7 +33,7 @@ if(DEMO){
       const v=read();if(!v||!v.board||v.board.id!==ID||!v.board.active)return null;
       const t=(JSON.parse(localStorage.getItem("cpp:demoTeams")||"[]")).find(x=>x.id===teamId)||{settings:{}},st=t.settings||{},b=v.board,y=yesterday();
       return {title:b.title,note:b.note,slots:b.slots,dropoff:b.dropoff||{home:"16:00"},team:{name:t.name,color:st.color,color2:st.color2,logo:st.logo,school:st.school,mascot:st.mascot,teamLabel:st.teamLabel},
-        games:(st.games||[]).filter(g=>g.date&&(b.games==="all"||(b.games==="home")===(g.home!==false))).sort((a,c)=>a.date<c.date?-1:1).map(g=>({...g,home:g.home!==false,past:g.date<y,skip:(b.skip||[]).includes(g.date)})),
+        games:(st.games||[]).filter(g=>g.date&&(b.games==="all"||(b.games==="home")===(g.home!==false))).sort((a,c)=>a.date<c.date?-1:1).map(g=>({...g,home:g.home!==false,past:g.date<y,skip:(b.skip||[]).includes(g.date),bus:((st.special||[]).find(x=>x.date===g.date&&x.bus)||{}).bus||null})),
         entries:v.entries.filter(e=>e.game_date>=y).map(e=>({id:e.id,date:e.game_date,slot:e.slot,name:shortName(e.name),item:e.item}))};
     },
     async add(a){

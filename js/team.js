@@ -423,7 +423,8 @@ function foodBlock(g,dis){
   return `<div class="sch-food"><span class="sch-fi">🍕</span>
     <label class="f">Food arrives by<input type="time" data-schfood="${g.date}" value="${esc(d.time)}"${dis}></label>
     <div class="sch-bi">${!d.time?`<span class="sch-sug">Not set: parents see “time coming soon”</span>`:g.home!==false&&!d.custom?`<span>Home game time</span>`:""}
-      ${bus&&bus!==d.time&&!dis?`<button type="button" class="linkbtn" data-schfbus="${g.date}" data-time="${bus}">Use bus time (${hm(bus)})</button>`:""}
+      ${d.fromBus?`<span>${busLead(b)} min before the bus (${hm(d.bus)})</span>`:""}
+      ${d.custom&&d.auto&&d.auto!==d.time&&!dis?`<button type="button" class="linkbtn" data-schfbus="${g.date}" data-time="">Use ${busLead(b)} min before the bus (${hm(d.auto)})</button>`:""}
       ${ent.length?ent.map(e=>`<span class="ok">✓ ${esc(e.name)}${e.item?` · ${esc(e.item)}`:""}</span>`).join(""):`<span class="sch-need">No one signed up yet</span>`}
       ${ent.length&&ent.length<cap?`<span>${cap-ent.length} spot${cap-ent.length===1?"":"s"} open</span>`:""}</div></div>`;
 }
@@ -659,7 +660,8 @@ function boardForm(b){
       <button class="btn" type="button" id="fdAddSlot">+ Add another item</button>
       <p class="help" style="margin:4px 0 0">Each item shows at every game. Spots is how many parents can sign up for that item at one game.</p></fieldset>
     <label class="f fd-hometime">Home games: food delivered by<input type="time" name="homeTime" value="${esc(((b.dropoff||{}).home)||"16:00")}"></label>
-    <p class="help" style="margin:-4px 0 0">Away games each get their own time, set next to the game below.</p>
+    <label class="f fd-hometime">Away games: food arrives<span class="fd-lead"><input type="number" name="busLead" min="0" max="240" step="5" value="${esc(String(busLead(b)))}"> minutes before the bus leaves</span></label>
+    <p class="help" style="margin:-4px 0 0">Uses each game's bus time from the Calendar. You can still type a different time next to any game below.</p>
     <label class="f fd-feed">How many to feed <small>(players + coaches)</small><input type="number" name="feed" min="0" max="99" value="${esc(((b.dropoff||{}).feed)||"")}" placeholder="e.g. 15"></label>
     <label class="f">Note to ${esc(teamShort(team))} parents<textarea name="note" rows="3" placeholder="e.g. Please bring enough for ${Math.max(ROSTER.length,12)} players and coaches. Drop it off with Coach before tip-off.">${esc(b.note||"")}</textarea></label>
     <div class="actions" style="margin:0"><button class="btn primary" type="submit">${food&&food.board?"Save changes":"Create the parent link"}</button></div>
@@ -685,7 +687,7 @@ function renderFoodAll(box){
   foodAll.list.forEach(x=>{if(!x.board||!x.board.active)return;(x.t.settings.games||[]).filter(g=>g.date&&g.date>=today&&(x.board.games==="all"||(x.board.games==="home")===(g.home!==false))&&!(x.board.skip||[]).includes(g.date)).forEach(g=>{(rows[g.date]=rows[g.date]||[]).push({...x,g});});});
   const none=foodAll.list.filter(x=>!x.board||!x.board.active);
   const dates=Object.keys(rows).sort();
-  const block=r=>{const b=r.board,d=dropFor(b,r.g),by={};r.entries.forEach(e=>{if((e.game_date||"").slice(0,10)===r.g.date){(by[e.slot]=by[e.slot]||[]).push(e);}});
+  const block=r=>{const b=r.board,d=dropFor(b,r.g,r.t),by={};r.entries.forEach(e=>{if((e.game_date||"").slice(0,10)===r.g.date){(by[e.slot]=by[e.slot]||[]).push(e);}});
     return `<div class="fd-allteam" style="--tc:${esc((r.t.settings||{}).color||"#5b2a86")}"><div class="fd-allhead"><b>${esc(teamShort(r.t))}</b><span>${r.g.home===false?"at":"vs"} ${esc(r.g.opponent||"Game")}${r.g.time?" · "+hm(r.g.time):""}</span><span>${d.time?`🍎 by ${hm(d.time)}`:"food time not set"}${(b.dropoff||{}).feed?` · feeds ${(b.dropoff||{}).feed}`:""}</span></div>
       ${(b.slots||[]).map(s=>{const l=by[s.name]||[];return `<div class="fd-srow"><div class="fd-sname">${esc(s.name)} <small>${l.length} of ${s.count}</small></div><ul>${l.map(e=>`<li><b>${esc(e.name)}</b>${e.player?` <span>(${esc(e.player)})</span>`:""}${e.item?` · ${esc(e.item)}`:""}${e.contact?`<small>${esc(e.contact)}</small>`:""}</li>`).join("")||`<li class="none">Open</li>`}</ul></div>`;}).join("")}</div>`;};
   box.innerHTML=head+`<p class="help" style="margin:0">Every team's food sign-ups by game day. Each team still has its own link for its parents.</p>
@@ -707,8 +709,8 @@ function renderFood(){
   const open=g=>(b.slots||[]).reduce((n,s)=>n+Math.max(0,s.count-(by[g.date+"|"+s.name]||[]).length),0);
   const gameCard=g=>{const skip=(b.skip||[]).includes(g.date),d=dropFor(b,g),bus=g.home===false?busTimeFor(g.date):"";
     const drop=skip?"":ed?`<div class="fd-drop"><label>Food delivered by <input type="time" data-fddrop="${g.date}" value="${esc(d.time)}"></label>
-        ${g.home!==false&&!d.custom?`<small>home game time</small>`:""}${g.home===false&&!d.time?`<small class="warn">Not set yet: parents see “time coming soon”</small>`:""}
-        ${bus&&bus!==d.time?`<button type="button" class="linkbtn" data-fdbus="${g.date}" data-time="${bus}">Use bus time (${hm(bus)})</button>`:""}</div>`:
+        ${g.home!==false&&!d.custom?`<small>home game time</small>`:""}${d.fromBus?`<small>${busLead(b)} min before the bus (${hm(d.bus)})</small>`:""}${g.home===false&&!d.time?`<small class="warn">Not set yet: add the bus time on the Calendar, or type a time</small>`:""}
+        ${d.custom&&d.auto&&d.auto!==d.time?`<button type="button" class="linkbtn" data-fdbus="${g.date}" data-time="">Use ${busLead(b)} min before the bus (${hm(d.auto)})</button>`:""}</div>`:
       `<div class="fd-drop">${d.time?`Food delivered by <b>${hm(d.time)}</b>`:"Delivery time not set yet"}</div>`;
     return `<article class="fd-game${skip?" skip":""}"><header><b>${esc(longDay(g.date))}</b> <span>${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")}${g.time?" · "+hm(g.time):""}</span>
       <span class="fd-open">${skip?"No sign-ups":open(g)?`${open(g)} open`:"All filled"}</span></header>${drop}
@@ -731,7 +733,15 @@ function renderFood(){
     ${past.length?`<details class="fd-past"><summary>Past games (${past.length})</summary>${past.map(gameCard).join("")}</details>`:""}`;
 }
 /* Delivery time for a game: its own time if set, otherwise the home-game time (home games only). */
-function dropFor(b,g){const d=b.dropoff||{},own=(d.games||{})[g.date];if(own)return {time:own,custom:true};return {time:g.home===false?"":(d.home||"16:00"),custom:false};}
+/* Away games with a bus time: food arrives a set number of minutes before the bus (45 unless the coach changes it). */
+const busLead=b=>{const v=(b.dropoff||{}).busLead;return v===undefined||v===null||v===""||!Number.isFinite(+v)?45:Math.max(0,+v);};
+const minusMin=(hhmm,m)=>{const [h,mi]=String(hhmm).split(":").map(Number);const x=Math.max(0,h*60+mi-m);return String(Math.floor(x/60)).padStart(2,"0")+":"+String(x%60).padStart(2,"0");};
+function dropFor(b,g,t){const d=b.dropoff||{},own=(d.games||{})[g.date];
+  const bus=g.home===false?(t&&t.id!==team.id?(((t.settings||{}).special||[]).find(x=>x.date===g.date&&x.bus)||{}).bus||"":busTimeFor(g.date)):"";
+  const auto=bus?minusMin(bus,busLead(b)):"";
+  if(own)return {time:own,custom:true,auto,bus};
+  if(g.home===false)return {time:auto,custom:false,auto,bus,fromBus:!!auto};
+  return {time:d.home||"16:00",custom:false,auto:"",bus:""};}
 const busTimeFor=iso=>(TRIPS[iso]&&TRIPS[iso].depart)||((SETTINGS.special||[]).find(x=>x.date===iso&&x.bus)||{}).bus||"";
 async function setDrop(date,time,from){
   const b=food.board,d=JSON.parse(JSON.stringify(b.dropoff||{home:"16:00"}));d.games=d.games||{};
@@ -745,7 +755,7 @@ function readBoardForm(f){
   const slots=[...f.querySelectorAll(".fd-slot")].map(r=>({name:r.querySelector("[data-slotname]").value.trim(),count:Math.max(1,Math.min(20,+r.querySelector("[data-slotcount]").value||1))})).filter(s=>s.name);
   const names=new Set();const uniq=slots.filter(s=>!names.has(s.name.toLowerCase())&&names.add(s.name.toLowerCase()));
   const home=(f.homeTime&&f.homeTime.value)||"16:00";
-  return {dropoff:{...((food&&food.board&&food.board.dropoff)||{}),games:{...(((food&&food.board&&food.board.dropoff)||{}).games||{})},home,feed:Math.max(0,Math.min(99,+((f.feed||{}).value)||0))||undefined},title:f.title.value.trim()||"Game-day food",games:(f.querySelector("[name=games]:checked")||{}).value||"all",note:f.note.value.trim(),slots:uniq};
+  return {dropoff:{...((food&&food.board&&food.board.dropoff)||{}),games:{...(((food&&food.board&&food.board.dropoff)||{}).games||{})},home,busLead:f.busLead&&f.busLead.value!==""?Math.max(0,Math.min(240,+f.busLead.value||0)):45,feed:Math.max(0,Math.min(99,+((f.feed||{}).value)||0))||undefined},title:f.title.value.trim()||"Game-day food",games:(f.querySelector("[name=games]:checked")||{}).value||"all",note:f.note.value.trim(),slots:uniq};
 }
 $("#tm-food").addEventListener("submit",async e=>{
   e.preventDefault();const f=e.target;if(f.id!=="fdForm")return;

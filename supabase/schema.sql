@@ -516,6 +516,8 @@ begin
                                           'home', coalesce((g->>'home')::boolean, true),
                                           'past', (g->>'date') < to_char(current_date - 1, 'YYYY-MM-DD'),
                                           'skip', (g->>'date') = any(b.skip),
+                                          'bus', (select x->>'bus' from jsonb_array_elements(coalesce(t.settings->'special', '[]'::jsonb)) x
+                                                   where x->>'date' = g->>'date' and x ? 'bus' limit 1),
                                           -- other teams from the same school and staff riding the same bus to this game
                                           'with', (select jsonb_agg(jsonb_build_object('team', coalesce(o.settings->>'teamLabel', o.name),
                                                      'signups', coalesce((select jsonb_agg(jsonb_build_object('slot', e.slot,

@@ -1405,3 +1405,5 @@ body:has(#screen-landing:not([hidden])){padding:0;max-width:none;background:#0a1
 .lib-row b{display:block;font-size:15px}
 .lib-row small{color:var(--muted);font-size:13px}
 .lib-row select{flex:0 1 220px;min-width:0}
+.fd-lead{display:flex;align-items:center;gap:8px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--ink)}
+.fd-lead input{width:80px;flex:none}
