@@ -181,6 +181,38 @@ function addClassForm(g){
     <div class="actions" style="margin:0"><button class="btn primary" type="submit">Create team</button><button class="btn" type="button" data-addclass="">Cancel</button></div>
     <div class="msg" data-addmsg></div></form>`;
 }
+/* One library: a team can use another team's drills, plays and/or practice plans. */
+const LIBK=[["drills","Drill library"],["plays","Plays"],["plans","Practice plans"]];
+const tLabel=t=>(t.settings||{}).teamLabel||t.name;
+function libraryHTML(){
+  if(teams.length<2)return "";
+  const mine=(team.settings||{}).library||{},may=!HOSTED||PERM.staff;
+  const users=k=>teams.filter(t=>t.id!==team.id&&((t.settings||{}).library||{})[k]===team.id).map(tLabel);
+  const rows=LIBK.map(([k,label])=>{const opts=teams.filter(t=>t.id!==team.id&&!((t.settings||{}).library||{})[k]&&(!HOSTED||permsFor(t.role,t.perms).staff));
+    const cur=mine[k]&&teams.find(t=>t.id===mine[k]),u=users(k);
+    return `<div class="lib-row"><div><b>${label}</b><small>${cur?`Same as ${esc(tLabel(cur))}: changes show on both teams`:u.length?`Shared with ${esc(u.join(" & "))}`:"This team's own"}</small></div>
+      ${may&&!u.length?`<select data-lib="${k}" aria-label="${label} for ${esc(tLabel(team))}"><option value="">This team's own</option>${opts.map(t=>`<option value="${t.id}"${mine[k]===t.id?" selected":""}>Use ${esc(tLabel(t))}'s</option>`).join("")}${cur&&!opts.some(t=>t.id===cur.id)?`<option value="${cur.id}" selected>Use ${esc(tLabel(cur))}'s</option>`:""}</select>`:""}</div>`;}).join("");
+  const others=teams.filter(t=>t.id!==team.id&&(!HOSTED||permsFor(t.role,t.perms).staff)&&!LIBK.some(([k])=>((t.settings||{}).library||{})[k]));
+  const allSame=LIBK.every(([k])=>mine[k]&&mine[k]===mine.drills);
+  return `<div class="tm-card lib-card"><h3 class="tm-h">Drills, plays &amp; practice plans</h3>
+    <p class="help" style="margin-top:0">Coach two teams that practice together? Have ${esc(tLabel(team))} use another team's drill library, plays and practice plans. One set, kept in sync on both teams.</p>
+    ${rows}
+    ${may&&!allSame&&others.length&&!LIBK.some(([k])=>users(k).length)?`<div class="actions" style="margin:10px 0 0">${others.slice(0,3).map(t=>`<button class="btn" type="button" data-liball="${t.id}">Use ${esc(tLabel(t))}'s for all three</button>`).join("")}</div>`:""}
+    <p class="msg" id="libMsg"></p>
+    <p class="help" style="margin:6px 0 0">Switching back to "This team's own" brings back what ${esc(tLabel(team))} had before. Nothing is deleted.</p></div>`;
+}
+async function setLibrary(next){
+  const st=JSON.parse(JSON.stringify(team.settings||{}));
+  const lib={...(st.library||{}),...next};Object.keys(lib).forEach(k=>{if(!lib[k])delete lib[k];});
+  if(Object.keys(lib).length)st.library=lib;else delete st.library;
+  const m=$("#libMsg");if(m)msg(m,"Saving…");
+  try{await saveSettings(st);}catch(err){
+    if(m)msg(m,/library|function|does not exist/i.test(err.message||"")&&!/manages/i.test(err.message||"")?"Sharing needs one database step: run supabase/shared-library.sql in Supabase → SQL Editor.":(err.message||"Couldn't save."),"err");return;}
+  const t=teams.find(x=>x.id===team.id)||team;t.settings=st;await openTeam(t);showPane("teams");
+  showNotice(Object.keys(lib).length?`${tLabel(t)} now shares ${LIBK.filter(([k])=>lib[k]).map(([,l])=>l.toLowerCase()).join(", ")}.`:`${tLabel(t)} is back to its own drills, plays and plans.`);
+}
+$("#tm-teams").addEventListener("change",e=>{const s=e.target.closest("[data-lib]");if(s)setLibrary({[s.dataset.lib]:s.value||null});});
+$("#tm-teams").addEventListener("click",e=>{const b=e.target.closest("[data-liball]");if(b)setLibrary({drills:b.dataset.liball,plays:b.dataset.liball,plans:b.dataset.liball});});
 function renderTeams(){
   const owner=team.role==="owner"||!HOSTED,groups=schoolGroups();
   const row=(t,title)=>{const ts=t.settings||{},on=t.id===team.id,n=(ts.games||[]).length;
@@ -194,7 +226,8 @@ function renderTeams(){
         ${open?addClassForm(g):mayAdd?`<button class="btn" type="button" data-addclass="${esc(g.key)}">+ Add a team at ${esc(g.school)}</button>`:""}
       </section>`;}).join("")}
     <div class="actions" style="margin:12px 0 0"><button class="btn" type="button" id="tmNew">+ Add a different school or club</button>${HOSTED?`<button class="btn" type="button" id="tmJoin">Join another staff with a code</button>`:""}</div>
-    <p class="help">Each grade or level is its own team with its own practice plans, plays, drills, calendar, roster and staff. Switch between them here or from the team button at the top.</p></div>
+    <p class="help">Each grade or level is its own team with its own calendar, roster and staff. Drills, plays and practice plans can be shared between teams (below). Switch between them here or from the team button at the top.</p></div>
+    ${libraryHTML()}
     <div class="tm-card"><h3 class="tm-h">This team</h3>
     <p class="help" style="margin-top:0">Change this team's name and grade/level above. Season, practice days and games are on the Calendar tab; colors and logo are in Settings.</p>
     <div class="actions" style="margin:0"><button class="btn" type="button" data-tab-go="settings">Colors &amp; logo</button><button class="btn" type="button" data-goteam="roster">Roster</button><button class="btn" type="button" data-goteam="staff">Staff</button></div>

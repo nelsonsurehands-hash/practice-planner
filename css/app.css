@@ -1399,3 +1399,9 @@ body:has(#screen-landing:not([hidden])){padding:0;max-width:none;background:#0a1
 /* "Back to app" on parent pages opened inside the installed app */
 .back-to-app{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:6px;width:calc(100% + 32px);margin:-20px -16px 12px;padding:10px 16px;border:0;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:var(--team,var(--accent));font:600 15.5px/1 var(--body);cursor:pointer;min-height:44px;text-align:left}
 .back-to-app span{font-size:28px;line-height:.6;margin-top:-3px}
+
+/* Shared drills, plays & plans */
+.lib-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;padding:10px 0;border-top:1px solid var(--line)}
+.lib-row b{display:block;font-size:15px}
+.lib-row small{color:var(--muted);font-size:13px}
+.lib-row select{flex:0 1 220px;min-width:0}

@@ -238,7 +238,8 @@ async function openTeam(t){
   if(team&&t&&team.id!==t.id&&window.guardPlay&&!guardPlay(()=>openTeam(t)))return;
   team=t;
   if(store)store.close();
-  store=HOSTED?supabaseStore(sb,t.id,user.id):localStore(t.id);
+  const lib=(t.settings||{}).library||{};
+  store=HOSTED?supabaseStore(sb,t.id,user.id,lib):localStore(t.id,lib);
   try{localStorage.setItem("cpp:lastTeam",t.id);}catch{}
   await loadMembers();
   const me=members.find(m=>m.user_id===user.id);
@@ -391,6 +392,7 @@ $("#suCopyFrom").addEventListener("change",()=>{
   updateStarterLabel();copyNote();
 });
 async function readItems(teamId,kind){
+  {const t=teams.find(x=>x.id===teamId),l=t&&((t.settings||{}).library||{})[kind];if(l&&["drills","plays","plans"].includes(kind))teamId=l;}
   if(!HOSTED){try{const m=JSON.parse(localStorage.getItem(`cpp:${teamId}:${kind}`)||"{}");return Object.entries(m);}catch{return [];}}
   const {data,error}=await sb.from("items").select("id,data").eq("team_id",teamId).eq("kind",kind).limit(5000);
   if(error)throw error;return (data||[]).map(r=>[r.id,r.data]);
@@ -1016,9 +1018,9 @@ $("#copyGo").addEventListener("click",async e=>{
   msg($("#copyMsg"),"Copying…");
   try{
     if(HOSTED){
-      const {error}=await sb.from("items").upsert({team_id:target.id,kind,id,data,updated_at:new Date().toISOString(),updated_by:user.id});
+      const {error}=await sb.from("items").upsert({team_id:((target.settings||{}).library||{})[kind]||target.id,kind,id,data,updated_at:new Date().toISOString(),updated_by:user.id});
       if(error)throw error;
-    }else{const s2=localStore(target.id);await s2.bulkSet(kind,[[id,data]]);s2.close();}
+    }else{const s2=localStore(target.id,(target.settings||{}).library);await s2.bulkSet(kind,[[id,data]]);s2.close();}
     msg($("#copyMsg"),`Copied to ${target.name}.`+(kind==="plans"?" It replaces any plan that team had on that date.":""),"ok");
     $("#copyGo").textContent="Copy again";
   }catch(err){msg($("#copyMsg"),"Couldn't copy: "+(err.message||"check your connection"),"err");}
