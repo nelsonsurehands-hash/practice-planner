@@ -20,7 +20,7 @@ const API=()=>HOSTED?{
   async create(v){return this.save({...v,team_id:team.id,created_at:new Date().toISOString()});},
   async update(id,v){const cur=await this.load();return this.save({...cur,...v});}
 };
-let share=null,state="idle";
+let share=null,state="idle",nodbWhy="";
 
 const teamLine=()=>{const s=team.settings||{};return [s.school&&s.mascot?`${s.school} ${s.mascot}`:team.name,s.teamLabel].filter(Boolean).join(" · ");};
 const showBoxes=(sh,dis)=>`<fieldset class="catpick"><legend>Parents see</legend><div class="exp-pick">
@@ -44,7 +44,7 @@ function render(){
   (dlg?$("#tm-plink"):$("#csBody")).innerHTML="";
   let body="";
   if(state==="loading")body=`<p class="help">Loading…</p>`;
-  else if(state==="nodb")body=`<p class="help">The parent link needs one more database step. In Supabase, open SQL Editor, paste <b>supabase/team-tools.sql</b> and tap Run. Then try again.</p>`;
+  else if(state==="nodb")body=`<p class="help">${nodbWhy==="teams"?"Putting more than one team on a parent link (or the bus-times option) needs one database update: in Supabase, open SQL Editor, paste <b>multi-team-links.sql</b> and tap Run. Your current link still works.":"The parent link needs one more database step. In Supabase, open SQL Editor, paste <b>supabase/team-tools.sql</b> and tap Run. Then try again."}</p>`;
   else if(!share)body=ed?`<p class="help" style="margin-top:0">Make one link for parents. It always shows this calendar as it is right now: when you change a practice or add a game, parents see it the next time they open the link. No account needed.</p>
       ${teamBoxes([],"")}${showBoxes(SHOW_DEFAULT,"")}<div class="actions" style="margin:0"><button class="btn primary" type="button" data-csact="make">Make the parent link</button></div>`:
       `<p class="help">There's no parent link yet. Ask your head coach to make one.</p>`;
@@ -68,7 +68,7 @@ async function open(asPane){
 }
 async function save(v,ok){
   try{share=share?await API().update(share.id,v):await API().create({id:randId(),show:SHOW_DEFAULT,...v});state="ready";render();if(ok)msg($("#csMsg"),ok,"ok");}
-  catch(e){if(missing(e)){state="nodb";render();}else msg($("#csMsg"),"Not saved: "+(e.message||"check your connection"),"err");}
+  catch(e){if(missing(e)){nodbWhy=/team_ids/i.test((e&&e.message)||"")?"teams":"";state="nodb";render();}else msg($("#csMsg"),"Not saved: "+(e.message||"check your connection"),"err");}
 }
 const readShow=()=>{const o={};box().querySelectorAll("[data-cs]").forEach(x=>o[x.dataset.cs]=x.checked);return o;};
 
