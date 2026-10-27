@@ -73,7 +73,7 @@ ${(ld||[]).map(o=>`<script type="application/ld+json">${JSON.stringify(o).replac
 <body class="sc">
 <header class="sc-top"><div class="sc-wrap">
   <a class="lp-logo" href="/" aria-label="The Extra Coach home"><img src="/brand/mark.svg" alt="" width="36" height="36"><span>The Extra <b>Coach</b></span></a>
-  <nav class="sc-nav" aria-label="Plays and drills"><a href="/basketball/#plays">Plays</a><a href="/basketball/#drills">Drills</a><a class="sc-cta-sm" href="/?from=showcase">Try it free</a></nav>
+  <nav class="sc-nav" aria-label="Plays and drills"><a href="/basketball-play-designer/">Play designer</a><a href="/basketball/#plays">Plays</a><a href="/basketball/#drills">Drills</a><a class="sc-cta-sm" href="/?from=showcase">Try it free</a></nav>
 </div></header>`;
 const foot=`<footer class="sc-foot"><div class="sc-wrap">
   <span class="lp-logo small"><img src="/brand/mark.svg" alt="" width="24" height="24"><span>The Extra <b>Coach</b></span></span>
@@ -84,7 +84,7 @@ const cta=it=>`<aside class="sc-cta">
   <div><p class="sc-eyebrow">Made in The Extra Coach</p>
   <h2>${it.kind==="play"?"Draw your own plays like this":"Put this drill in your next practice"}</h2>
   <p>${it.kind==="play"?"Drag players onto the court, draw cuts, passes and screens, and watch the play run step by step. Share it with your players in one link.":"Build a timed practice plan in minutes: add drills, set the minutes and print it or send it to your staff. Free for coaches."}</p></div>
-  <a class="sc-btn" href="/?from=${it.kind}">Create your team free</a>
+  <a class="sc-btn" href="${it.kind==="play"?"/basketball-play-designer/":"/?from=drill"}">${it.kind==="play"?"Try the play designer":"Create your team free"}</a>
 </aside>`;
 
 function itemPage(it,all){
@@ -161,14 +161,72 @@ ${foot}
 `;
 }
 
+/* ---- the play designer landing page (/basketball-play-designer/) ---- */
+function designerPage(all){
+  const desc="Free basketball play designer that runs in your browser. Draw cuts, passes, dribbles and screens, add man or zone defense, and watch your plays animate step by step. No download.";
+  const faqs=[
+    ["Is the basketball play designer free?","Yes. You can try it on this page without an account, and creating a team in The Extra Coach to save your plays is free."],
+    ["Do I need to download an app?","No. It runs in the browser on iPhone, iPad, Android, Chromebook, Mac and PC. You can also add it to your home screen so it opens like an app."],
+    ["Can my plays animate?","Yes. Every step plays back with players moving, the ball passing and defenders reacting, so players can see the timing, not just the lines."],
+    ["Can I show the play against a defense?","Yes. Turn on man-to-man, 2-3 zone, 3-2 zone or box-and-1, and the defenders move with the ball automatically."],
+    ["Can I share plays with my players?","Yes. Send one link and players can step through or watch every play on their phone without signing up. You can also print plays as a PDF."],
+    ["Does it work for other sports?","Yes. Besides basketball, there are boards for volleyball, soccer, football and baseball or softball."]];
+  const feats=[
+    ["Draw it like a whiteboard","Drag players onto the half court and draw cuts, passes, dribbles and screens with your finger or mouse."],
+    ["Watch it run","Play the whole set step by step. Players move, the ball moves, and you can pause or step back at any point."],
+    ["Add a defense","Show the play against man-to-man, a 2-3 or 3-2 zone, or a box-and-1. Defenders shift with the ball."],
+    ["Reads and options","Number the looks the ball handler has, so players know the first, second and third option."],
+    ["Share in one link","Send your playbook to players and parents. They open it on their phone, no account needed."],
+    ["Print a playbook","Clean black-and-white PDFs of every step, ready for the binder or the bench."]];
+  const ld=[{"@context":"https://schema.org","@type":"SoftwareApplication",name:"The Extra Coach Play Designer",applicationCategory:"SportsApplication",operatingSystem:"Web, iOS, Android, Windows, macOS",
+      offers:{"@type":"Offer",price:"0",priceCurrency:"USD"},description:desc,url:`${SITE}/basketball-play-designer/`},
+    {"@context":"https://schema.org","@type":"FAQPage",mainEntity:faqs.map(([q,a])=>({"@type":"Question",name:q,acceptedAnswer:{"@type":"Answer",text:a}}))}];
+  const blank={tokens:[{id:"o1",kind:"o",n:1,x:250,y:318},{id:"o2",kind:"o",n:2,x:474,y:34},{id:"o3",kind:"o",n:3,x:26,y:34},{id:"o4",kind:"o",n:4,x:170,y:190},{id:"o5",kind:"o",n:5,x:330,y:190},{id:"ball",kind:"ball",x:263,y:305}],actions:[],defense:{type:"man"}};
+  const plays=all.filter(x=>x.kind==="play");
+  return head({title:"Free Basketball Play Designer: Draw & Animate Plays Online | The Extra Coach",desc,canon:"/basketball-play-designer/",ld})+`
+<main class="sc-wrap sc-main">
+  <header class="sc-hero">
+    <p class="sc-eyebrow">Free · No download · Works on any phone</p>
+    <h1>Basketball play designer</h1>
+    <p class="sc-lede">Draw your plays, add a defense and watch them run. The Extra Coach turns the whiteboard into animated plays your players can actually follow. Try it right here: drag from a player to draw a move.</p>
+  </header>
+  <section class="sc-player td" aria-label="Try the play designer">
+    <div class="td-tools" id="tdTools" role="toolbar" aria-label="Drawing tools">
+      ${[["move","Move"],["cut","Cut"],["pass","Pass"],["dribble","Dribble"],["screen","Screen"]].map(([k,l])=>`<button type="button" data-tool="${k}" aria-pressed="${k==="cut"}">${l}</button>`).join("")}
+      <label class="td-def">Defense<select id="tdDef"><option value="none">None</option><option value="man" selected>Man-to-man</option><option value="z23">2-3 zone</option><option value="z32">3-2 zone</option></select></label>
+    </div>
+    <div class="sc-board td-board" id="tdBoard">${svgOf(blank,"sc-svg").replace("<svg ",'<svg style="touch-action:none" ')}</div>
+    <p class="td-hint" id="tdHint" aria-live="polite">Drag from a player to draw a cut.</p>
+    <div class="sc-ctrl"><button class="sc-btn" type="button" id="tdRun">▶ Watch it run</button><span class="td-sec"><button class="td-link" type="button" id="tdUndo">Undo</button><button class="td-link" type="button" id="tdClear">Start over</button></span></div>
+    ${LEGEND}
+  </section>
+  <aside class="sc-cta"><div><p class="sc-eyebrow">Like it?</p><h2>Save your plays and build a playbook</h2>
+    <p>Multi-step plays, options and reads, practice plans, a season calendar and parent sign-ups, shared with your whole staff.</p></div>
+    <a class="sc-btn" href="/?from=designer">Create your team free</a></aside>
+  <section class="sc-sec"><h2>Everything a coach needs to draw up plays</h2>
+    <div class="td-feats">${feats.map(([t,d])=>`<div><h3>${t}</h3><p>${d}</p></div>`).join("")}</div></section>
+  <section class="sc-sec"><h2>See plays made with it</h2><div class="sc-grid">${plays.map(card).join("")}</div>
+    <p class="td-more"><a href="/basketball/">All animated plays and drills ›</a></p></section>
+  <section class="sc-sec td-faq"><h2>Questions coaches ask</h2>${faqs.map(([q,a])=>`<details><summary>${q}</summary><p>${a}</p></details>`).join("")}</section>
+</main>
+${foot}
+<script src="/js/sports.js"></script>
+<script src="/js/board.js"></script>
+<script src="/js/designer-demo.js"></script>
+</body>
+</html>
+`;
+}
+
 /* ---- write it all ---- */
 const out=(rel,html)=>{const p=path.join(ROOT,rel);fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,html);};
 ITEMS.forEach(it=>out(urlOf(it).slice(1)+"index.html",itemPage(it,ITEMS)));
 out("basketball/index.html",hubPage(ITEMS));
+out("basketball-play-designer/index.html",designerPage(ITEMS));
 const today=new Date().toISOString().slice(0,10);
 out("sitemap.xml",`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${["/","/basketball/",...ITEMS.map(urlOf)].map(u=>`  <url><loc>${SITE}${u}</loc><lastmod>${today}</lastmod></url>`).join("\n")}
+${["/","/basketball-play-designer/","/basketball/",...ITEMS.map(urlOf)].map(u=>`  <url><loc>${SITE}${u}</loc><lastmod>${today}</lastmod></url>`).join("\n")}
 </urlset>
 `);
 out("robots.txt",`User-agent: *
