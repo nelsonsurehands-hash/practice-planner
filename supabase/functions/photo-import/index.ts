@@ -265,7 +265,9 @@ async function handle(req: Request): Promise<Response> {
   const out = await res.json().catch(() => ({}));
   if (!res.ok) {
     const m = (out && out.error && out.error.message) || `HTTP ${res.status}`;
-    const friendly = res.status === 401 ? "The Anthropic API key in Supabase isn't valid. Make a new key and update the secret." :
+    // Show which key Supabase is using (its start and last 2 characters only) so it can be compared with the Claude Console list.
+    const shape = `${key.slice(0, 10)}…${key.slice(-2)}, ${key.length} characters`;
+    const friendly = res.status === 401 ? `Anthropic didn't accept the key saved in Supabase (${shape}). Anthropic said: ${m}` :
       /credit|billing|balance/i.test(m) ? "The Anthropic account is out of credits or has hit its spend limit." :
       res.status === 429 || res.status === 529 ? "Claude is busy right now. Try again in a minute." : "Claude couldn't read the photo: " + m;
     return reply(502, { error: friendly });
