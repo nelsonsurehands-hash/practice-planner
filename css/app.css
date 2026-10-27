@@ -45,7 +45,7 @@ h1 span{color:var(--accent)}
 @media (max-width:860px){.plan-grid{grid-template-columns:minmax(0,1fr)}}
 .sheet{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
 .sheet-head{display:grid;grid-template-columns:minmax(0,1.4fr) repeat(2,minmax(0,.7fr));gap:10px}
-@media (max-width:520px){.sheet-head{grid-template-columns:1fr 1fr}.sheet-head .f-date{grid-column:1/-1}}
+@media (max-width:520px){.sheet-head{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.sheet-head .f-date{grid-column:1/-1}}
 label.f,div.f{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);min-width:0}
 input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-width:0;font-size:15px;text-transform:none;letter-spacing:0;font-weight:400}
 textarea{resize:vertical;min-height:70px}
@@ -1489,3 +1489,8 @@ html{touch-action:manipulation}
   .lp-nav .lp-nav-in{display:block;text-align:left;background:none;border:0;color:#eef1fb;font:600 17px "IBM Plex Sans",sans-serif;padding:13px 14px;border-radius:12px;cursor:pointer}
   .lp-nav .lp-nav-in:hover{background:rgba(255,255,255,.08)}
 }
+
+/* iPhone: date and time boxes have a built-in minimum width that pushes past their column. Let them fit like any other box. */
+input[type=time],input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;min-height:42px;line-height:1.25}
+input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0;min-height:1.25em}
+.f{min-width:0}
