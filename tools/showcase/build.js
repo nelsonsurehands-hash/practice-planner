@@ -170,6 +170,7 @@ function designerPage(all){
     ["Can my plays animate?","Yes. Every step plays back with players moving, the ball passing and defenders reacting, so players can see the timing, not just the lines."],
     ["Can I show the play against a defense?","Yes. Turn on man-to-man, 2-3 zone, 3-2 zone or box-and-1, and the defenders move with the ball automatically."],
     ["Can I share plays with my players?","Yes. Send one link and players can step through or watch every play on their phone without signing up. You can also print plays as a PDF."],
+    ["Can I bring in the plays I already have?","Yes. Take a photo of a play on a whiteboard, in a notebook or on a printout and the app draws it for you, one photo per step. You can also import a backup file of plays and drills from another coach."],
     ["Does it work for other sports?","Yes. Besides basketball, there are boards for volleyball, soccer, football and baseball or softball."]];
   const feats=[
     ["Draw it like a whiteboard","Drag players onto the half court and draw cuts, passes, dribbles and screens with your finger or mouse."],
@@ -177,7 +178,8 @@ function designerPage(all){
     ["Add a defense","Show the play against man-to-man, a 2-3 or 3-2 zone, or a box-and-1. Defenders shift with the ball."],
     ["Reads and options","Number the looks the ball handler has, so players know the first, second and third option."],
     ["Share in one link","Send your playbook to players and parents. They open it on their phone, no account needed."],
-    ["Print a playbook","Clean black-and-white PDFs of every step, ready for the binder or the bench."]];
+    ["Print a playbook","Clean black-and-white PDFs of every step, ready for the binder or the bench."],
+    ["Import from a photo","Snap your whiteboard or notebook and the play comes in ready to animate. Schedules and rosters work the same way."]];
   const ld=[{"@context":"https://schema.org","@type":"SoftwareApplication",name:"The Extra Coach Play Designer",applicationCategory:"SportsApplication",operatingSystem:"Web, iOS, Android, Windows, macOS",
       offers:{"@type":"Offer",price:"0",priceCurrency:"USD"},description:desc,url:`${SITE}/basketball-play-designer/`},
     {"@context":"https://schema.org","@type":"FAQPage",mainEntity:faqs.map(([q,a])=>({"@type":"Question",name:q,acceptedAnswer:{"@type":"Answer",text:a}}))}];

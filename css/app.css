@@ -1437,3 +1437,11 @@ html{touch-action:manipulation}
   .mins input{width:46px;height:44px;font-size:17px}
   .block .ctrls .icon{min-width:44px;min-height:44px}
 }
+
+/* homepage: import section */
+.lp-sub{max-width:62ch;margin:14px 0 22px!important;font-size:16.5px}
+@media (min-width:760px){#lp-import .lp-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.lp-mini{list-style:none;display:flex;flex-wrap:wrap;gap:10px 22px;margin:18px 0 0;padding:0;color:var(--lp-ink,#eef1fb);font-weight:600;font-size:15px}
+.lp-mini li{display:flex;align-items:center;gap:10px}
+.lp-mini b{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--lp-orange,#ff7a2f);color:#1a0d02;font:700 14px "IBM Plex Mono",monospace}
+.lp-mini i{font-style:normal;color:var(--lp-glow,#ffb347)}
