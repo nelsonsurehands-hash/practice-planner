@@ -83,8 +83,9 @@ ol.script{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:
 .chip{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:3px;background:var(--sunk);color:var(--muted);margin-left:6px;vertical-align:2px}
 .block .note{margin-top:6px;font-size:13px;padding:5px 8px;min-height:0}
 .ctrls{display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end}
-.mins{display:flex;align-items:center;border:1px solid var(--line);border-radius:6px;overflow:hidden}
-.mins button{border:0;background:var(--sunk);width:28px;height:30px;font-weight:600}
+.mins{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.mins button{border:0;background:var(--sunk);width:34px;height:34px;font-weight:700;font-size:18px;line-height:1;touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.mins button:active{background:var(--accent-soft);color:var(--accent)}
 .mins input{border:0;border-radius:0;width:40px;text-align:center;padding:4px 2px;font-family:var(--mono);background:var(--surface)}
 .icon{border:1px solid var(--line);background:var(--surface);width:30px;height:30px;border-radius:6px;color:var(--muted);line-height:1}
 .icon:hover{color:var(--ink);border-color:var(--muted)}
@@ -1427,3 +1428,12 @@ body:has(#screen-landing:not([hidden])){padding:0;max-width:none;background:#0a1
 .nd-save{display:flex;align-items:center;gap:8px;font-size:14.5px;margin:4px 0 10px}
 .nd-save input{width:auto}
 @media print{.block .drag,.plan-add{display:none}}
+
+/* Phones and tablets: no zooming when tapping buttons quickly or typing in a box, and bigger time steppers */
+html{touch-action:manipulation}
+@media (pointer:coarse){
+  input,select,textarea{font-size:16px}
+  .mins button{width:46px;height:44px;font-size:22px}
+  .mins input{width:46px;height:44px;font-size:17px}
+  .block .ctrls .icon{min-width:44px;min-height:44px}
+}

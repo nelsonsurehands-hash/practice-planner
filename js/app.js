@@ -371,8 +371,22 @@ function addBlock(b){
   cur.blocks.push({id:uid(),notes:"",...b});changed();
 }
 
+/* Press and hold + or − to keep changing the minutes. */
+let holdT=null,holdI=null,held=false;
+const stopHold=()=>{clearTimeout(holdT);clearInterval(holdI);holdT=holdI=null;if(held){changed();setTimeout(()=>{held=false;},50);}};
+$("#script").addEventListener("pointerdown",e=>{
+  const btn=e.target.closest('button[data-act="inc"],button[data-act="dec"]');if(!btn)return;
+  const li=btn.closest(".block"),b=cur.blocks[+li.dataset.i],inp=li.querySelector('[data-act="min"]'),up=btn.dataset.act==="inc";held=false;
+  holdT=setTimeout(()=>{held=true;holdI=setInterval(()=>{
+    if(up){if(totals().left<=0){stopHold();flash("No minutes left. Take time from another drill first.");return;}b.minutes=Math.min(90,b.minutes+1);}
+    else b.minutes=Math.max(1,b.minutes-1);
+    if(inp)inp.value=b.minutes;},110);},420);
+});
+["pointerup","pointercancel","pointerleave"].forEach(ev=>$("#script").addEventListener(ev,e=>{if(holdT||holdI)stopHold();},true));
+$("#script").addEventListener("contextmenu",e=>{if(e.target.closest(".mins"))e.preventDefault();});
 $("#script").addEventListener("click",e=>{
   const btn=e.target.closest("button[data-act]"); if(!btn)return;
+  if(held&&(btn.dataset.act==="inc"||btn.dataset.act==="dec"))return;
   const i=+btn.closest(".block").dataset.i, b=cur.blocks[i], a=btn.dataset.act;
   if(a==="inc"){if(totals().left<=0){flash("No minutes left. Take time from another drill first.");return;}b.minutes=Math.min(90,b.minutes+1);}
   if(a==="dec")b.minutes=Math.max(1,b.minutes-1);
