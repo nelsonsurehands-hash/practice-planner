@@ -263,7 +263,8 @@ function renderPlan(){
     list.innerHTML=cur.blocks.map((b,i)=>{
       const st=t; t+=b.minutes; used+=b.minutes;
       const late=t>e;
-      return `<li class="block${late?" late":""}" data-i="${i}">
+      return `<li class="block${late?" late":""}${PERM.plans&&!READONLY?" can-drag":""}" data-i="${i}">
+        ${PERM.plans&&!READONLY?`<button type="button" class="drag" data-drag aria-label="Drag ${esc(b.name)} to a new spot" title="Drag to move"><span aria-hidden="true"></span></button>`:""}
         <div class="time">${fmt(st)}–${fmt(t)}<small>${b.minutes} min</small></div>
         <div style="min-width:0"><div class="name">${esc(b.name)}${b.category?`<span class="chip">${esc(b.category)}</span>`:""}</div>
           ${coachField(b)}
@@ -379,6 +380,78 @@ $("#script").addEventListener("click",e=>{
   if(a==="down"&&i<cur.blocks.length-1)[cur.blocks[i+1],cur.blocks[i]]=[cur.blocks[i],cur.blocks[i+1]];
   if(a==="del")cur.blocks.splice(i,1);
   changed();
+});
+/* Drag and drop: hold the grip on the left of a drill and slide it to its new spot. */
+let drag2=null;
+$("#script").addEventListener("pointerdown",e=>{
+  const h=e.target.closest("[data-drag]");if(!h||!PERM.plans||(e.pointerType==="mouse"&&e.button!==0))return;
+  e.preventDefault();
+  const li=h.closest(".block"),items=[...$("#script").querySelectorAll(".block")];
+  const from=items.indexOf(li);if(from<0)return;
+  const rects=items.map(x=>x.getBoundingClientRect()),gap=items.length>1?(rects[Math.min(1,items.length-1)].top-rects[0].top)||rects[from].height:rects[from].height;
+  drag2={li,h,items,rects,from,to:from,y0:e.clientY,s0:window.scrollY,step:rects[from].height,pid:e.pointerId,timer:null,lastY:e.clientY};
+  try{h.setPointerCapture(e.pointerId);}catch{}
+  li.classList.add("dragging");$("#script").classList.add("is-dragging");
+  if(navigator.vibrate)try{navigator.vibrate(8);}catch{}
+});
+function dragMove(y){
+  const d=drag2;if(!d)return;d.lastY=y;
+  const dy=y-d.y0+(window.scrollY-d.s0);
+  d.li.style.transform=`translateY(${dy}px)`;
+  const mid=d.rects[d.from].top+d.rects[d.from].height/2+dy;
+  let to=d.from;
+  d.rects.forEach((r,i)=>{if(i===d.from)return;const m=r.top+r.height/2;if(i<d.from&&mid<m)to=Math.min(to,i);if(i>d.from&&mid>m)to=Math.max(to,i);});
+  d.to=to;
+  d.items.forEach((x,i)=>{if(i===d.from)return;let sh=0;if(d.from<to&&i>d.from&&i<=to)sh=-d.step;if(to<d.from&&i>=to&&i<d.from)sh=d.step;x.style.transform=sh?`translateY(${sh}px)`:"";});
+}
+$("#script").addEventListener("pointermove",e=>{
+  const d=drag2;if(!d||e.pointerId!==d.pid)return;e.preventDefault();dragMove(e.clientY);
+  // near the top or bottom of the screen: scroll so long practices can be reordered in one drag
+  const edge=70,vh=window.innerHeight,v=e.clientY<edge?-(edge-e.clientY)/4:e.clientY>vh-edge?(e.clientY-(vh-edge))/4:0;
+  clearInterval(d.timer);d.timer=v?setInterval(()=>{window.scrollBy(0,v);dragMove(d.lastY);},16):null;
+});
+function dragEnd(e,cancel){
+  const d=drag2;if(!d||(e&&e.pointerId!==d.pid))return;drag2=null;clearInterval(d.timer);
+  d.items.forEach(x=>{x.style.transform="";});d.li.classList.remove("dragging");$("#script").classList.remove("is-dragging");
+  if(!cancel&&d.to!==d.from){const [b]=cur.blocks.splice(d.from,1);cur.blocks.splice(d.to,0,b);changed();
+    const moved=$("#script").querySelectorAll(".block")[d.to];if(moved){moved.classList.add("just-moved");setTimeout(()=>moved.classList.remove("just-moved"),700);}}
+}
+$("#script").addEventListener("pointerup",e=>dragEnd(e));
+$("#script").addEventListener("pointercancel",e=>dragEnd(e,true));
+$("#script").addEventListener("keydown",e=>{const h=e.target.closest("[data-drag]");if(!h||!PERM.plans)return;
+  const i=+h.closest(".block").dataset.i,j=e.key==="ArrowUp"?i-1:e.key==="ArrowDown"?i+1:-1;if(j<0||j>=cur.blocks.length)return;
+  e.preventDefault();[cur.blocks[i],cur.blocks[j]]=[cur.blocks[j],cur.blocks[i]];changed();const g=$("#script").querySelectorAll("[data-drag]")[j];if(g)g.focus();});
+
+/* Add straight from the plan: a brand-new drill (saved to the library too, unless unchecked), or jump to the library list. */
+function openNewDrill(){
+  const dlg=$("#newDrillDlg");$("#ndForm").reset();$("#ndMsg").textContent="";
+  const left=totals().left;$("#ndMin").value=Math.max(1,Math.min(10,left>0?left:10));
+  $("#ndCats").innerHTML=CATS.map(c=>`<label><input type="checkbox" value="${esc(c)}"><span>${esc(c)}</span></label>`).join("");
+  dlg.showModal();setTimeout(()=>$("#ndName").focus(),50);
+}
+$("#planNew").addEventListener("click",openNewDrill);
+$("#planLib").addEventListener("click",()=>{const b=document.querySelector(".bench");if(b)b.scrollIntoView({behavior:"smooth",block:"start"});setTimeout(()=>$("#pickSearch").focus({preventScroll:true}),350);});
+$("#ndCancel").addEventListener("click",()=>$("#newDrillDlg").close());
+$("#ndForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const name=titleCase($("#ndName").value.trim());if(!name){$("#ndName").focus();return;}
+  const cs=[...document.querySelectorAll("#ndCats input:checked")].map(x=>x.value),minutes=Math.max(1,Math.min(90,parseInt($("#ndMin").value)||10));
+  const keep=$("#ndKeep").checked;
+  if(keep&&!cs.length){msg($("#ndMsg"),"Pick a category so it's easy to find in the library (or uncheck “save to the drill library”).","err");return;}
+  if(totals().left<=0){msg($("#ndMsg"),"Practice is full. Shorten or remove a drill to make room.","err");return;}
+  let drillId=null;
+  if(keep){
+    const same=drills.find(d=>d.name.toLowerCase()===name.toLowerCase());
+    if(same)drillId=same.id;
+    else{const id=uid()+uid(),body={editedBy:ME.name,name,categories:cs,category:cs[0],minutes,description:"",points:"",createdAt:Date.now()};
+      drills.push({id,...body});sortDrills();drillId=id;
+      if(db&&canWrite){try{await db.collection("drills").doc(id).set(body);}catch(err){handleWriteErr(err);}}
+      renderAllDrills();}
+  }
+  addBlock({drillId,name,category:cs[0]||"",minutes,notes:$("#ndNote").value.trim()});
+  $("#newDrillDlg").close();
+  flash(keep?`${name} added to practice and the drill library.`:`${name} added to practice.`);
+  const last=$("#script").querySelector(".block:last-child");if(last){last.classList.add("just-moved");setTimeout(()=>last.classList.remove("just-moved"),900);}
 });
 $("#script").addEventListener("change",e=>{
   const el=e.target; const li=el.closest(".block"); if(!li)return;
