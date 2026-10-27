@@ -179,7 +179,7 @@ function designerPage(all){
     ["Reads and options","Number the looks the ball handler has, so players know the first, second and third option."],
     ["Share in one link","Send your playbook to players and parents. They open it on their phone, no account needed."],
     ["Print a playbook","Clean black-and-white PDFs of every step, ready for the binder or the bench."],
-    ["Import from a photo","Snap your whiteboard or notebook and the play comes in ready to animate. Schedules and rosters work the same way."]];
+    ["Import from a photo","Snap your whiteboard or notebook and the play comes in ready to animate. Practice plans, schedules and rosters work the same way."]];
   const ld=[{"@context":"https://schema.org","@type":"SoftwareApplication",name:"The Extra Coach Play Designer",applicationCategory:"SportsApplication",operatingSystem:"Web, iOS, Android, Windows, macOS",
       offers:{"@type":"Offer",price:"0",priceCurrency:"USD"},description:desc,url:`${SITE}/basketball-play-designer/`},
     {"@context":"https://schema.org","@type":"FAQPage",mainEntity:faqs.map(([q,a])=>({"@type":"Question",name:q,acceptedAnswer:{"@type":"Answer",text:a}}))}];

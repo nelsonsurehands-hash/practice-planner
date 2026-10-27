@@ -101,6 +101,49 @@ const TOOLS: Record<string, { area: string; tool: Record<string, unknown>; promp
       "Also list special days shown: no school, holidays and breaks (use end for ranges), no practice, tryouts, meetings, extra practices. " +
       "Use 24-hour times. Don't invent games that aren't on the page.",
   },
+  practice: {
+    area: "plans",
+    tool: {
+      name: "save_practice",
+      description: "A practice plan (or a list of drills) from the photo(s), as timed blocks in order.",
+      input_schema: {
+        type: "object",
+        properties: {
+          date: { ...str, description: "YYYY-MM-DD if the plan shows a date, else empty" },
+          start: { ...str, description: "24-hour HH:MM practice start time if shown, else empty" },
+          end: { ...str, description: "24-hour HH:MM practice end time if shown, else empty" },
+          focus: { ...str, description: "The day's focus or theme if written, else empty" },
+          blocks: {
+            type: "array",
+            description: "Every drill or block in order, top to bottom",
+            items: {
+              type: "object",
+              properties: {
+                name: { ...str, description: "Drill or block name as written, cleaned up (e.g. 'Mikan drill', 'Water break')" },
+                minutes: { type: "integer", description: "Length in minutes. Work it out from start times if only times are shown. If not shown at all, estimate a typical length." },
+                category: { ...str, description: "One of the categories listed in the instructions" },
+                match: { ...str, description: "If this is the same drill as one in the coach's library list, that library name exactly as listed; else empty" },
+                notes: { ...str, description: "Coaching points or details written next to it, short" },
+                description: { ...str, description: "How the drill runs, if the photo explains it (for a drill list), else empty" },
+                coach: { ...str, description: "Coach leading it, if written" },
+                guessed: { type: "boolean", description: "true if you estimated the minutes or it was hard to read" },
+              },
+              required: ["name", "minutes"],
+            },
+          },
+          notes: { ...str, description: "Anything the coach should double-check, in one or two short sentences" },
+        },
+        required: ["blocks"],
+      },
+    },
+    prompt: (c) =>
+      `This is a photo of a ${c.sport || "basketball"} practice plan or a list of drills (handwritten, a whiteboard, a printout or a screenshot). Today is ${c.today}. ` +
+      "List every drill or block in order, with its minutes. If the plan shows clock times instead of minutes, work out each block's length from the times. " +
+      "Include breaks (water, stretch) as their own blocks. Keep names as written but fix obvious spelling. " +
+      `Categories to choose from: ${(c.cats as string[] || []).join(", ")}. ` +
+      ((c.library as string[] || []).length ? `The coach's drill library already has: ${(c.library as string[]).join("; ")}. If a block is the same drill (even if worded a little differently), set match to that exact library name. ` : "") +
+      "Don't invent drills that aren't on the page.",
+  },
   play: {
     area: "plays",
     tool: {

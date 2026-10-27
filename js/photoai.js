@@ -7,6 +7,7 @@ const input=document.createElement("input");input.type="file";input.accept="imag
 let job=null;   // {kind, photos, result, used, limit}
 const KIND={roster:{title:"Add players from a photo",tip:"A printed or handwritten roster, a sign-up sheet, or a screenshot. Get the whole list in the picture, flat and in good light."},
   schedule:{title:"Add to the calendar from a photo",tip:"A game schedule, district schedule or school calendar. Up to 4 photos for a schedule that runs across pages."},
+  practice:{title:"Add a practice plan from a photo",tip:"A practice plan on paper, a whiteboard or a screenshot, or a page of drills. Times or minutes for each drill help, but aren't required. Up to 4 photos."},
   play:{title:"Draw a play from photos",tip:"A play on a whiteboard, in a notebook or printed. Numbers for players, X's for defenders. If the play is drawn across several pictures, add one photo per step, in order (up to 6)."}};
 const SETUP=`<p class="help">Reading photos needs the photo reader turned on in Supabase. Head coaches: see <b>supabase/functions/photo-import</b> in the app's files, or ask Claude to walk you through it.</p>`;
 
@@ -21,7 +22,7 @@ function shrink(file){
     im.src=url;
   });
 }
-const MAX={roster:4,schedule:4,play:6};
+const MAX={roster:4,schedule:4,play:6,practice:4};
 function start(kind){
   if(typeof team==="undefined"||!team)return;
   job={kind,photos:[]};input.value="";
@@ -39,7 +40,7 @@ function start(kind){
 function stage(){
   const n=job.photos.length,max=MAX[job.kind];
   show(`<p class="help" style="margin-top:0">${job.kind==="play"?"Add a photo for each step of the play, in order: photo 1 is the start. Claude puts them together as one play.":
-      job.kind==="schedule"?"Add every page of the schedule.":"Add every page of the roster."}</p>
+      job.kind==="schedule"?"Add every page of the schedule.":job.kind==="practice"?"Add every page of the practice plan, in order.":"Add every page of the roster."}</p>
     <ol class="ai-stage">${job.photos.map((ph,i)=>`<li><img src="${ph.url}" alt="Photo ${i+1}"><span class="ai-n">${job.kind==="play"?"Step ":""}${i+1}</span>
       <span class="ai-move">${i?`<button type="button" class="icon" data-mv="${i}" data-dir="-1" aria-label="Move earlier">‹</button>`:""}${i<n-1?`<button type="button" class="icon" data-mv="${i}" data-dir="1" aria-label="Move later">›</button>`:""}<button type="button" class="icon" data-rm="${i}" aria-label="Remove photo">✕</button></span></li>`).join("")}
       ${n<max?`<li class="ai-add"><button type="button" data-ai="pick">＋<span>${job.kind==="play"?"Add the next step":"Add another photo"}</span></button></li>`:""}</ol>
@@ -56,7 +57,8 @@ async function read(){
     <div class="ai-spin" aria-hidden="true"></div><p><b>Reading your photo…</b><br><span class="help">This takes about 10 to 30 seconds.</span></p></div>`);
   const st=SETTINGS||{};
   const context=job.kind==="schedule"?{today:todayISO(),seasonStart:st.seasonStart,seasonEnd:st.seasonEnd,team:[team.name,st.teamLabel].filter(Boolean).join(" ")}:
-    job.kind==="play"?{sport:st.sport||"basketball",players:sp().players,types:sp().playTypes,photos:job.photos.length}:{};
+    job.kind==="play"?{sport:st.sport||"basketball",players:sp().players,types:sp().playTypes,photos:job.photos.length}:
+    job.kind==="practice"?{sport:st.sport||"basketball",today:todayISO(),cats:CATS,library:drills.map(d=>d.name).slice(0,200)}:{};
   try{
     let r;
     if(window.__photoMock)r=await window.__photoMock(job.kind,context);
@@ -199,12 +201,75 @@ function applyPlay(){
   document.querySelector("#view-plays .board-card").scrollIntoView({behavior:"smooth",block:"start"});
 }
 
+/* ---------- practice plan ---------- */
+const hhmm=v=>/^\d{1,2}:\d{2}$/.test(v||"")?v.padStart(5,"0"):"";
+function reviewPractice(){
+  const r=job.result,byName=new Map(drills.map(d=>[d.name.trim().toLowerCase(),d]));
+  const date=/^\d{4}-\d{2}-\d{2}$/.test(r.date||"")?r.date:(cur&&cur.date)||todayISO();
+  const t=practiceTimes(date);
+  job.pr={date,start:hhmm(r.start)||t.start,end:hhmm(r.end)||t.end,focus:r.focus||"",mode:"replace"};
+  job.blocks=(r.blocks||[]).filter(b=>b&&b.name).map(b=>{const m=byName.get(String(b.match||b.name).trim().toLowerCase())||byName.get(String(b.name).trim().toLowerCase());
+    return {name:m?m.name:titleCase(String(b.name).trim()).slice(0,80),minutes:Math.max(1,Math.min(90,parseInt(b.minutes)||10)),category:CATS.includes(b.category)?b.category:(m?(m.categories||[m.category])[0]:CATS[CATS.length-1]),
+      notes:b.notes||"",description:b.description||"",coach:b.coach||"",guessed:!!b.guessed,drill:m||null,brk:/^(water|break|stretch|rest|huddle|talk)\b/i.test(b.name)};});
+  if(!job.blocks.length){show(`<p class="msg err">No drills found in that photo. Try a closer, straight-on picture of the plan.</p>`,`<button class="btn primary" type="button" data-ai="restart">Try another photo</button>`);return;}
+  renderPractice();
+}
+function renderPractice(){
+  const pr=job.pr,have=plans[pr.date]&&plans[pr.date].blocks&&plans[pr.date].blocks.length;
+  const total=job.blocks.reduce((a,b,i)=>a+(dlg.querySelector(`[data-row="${i}"]`)?.checked===false?0:b.minutes),0),avail=Math.max(0,toMin(pr.end)-toMin(pr.start));
+  const newOnes=job.blocks.filter(b=>!b.drill&&!b.brk).length;
+  show(`<p class="help" style="margin-top:0">Check each drill and its minutes against the photo, then add the practice. New drills can go into your drill library too.</p>
+    ${job.result.notes?`<p class="ai-note">${esc(job.result.notes)}</p>`:""}
+    <div class="ai-pr-head"><label class="f">Practice date<input type="date" data-p="date" value="${esc(pr.date)}"></label>
+      <label class="f">Start<input type="time" data-p="start" value="${esc(pr.start)}"></label><label class="f">End<input type="time" data-p="end" value="${esc(pr.end)}"></label>
+      <label class="f ai-pr-focus">Focus<input data-p="focus" value="${esc(pr.focus)}" placeholder="e.g. Press break"></label></div>
+    ${have?`<div class="ai-pr-mode"><span>${esc(longDay(pr.date))} already has a plan:</span><label><input type="radio" name="prmode" value="replace"${pr.mode==="replace"?" checked":""}> Replace it</label><label><input type="radio" name="prmode" value="add"${pr.mode==="add"?" checked":""}> Add these to the end</label></div>`:""}
+    <div class="ai-list">${job.blocks.map((b,i)=>`<div class="ai-row${b.guessed?" unsure":""}">
+      <label class="ai-chk"><input type="checkbox" data-row="${i}" checked><span class="sr">Add</span></label>
+      <div class="ai-fields ai-block">
+        <input data-f="${i}.name" value="${esc(b.name)}" aria-label="Drill name" class="ai-bname">
+        <span class="ai-min"><input type="number" min="1" max="90" data-f="${i}.minutes" value="${b.minutes}" aria-label="Minutes" inputmode="numeric"><small>min</small></span>
+        <select data-f="${i}.category" aria-label="Category">${CATS.map(c=>`<option${c===b.category?" selected":""}>${esc(c)}</option>`).join("")}</select>
+        <small class="ai-flag ${b.drill?"ok":b.brk?"muted":"new"}">${b.drill?"✓ In your drill library":b.brk?"Break: not added to the library":"New drill"}${b.guessed?" · minutes estimated, please check":""}${b.notes?" · "+esc(b.notes):""}</small>
+      </div></div>`).join("")}</div>
+    <p class="ai-pr-sum" id="aiPrSum">${total} of ${avail} min${total>avail?` · ${total-avail} min over: shorten something or change the end time`:""}</p>
+    ${newOnes?`<label class="ai-keep"><input type="checkbox" id="aiKeep" checked> Save the ${newOnes} new drill${newOnes===1?"":"s"} to the drill library</label>`:""}`,
+    `${usage()}<button class="btn" type="button" data-ai="restart">Different photo</button><button class="btn primary" type="button" data-ai="apply">Add practice</button>`);
+  count();
+}
+async function applyPractice(){
+  const pr=job.pr,pick=job.blocks.filter((_,i)=>dlg.querySelector(`[data-row="${i}"]`).checked);if(!pick.length)return;
+  const keep=!dlg.querySelector("#aiKeep")||dlg.querySelector("#aiKeep").checked,now=Date.now();let added=0;
+  const blocks=[];
+  for(const b of pick){
+    let drillId=b.drill?b.drill.id:null;const name=titleCase(String(b.name).trim());
+    if(!drillId&&keep&&!b.brk){
+      const same=drills.find(d=>d.name.toLowerCase()===name.toLowerCase());
+      if(same)drillId=same.id;
+      else{const id=uid()+uid(),body={editedBy:ME.name,name,categories:[b.category],category:b.category,minutes:b.minutes,description:b.description||"",points:b.notes||"",createdAt:now+added,addedFrom:"photo"};
+        drills.push({id,...body});drillId=id;added++;if(db&&canWrite)await db.collection("drills").doc(id).set(body);}
+    }
+    blocks.push({id:uid(),drillId,name,category:b.category,minutes:b.minutes,notes:b.notes||"",...(b.coach?{coach:b.coach}:{})});
+  }
+  if(added){sortDrills();renderAllDrills();}
+  const old=plans[pr.date];
+  const plan={date:pr.date,start:pr.start,end:pr.end,focus:pr.focus||(old&&old.focus)||"",blocks:pr.mode==="add"&&old?[...(old.blocks||[]),...blocks]:blocks,editedBy:ME.name,editedAt:Date.now(),addedFrom:"photo"};
+  plans[pr.date]=plan;
+  if(db&&canWrite)await db.collection("plans").doc(pr.date).set(plan);
+  dlg.close();setTab("plan");
+  const sel=$("#planDate");if(![...sel.options].some(o=>o.value===pr.date))buildDateSelect();
+  sel.value=pr.date;loadPlan(pr.date);if(window.onViewChange)window.onViewChange();
+  showNotice(`Practice for ${longDay(pr.date)} added: ${blocks.length} drill${blocks.length===1?"":"s"}${added?`, ${added} new in your drill library`:""}. Drag to reorder or change any minutes.`);
+}
+
 /* ---------- shared ---------- */
-function review(){({roster:reviewRoster,schedule:reviewSchedule,play:reviewPlay})[job.kind]();}
+function review(){({roster:reviewRoster,schedule:reviewSchedule,play:reviewPlay,practice:reviewPractice})[job.kind]();}
 function count(){
   const b=dlg.querySelector('[data-ai="apply"]');if(!b)return;
   const n=dlg.querySelectorAll(".ai-chk input:checked").length;b.disabled=!n;
-  b.textContent=job.kind==="roster"?`Add ${n} player${n===1?"":"s"}`:`Add ${n} to the calendar`;
+  b.textContent=job.kind==="roster"?`Add ${n} player${n===1?"":"s"}`:job.kind==="practice"?`Add practice (${n} drill${n===1?"":"s"})`:`Add ${n} to the calendar`;
+  if(job.kind==="practice"){const sum=dlg.querySelector("#aiPrSum");if(sum){const t=job.blocks.reduce((a,x,i)=>a+(dlg.querySelector(`[data-row="${i}"]`).checked?(+x.minutes||0):0),0),av=Math.max(0,toMin(job.pr.end)-toMin(job.pr.start));
+    sum.textContent=`${t} of ${av} min`+(t>av?` · ${t-av} min over: shorten something or change the end time`:"");sum.classList.toggle("over",t>av);}}
 }
 dlg.addEventListener("click",async e=>{
   if(e.target===dlg){dlg.close();return;}
@@ -215,7 +280,7 @@ dlg.addEventListener("click",async e=>{
   if(a==="restart"){job.photos=[];job.result=null;input.click();}
   if(a==="read")read();
   if(a==="apply"){b.disabled=true;b.textContent="Saving…";
-    try{if(job.kind==="roster")await applyRoster();else if(job.kind==="schedule")await applySchedule();else applyPlay();}
+    try{if(job.kind==="roster")await applyRoster();else if(job.kind==="schedule")await applySchedule();else if(job.kind==="practice")await applyPractice();else applyPlay();}
     catch(err){b.disabled=false;count();const m=dlg.querySelector(".ai-body");m.insertAdjacentHTML("afterbegin",`<p class="msg err">Not saved: ${esc(err.message||String(err))}</p>`);}}
 });
 dlg.addEventListener("change",e=>{if(e.target.closest(".ai-chk"))count();});
@@ -226,11 +291,15 @@ dlg.addEventListener("click",e=>{
 });
 dlg.addEventListener("input",e=>{
   const f=e.target.closest("[data-f]");if(!f)return;const [k,field]=f.dataset.f.split(".");
+  if(job.kind==="practice"){const b=job.blocks[+k];if(!b)return;b[field]=field==="minutes"?Math.max(1,Math.min(90,parseInt(f.value)||1)):f.value;if(field==="minutes")count();return;}
   if(/^g\d+$/.test(k))job.games[+k.slice(1)][field]=f.value;
   else if(/^d\d+$/.test(k))job.days[+k.slice(1)][field]=f.value;
   else job.rows[+k][field]=f.value;
 });
-dlg.addEventListener("change",e=>{const f=e.target.closest("select[data-f]");if(f)f.dispatchEvent(new Event("input",{bubbles:true}));});
+dlg.addEventListener("change",e=>{const f=e.target.closest("select[data-f]");if(f)f.dispatchEvent(new Event("input",{bubbles:true}));
+  const p=e.target.closest("[data-p]");if(p&&job&&job.pr){job.pr[p.dataset.p]=p.value;if(p.dataset.p==="date"&&p.value){const t=practiceTimes(p.value);if(!job.result.start)job.pr.start=t.start;if(!job.result.end)job.pr.end=t.end;}
+    const keepRows=job.blocks.map((_,i)=>dlg.querySelector(`[data-row="${i}"]`).checked);renderPractice();keepRows.forEach((v,i)=>{const c=dlg.querySelector(`[data-row="${i}"]`);if(c)c.checked=v;});count();}
+  if(e.target.name==="prmode"&&job&&job.pr)job.pr.mode=e.target.value;});
 window.PhotoAI={start};
 document.addEventListener("click",e=>{const b=e.target.closest("[data-photo]");if(b)start(b.dataset.photo);});
 })();
