@@ -8,6 +8,7 @@ const escH=t=>String(t==null?"":t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;"
 /* ---------- homepage ---------- */
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-lp]");if(!b)return;
+  if(window.HOME_PREVIEW){location.href="/";return;}   // signed in and previewing the homepage: go back to the app
   if(typeof HOSTED!=="undefined"&&!HOSTED){location.href=location.pathname;return;}   // demo preview: back into the demo
   show("screen-auth");authTab(b.dataset.lp==="up"?"up":"in");
   setTimeout(()=>{const f=b.dataset.lp==="up"?q("#authName"):q("#authEmail");if(f)f.focus();},50);

@@ -123,6 +123,8 @@ async function init(){
     if(event==="SIGNED_OUT")location.reload();
   });
   const {data:{session}}=await sb.auth.getSession();
+  /* theextracoach.com/?home shows the public homepage even when you're signed in (to see what new coaches see). */
+  if(new URLSearchParams(location.search).has("home")){window.HOME_PREVIEW=!!session;show("screen-landing");return;}
   if(session){history.replaceState(null,"",location.pathname);if(RECOVERY){showNewPassword();return;}afterLogin(session.user);return;}
   if(linkErr)show("screen-auth");else if(JOIN){show("screen-auth");authTab("up");}else showWelcome();
   if(JOIN)showJoinInvite();
