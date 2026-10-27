@@ -6,6 +6,15 @@ const q=s=>document.querySelector(s);
 const escH=t=>String(t==null?"":t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 /* ---------- homepage ---------- */
+/* Menu: on phones it opens as a panel; Features and Import scroll within the homepage. */
+document.addEventListener("click",e=>{
+  const m=e.target.closest("#lpMenu"),nav=q("#lpNav");if(!nav)return;
+  if(m){const open=!nav.classList.contains("open");nav.classList.toggle("open",open);m.setAttribute("aria-expanded",open);return;}
+  const go=e.target.closest("[data-lpgo]");
+  if(go){e.preventDefault();const t=document.getElementById(go.dataset.lpgo);if(t)t.scrollIntoView({behavior:"smooth",block:"start"});}
+  if(nav.classList.contains("open")&&(go||e.target.closest("#lpNav a,#lpNav button")||!e.target.closest(".lp-top"))){nav.classList.remove("open");const b=q("#lpMenu");if(b)b.setAttribute("aria-expanded","false");}
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){const nav=q("#lpNav");if(nav&&nav.classList.contains("open")){nav.classList.remove("open");q("#lpMenu").setAttribute("aria-expanded","false");q("#lpMenu").focus();}}});
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-lp]");if(!b)return;
   if(window.HOME_PREVIEW){location.href="/";return;}   // signed in and previewing the homepage: go back to the app

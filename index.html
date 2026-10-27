@@ -58,7 +58,18 @@
 <div id="screen-landing" class="lp" hidden>
   <header class="lp-top">
     <a class="lp-logo" href="/" aria-label="The Extra Coach home"><img src="brand/mark.svg" alt="" width="40" height="40"><span>The Extra <b>Coach</b></span></a>
-    <button class="lp-btn ghost" type="button" data-lp="in">Sign in</button>
+    <nav class="lp-nav" id="lpNav" aria-label="Site">
+      <a href="#lp-features" data-lpgo="lp-features">Features</a>
+      <a href="#lp-import" data-lpgo="lp-import">Import from a photo</a>
+      <a href="/basketball-play-designer/">Play designer</a>
+      <a href="/basketball/">Plays &amp; drills</a>
+      <button class="lp-nav-in" type="button" data-lp="in">Sign in</button>
+      <button class="lp-btn primary lp-nav-cta" type="button" data-lp="up">Create your team</button>
+    </nav>
+    <div class="lp-top-r">
+      <button class="lp-btn ghost" type="button" data-lp="in">Sign in</button>
+      <button class="lp-menu" type="button" id="lpMenu" aria-expanded="false" aria-controls="lpNav" aria-label="Menu"><span></span><span></span><span></span></button>
+    </div>
   </header>
 
   <section class="lp-hero">

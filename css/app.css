@@ -1463,3 +1463,29 @@ html{touch-action:manipulation}
 .ai-pr-sum.over{color:var(--warn);font-weight:600}
 .ai-keep{display:flex;align-items:center;gap:8px;font-size:14.5px;margin:6px 0 0}.ai-keep input{width:auto}
 .ai-flag.new{color:var(--accent)}.ai-flag.muted{color:var(--muted)}
+
+/* homepage menu */
+.lp-top{position:relative;gap:14px}
+.lp-nav{display:flex;align-items:center;gap:2px;margin-left:auto}
+.lp-nav a{color:var(--lp-mut,#a9b3d1);text-decoration:none;font:600 14.5px "IBM Plex Sans",sans-serif;padding:8px 12px;border-radius:999px;white-space:nowrap;transition:color .15s,background .15s}
+.lp-nav a:hover,.lp-nav a:focus-visible{color:#fff;background:rgba(255,255,255,.08)}
+.lp-nav .lp-nav-cta,.lp-nav .lp-nav-in{display:none}
+.lp-top-r{display:flex;align-items:center;gap:8px}
+.lp-menu{display:none;width:44px;height:44px;border-radius:12px;border:1.5px solid rgba(255,255,255,.3);background:transparent;cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.lp-menu span{display:block;width:18px;height:2px;border-radius:2px;background:#fff;transition:transform .2s,opacity .2s}
+.lp-menu[aria-expanded="true"] span:nth-child(1){transform:translateY(6px) rotate(45deg)}
+.lp-menu[aria-expanded="true"] span:nth-child(2){opacity:0}
+.lp-menu[aria-expanded="true"] span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+@media (max-width:900px){
+  .lp-menu{display:flex}
+  .lp-nav{display:none;position:absolute;z-index:40;top:calc(100% - 6px);left:0;right:0;flex-direction:column;align-items:stretch;gap:2px;padding:10px;border-radius:18px;
+    background:rgba(16,26,62,.97);border:1px solid rgba(255,255,255,.12);box-shadow:0 22px 50px rgba(0,0,0,.45);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  .lp-nav.open{display:flex}
+  .lp-nav a{font-size:17px;padding:13px 14px;border-radius:12px;color:#eef1fb}
+  .lp-nav .lp-nav-cta{display:block;margin-top:6px;text-align:center}
+}
+@media (max-width:560px){
+  .lp-top-r .lp-btn{display:none}
+  .lp-nav .lp-nav-in{display:block;text-align:left;background:none;border:0;color:#eef1fb;font:600 17px "IBM Plex Sans",sans-serif;padding:13px 14px;border-radius:12px;cursor:pointer}
+  .lp-nav .lp-nav-in:hover{background:rgba(255,255,255,.08)}
+}
