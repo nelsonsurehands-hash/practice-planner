@@ -71,6 +71,8 @@ async function read(){
       r=data;
     }
     job.result=r.result||{};job.used=r.used;job.limit=r.limit;
+    /* Claude sometimes sends a list as JSON text ("[{...}]"): turn it back into a list. */
+    Object.keys(job.result).forEach(k=>{const v=job.result[k];if(typeof v==="string"&&/^\s*[\[{]/.test(v)){try{job.result[k]=JSON.parse(v);}catch{}}});
     review();
   }catch(e){
     show(`<p class="msg err">${esc(e.message||String(e))}</p>${e.setup?SETUP:""}`,`<button class="btn" type="button" data-ai="restart">Try another photo</button>${job.photos.length?`<button class="btn" type="button" data-ai="read">Try again</button>`:""}<button class="btn" type="button" data-ai="close">Close</button>`);

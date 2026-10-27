@@ -275,6 +275,12 @@ async function handle(req: Request): Promise<Response> {
   const use = (out.content || []).find((b: { type: string }) => b.type === "tool_use");
   if (!use) return reply(502, { error: "Claude couldn't read anything useful from that photo. Try a clearer, closer picture." });
 
+  // Claude sometimes returns a list as JSON text; send real lists back to the app.
+  const input = use.input as Record<string, unknown>;
+  for (const k of Object.keys(input)) {
+    const v = input[k];
+    if (typeof v === "string" && /^\s*[\[{]/.test(v)) { try { input[k] = JSON.parse(v); } catch { /* keep as text */ } }
+  }
   await admin.from("ai_usage").insert({ team_id: body.team, user_id: user.id, kind: body.kind, photos: images.length });
   return reply(200, { result: use.input, used: used + images.length, limit: LIMIT });
 }
