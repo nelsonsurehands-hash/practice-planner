@@ -800,14 +800,19 @@ async function renderStaff(){
   const codeRow=(label,code,kind,help)=>`<div class="coderow"><div><div class="eyebrow">${label}</div><span class="code">${esc(code||"—")}</span></div>
       <div class="actions" style="margin:0"><button class="btn" data-copycode="${esc(code||"")}">Copy</button>${mgr?`<button class="btn" data-newcode="${kind}">New code</button>`:""}</div>
       <p class="help" style="flex-basis:100%">${help}</p></div>`;
+  const isNew=m=>m.joined_at&&Date.now()-new Date(m.joined_at).getTime()<7*864e5&&m.user_id!==user.id;
   const permUI=m=>{
-    if(m.role==="owner")return `<p class="perm-sum">Can change everything</p>`;
+    if(m.role==="owner")return `<p class="perm-sum">Head coach: can change everything</p>`;
     const p=permsFor(m.role,m.perms),on=AREAS.filter(a=>p[a]);
-    const sum=on.length?"Can change: "+on.map(a=>AREA_LABELS[a].split(/[,&]/)[0].trim().toLowerCase()).join(", "):"View only: can see and print everything, change nothing";
+    const sum=on.length?"Can edit: "+on.map(a=>AREA_LABELS[a].split(/[,&]/)[0].trim().toLowerCase()).join(", "):"View only: can see and print everything, change nothing";
     if(!mgr||!PERMS_DB)return `<p class="perm-sum">${esc(sum)}</p>`;
-    return `<details class="perm-edit"><summary>${esc(sum)}</summary>
-      <div class="perm-presets"><span>Quick set:</span>${Object.entries(PRESETS).map(([k,v])=>`<button class="btn" type="button" data-preset="${k}" data-uid="${m.user_id}">${v.label}</button>`).join("")}</div>
-      <div class="perm-grid">${AREAS.map(a=>`<label><input type="checkbox" data-perm="${a}" data-uid="${m.user_id}"${p[a]?" checked":""}${a==="staff"&&!owner?" disabled":""}> ${AREA_LABELS[a]}</label>`).join("")}</div></details>`;
+    const open=permOpen.has(m.user_id)||(isNew(m)&&!permOpen.has("x"+m.user_id));
+    const preset=Object.keys(PRESETS).find(k=>AREAS.every(a=>!!PRESETS[k].perms[a]===!!p[a]));
+    return `<div class="perm-edit2${open?" open":""}"><div class="perm-line"><p class="perm-sum">${esc(sum)}</p><button class="btn perm-toggle" type="button" data-permopen="${m.user_id}" aria-expanded="${open}">${open?"Done":"Edit access"}</button></div>
+      ${open?`<div class="perm-presets"><span>Quick set:</span>${Object.entries(PRESETS).map(([k,v])=>`<button class="btn${preset===k?" on":""}" type="button" data-preset="${k}" data-uid="${m.user_id}" aria-pressed="${preset===k}">${v.label}</button>`).join("")}</div>
+      <div class="inv-perms" role="group" aria-label="What ${esc(m.display_name||"this coach")} can view or edit">${AREAS.map(a=>{const yn=a==="share"||a==="staff",dis=a==="staff"&&!owner?" disabled":"",onA=!!p[a];
+        return `<div class="inv-prow"><span>${AREA_LABELS[a]}</span><div class="seg inv-pv">${[[0,yn?"No":"View"],[1,yn?"Yes":"Edit"]].map(([v,l])=>`<button type="button" data-mpv="${a}" data-uid="${m.user_id}" data-v="${v}" aria-pressed="${onA===!!v}"${dis}>${l}</button>`).join("")}</div></div>`;}).join("")}
+        <p class="help" style="margin:6px 0 0">Changes save right away and apply the next time they open the app.</p></div>`:""}</div>`;
   };
   if(mgr&&!invLoaded){invLoaded=true;loadInvites();}
   box.innerHTML=(mgr?inviteHTML():"")+(team.role==="viewer"&&!mgr?"":
@@ -822,10 +827,11 @@ async function renderStaff(){
       const roleSel=canSet?`<select data-role="${m.user_id}" aria-label="Role for ${name}">${["owner","coach","viewer"].filter(r=>owner||r!=="owner").map(r=>`<option value="${r}"${r===m.role?" selected":""}>${roleName(r)}</option>`).join("")}</select>`:`<span class="role">${roleName(m.role)}</span>`;
       const title=canSet?`<input data-title="${m.user_id}" value="${esc(m.title||"")}" placeholder="Title (e.g. JV Coach)" aria-label="Title for ${name}">`:`<span class="mtitle">${esc(m.title||"")}</span>`;
       const rm=canSet&&!me?`<button class="icon" data-remove="${m.user_id}" aria-label="Remove ${name}">✕</button>`:"";
-      return `<li class="member"><div class="who"><b>${name}${me?" (you)":""}</b><small>${esc(m.email||"")}</small></div>${title}${roleSel}${rm}<div class="perm-row">${permUI(m)}</div></li>`;}).join("")}</ul>
+      return `<li class="member${isNew(m)?" is-new":""}"><div class="who"><b>${name}${me?" (you)":""}${isNew(m)?` <span class="new-badge">New</span>`:""}</b><small>${esc(m.email||"")}</small></div>${title}${roleSel}${rm}<div class="perm-row">${permUI(m)}</div></li>`;}).join("")}</ul>
     <div class="msg" id="staffMsg"></div>
     <div class="actions" style="margin:0"><button class="btn danger" id="leaveTeam">Leave this team</button></div>`;
 }
+let permOpen=new Set();
 /* Invite link: one tap for a new coach, with their access chosen ahead of time. */
 let INV={access:"assistant",perms:{...PRESETS.assistant.perms},title:"Assistant Coach",one:true,teams:null,url:"",list:[],err:""},invLoaded=false;
 const INV_ACCESS={assistant:{label:"Assistant coach",title:"Assistant Coach"},manager:{label:"Team manager",title:"Team Manager"},view:{label:"View only",title:""},custom:{label:"Custom",title:""},owner:{label:"Head coach",title:"Head Coach"}};
@@ -916,6 +922,10 @@ $("#staffBody").addEventListener("change",e=>{
   if(c.checked)schoolPick.add(c.dataset.scteam);else schoolPick.delete(c.dataset.scteam);
   if(schoolCode){schoolCode=null;renderStaff();}});
 $("#staffBody").addEventListener("click",async e=>{
+  const po=e.target.closest("[data-permopen]");
+  if(po){const id=po.dataset.permopen,wasOpen=po.getAttribute("aria-expanded")==="true";if(wasOpen){permOpen.delete(id);permOpen.add("x"+id);}else{permOpen.add(id);permOpen.delete("x"+id);}renderStaff();return;}
+  const mp=e.target.closest("[data-mpv]");
+  if(mp){const uid=mp.dataset.uid,m=members.find(x=>x.user_id===uid);if(!m)return;const p=permsFor(m.role,m.perms);p[mp.dataset.mpv]=mp.dataset.v==="1";permOpen.add(uid);await savePerms(uid,p);return;}
   const pv=e.target.closest("[data-invpv]");
   if(pv){INV.perms[pv.dataset.invpv]=pv.dataset.v==="1";INV.access=Object.keys(PRESETS).find(k=>AREAS.every(a=>!!PRESETS[k].perms[a]===!!INV.perms[a]))||"custom";invChanged();return;}
   const ia=e.target.closest("[data-invacc]");
@@ -936,7 +946,7 @@ $("#staffBody").addEventListener("click",async e=>{
   if(sc){if(sc.dataset.schoolcode==="new"&&sc.dataset.armed!=="1"){sc.dataset.armed="1";sc.textContent="Old school code stops working. Tap again";return;}
     await getSchoolCode(sc.dataset.schoolcode==="new");return;}
   const pr=e.target.closest("[data-preset]");
-  if(pr){await savePerms(pr.dataset.uid,{...PRESETS[pr.dataset.preset].perms});return;}
+  if(pr){permOpen.add(pr.dataset.uid);await savePerms(pr.dataset.uid,{...PRESETS[pr.dataset.preset].perms});return;}
   const c=e.target.closest("[data-copycode]");
   if(c){try{await navigator.clipboard.writeText(c.dataset.copycode);c.textContent="Copied";}catch{c.textContent=c.dataset.copycode;}setTimeout(()=>c.textContent="Copy",2000);return;}
   const n=e.target.closest("[data-newcode]");

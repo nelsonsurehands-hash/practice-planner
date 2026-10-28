@@ -1522,3 +1522,13 @@ input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and
 .pa-row input:focus{outline:2px solid var(--accent);outline-offset:-2px}
 .plan-add>*{min-width:0;max-width:100%}
 .pa-quick{min-width:0;width:100%}
+/* staff: edit a coach's access after they join */
+.perm-edit2{border-top:1px dashed var(--line);margin-top:6px;padding-top:8px}
+.perm-line{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.perm-line .perm-sum{flex:1 1 200px}
+.perm-toggle{min-height:36px;padding:6px 14px;font-size:14px}
+.perm-edit2.open .perm-toggle{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.perm-edit2 .perm-presets{margin:10px 0 0}
+.perm-presets .btn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.new-badge{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:var(--good-soft);color:var(--good);font:700 11px var(--body);letter-spacing:.04em;text-transform:uppercase;vertical-align:2px}
+.member.is-new{border-color:color-mix(in srgb,var(--good) 45%,var(--line))}
