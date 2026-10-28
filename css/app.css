@@ -1562,3 +1562,15 @@ input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and
 .sq-close{position:absolute;top:6px;right:6px;width:34px;height:34px;border:0;background:none;font-size:16px;color:var(--muted);cursor:pointer}
 .board-card.full #pSeq .sq-head{padding-right:34px}
 #pSeq{position:relative}
+/* Steps and Play through sit above the court and stay on screen while you scroll the play */
+.play-nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;display:flex;flex-direction:column;gap:8px;margin:0 -2px;padding:8px 2px;background:var(--surface);border-bottom:1px solid var(--line)}
+.play-nav .anim-cap:empty{display:none}
+@media (max-width:700px){
+  .play-nav>.steps,.play-nav>.player,.play-nav>.lines{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .play-nav>.steps::-webkit-scrollbar,.play-nav>.player::-webkit-scrollbar,.play-nav>.lines::-webkit-scrollbar{display:none}
+  .play-nav>*>*,.play-nav #pSteps{flex:none;flex-wrap:nowrap}
+  .play-nav .btn,.play-nav .step{white-space:nowrap}
+}
+.board-card.full>.play-nav{display:none}
+.play-nav>.anim-cap{flex-basis:auto;min-height:0}
+.fs-bar>.anim-cap:empty{display:none}

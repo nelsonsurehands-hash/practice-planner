@@ -1284,7 +1284,7 @@ function enterFull(){
   fsMove($("#pEditBtn"),head);fsMove($("#pDoneBtn"),head);fsMove($("#pSave"),head);fsMove($("#pStatus"),head);fsMove($("#pHelp"),head);
   fsMove($("#ptools"),$("#fsTools"));fsMove(document.querySelector("#view-plays .toolbar.edit-only:not(#ptools)"),$("#fsTools"));
   fsMove($("#pSteps").parentNode,$("#fsSteps"));
-  fsMove(document.querySelector("#view-plays .player"),$("#fsPlay"));fsMove($("#pLines"),$("#fsPlay"));
+  fsMove(document.querySelector("#view-plays .player"),$("#fsPlay"));fsMove($("#pLines"),$("#fsPlay"));fsMove($("#pAnimCap"),bar);
   {const o=document.createElement("button");o.type="button";o.className="btn";o.id="fsOrder";o.setAttribute("aria-expanded","false");o.textContent="Order of actions";
    o.addEventListener("click",()=>{const on=card.classList.toggle("show-seq");o.setAttribute("aria-expanded",on);});$("#fsPlay").insertBefore(o,$("#fsPlay").firstChild);}
   fsName();document.body.classList.add("pb-full");card.classList.add("full");
