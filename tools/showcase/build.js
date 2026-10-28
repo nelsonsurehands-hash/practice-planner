@@ -73,12 +73,12 @@ ${(ld||[]).map(o=>`<script type="application/ld+json">${JSON.stringify(o).replac
 <body class="sc">
 <header class="sc-top"><div class="sc-wrap">
   <a class="lp-logo" href="/" aria-label="The Extra Coach home"><img src="/brand/mark.svg" alt="" width="36" height="36"><span>The Extra <b>Coach</b></span></a>
-  <nav class="sc-nav" aria-label="Plays and drills"><a href="/basketball-play-designer/">Play designer</a><a href="/basketball/#plays">Plays</a><a href="/basketball/#drills">Drills</a><a class="sc-cta-sm" href="/?from=showcase">Try it free</a></nav>
+  <nav class="sc-nav" aria-label="Plays and drills"><a href="/basketball-play-designer/">Play designer</a><a href="/basketball/#plays">Plays</a><a href="/basketball/#drills">Drills</a><a href="/basketball-practice-plan-template/">Templates</a><a class="sc-cta-sm" href="/?from=showcase">Try it free</a></nav>
 </div></header>`;
 const foot=`<footer class="sc-foot"><div class="sc-wrap">
   <span class="lp-logo small"><img src="/brand/mark.svg" alt="" width="24" height="24"><span>The Extra <b>Coach</b></span></span>
   <span>Practice plans, animated plays, the season calendar and parent sign-ups in one app for your whole staff.</span>
-  <a href="/basketball/">All plays &amp; drills</a>
+  <span class="sc-foot-links"><a href="/basketball/">Plays &amp; drills</a><a href="/basketball-practice-plan-template/">Practice plan templates</a><a href="/basketball-play-template/">Printable play templates</a></span>
 </div></footer>`;
 const cta=it=>`<aside class="sc-cta">
   <div><p class="sc-eyebrow">Made in The Extra Coach</p>
@@ -151,6 +151,7 @@ function hubPage(all){
     <h1>Basketball plays &amp; drills, animated</h1>
     <p class="sc-lede">Common sets and practice drills you can watch run, step by step. Every diagram is drawn in The Extra Coach, the app coaches use to plan practices, draw plays and share them with their team.</p>
   </header>
+  <section class="sc-sec pt-tiles" aria-label="Free tools"><a href="/basketball-play-designer/"><b>Play designer</b><span>Draw a play and watch it run</span></a><a href="/basketball-practice-plan-template/"><b>Practice plan templates</b><span>60, 90 and 120 minutes, printable</span></a><a href="/basketball-play-template/"><b>Printable play templates</b><span>Blank half courts, 4 or 6 per page</span></a></section>
   <section class="sc-sec" id="plays"><h2>Plays and sets</h2><div class="sc-grid">${plays.map(card).join("")}</div></section>
   <section class="sc-sec" id="drills"><h2>Drills</h2><div class="sc-grid">${drills.map(card).join("")}</div></section>
   ${cta({kind:"play"})}
@@ -220,15 +221,99 @@ ${foot}
 `;
 }
 
+/* ---- free templates: practice plans and printable play sheets ---- */
+const TPL=require("./templates.js");
+const clock=m=>`${Math.floor(m/60)}:${String(m%60).padStart(2,"0")}`;
+const PRINT_JS=`<script>document.addEventListener("click",e=>{const b=e.target.closest("[data-print]");if(!b)return;const t=document.getElementById(b.dataset.print);if(!t)return;
+const clear=()=>{document.body.classList.remove("print-one");document.querySelectorAll(".printing,.print-path").forEach(x=>x.classList.remove("printing","print-path"));};
+clear();t.classList.add("printing");for(let p=t.parentElement;p&&p!==document.body;p=p.parentElement)p.classList.add("print-path");document.body.classList.add("print-one");window.print();});
+window.addEventListener("afterprint",()=>{document.body.classList.remove("print-one");document.querySelectorAll(".printing,.print-path").forEach(x=>x.classList.remove("printing","print-path"));});</script>`;
+function practiceTemplatePage(){
+  const desc="Free basketball practice plan templates: timed 60-minute youth, 90-minute middle school and 2-hour high school plans, plus a blank printable practice plan sheet.";
+  const plans=TPL.plans.map(p=>{let t=0;const total=p.blocks.reduce((a,b)=>a+b[1],0);
+    const rows=p.blocks.map(([n,m,f,l])=>{const s=t;t+=m;return `<tr><td class="pt-time">${clock(s)}–${clock(t)}</td><td><b>${l?`<a href="/basketball/${l}/">${esc(n)}</a>`:esc(n)}</b>${f?`<small>${esc(f)}</small>`:""}</td><td class="pt-min">${m}</td></tr>`;}).join("");
+    return `<section class="pt-plan sc-sec" id="${p.id}"><div class="pt-head"><div><h2>${esc(p.name)}</h2><p class="pt-who">${esc(p.who)} · ${total} minutes · ${p.blocks.length} blocks</p></div>
+      <button class="sc-btn pt-print" type="button" data-print="${p.id}">Print this plan</button></div>
+      <p>${esc(p.summary)}</p>
+      <table class="pt-table"><thead><tr><th>Time</th><th>Drill and focus</th><th>Min</th></tr></thead><tbody>${rows}</tbody></table></section>`;}).join("");
+  const blankRows=Array.from({length:14},()=>`<tr><td></td><td></td><td></td><td></td></tr>`).join("");
+  const ld=[{"@context":"https://schema.org","@type":"FAQPage",mainEntity:TPL.faqs.map(([q,a])=>({"@type":"Question",name:q,acceptedAnswer:{"@type":"Answer",text:a}}))},
+    ...TPL.plans.map(p=>({"@context":"https://schema.org","@type":"HowTo",name:p.name,description:p.summary,totalTime:`PT${p.blocks.reduce((a,b)=>a+b[1],0)}M`,
+      step:p.blocks.map((b,i)=>({"@type":"HowToStep",position:i+1,name:b[0],text:`${b[0]} (${b[1]} min)${b[2]?": "+b[2]:""}`}))}))];
+  return head({title:"Basketball Practice Plan Templates (Free & Printable) | The Extra Coach",desc,canon:"/basketball-practice-plan-template/",ld})+`
+<main class="sc-wrap sc-main">
+  <header class="sc-hero">
+    <p class="sc-eyebrow">Free · Printable · Timed to the minute</p>
+    <h1>Basketball practice plan templates</h1>
+    <p class="sc-lede">Three ready-to-run practice plans by age and length, each timed block by block, plus a blank sheet to print and fill in. Drills link to animated diagrams so you and your assistants know exactly how each one runs.</p>
+    <nav class="pt-toc" aria-label="Plans on this page">${TPL.plans.map(p=>`<a href="#${p.id}">${esc(p.name)}</a>`).join("")}<a href="#blank">Blank printable sheet</a></nav>
+  </header>
+  ${plans}
+  <aside class="sc-cta"><div><p class="sc-eyebrow">Skip the paper</p><h2>Build these in minutes, timed for you</h2>
+    <p>Pick drills from your library, set the minutes, and The Extra Coach fills in the clock, prints a clean copy and shares it with your staff. Already have plans on paper? Snap a photo and it reads them in.</p></div>
+    <a class="sc-btn" href="/?from=practice-template">Create your team free</a></aside>
+  <section class="sc-sec pt-blank" id="blank"><div class="pt-head"><div><h2>Blank practice plan sheet</h2><p class="pt-who">Print it, fill it in, take it to the gym.</p></div>
+      <button class="sc-btn pt-print" type="button" data-print="blank">Print the blank sheet</button></div>
+    <div class="pt-sheet"><div class="pt-sheet-head"><span>Team</span><span>Date</span><span>Start</span><span>End</span></div><div class="pt-sheet-focus"><span>Focus for the day</span></div>
+      <table class="pt-table pt-blanktable"><thead><tr><th>Time</th><th>Drill</th><th>Min</th><th>Coaching points</th></tr></thead><tbody>${blankRows}</tbody></table>
+      <p class="pt-sheet-foot">theextracoach.com · free practice planner and play designer</p></div></section>
+  <section class="sc-sec td-faq"><h2>Practice planning questions</h2>${TPL.faqs.map(([q,a])=>`<details><summary>${q}</summary><p>${a}</p></details>`).join("")}</section>
+  <section class="sc-sec"><h2>Drills in these plans</h2><div class="sc-grid">${ITEMS.filter(x=>x.kind==="drill").map(card).join("")}</div></section>
+</main>
+${foot}
+${PRINT_JS}
+</body>
+</html>
+`;
+}
+function playTemplatePage(){
+  const desc="Free printable basketball play templates: blank half court diagrams, 4 or 6 per page, and a playbook page with notes. Or draw and animate plays free online.";
+  const court=B.boardSVG({tokens:[],actions:[]},"print").replace("<svg ",'<svg class="pt-court" role="img" aria-label="Blank half court" ');
+  const sheet=(id,n,title,cls)=>`<div class="pt-courts ${cls}" id="${id}"><p class="pt-sheet-title">${title}</p>${Array.from({length:n},(_,i)=>`<div class="pt-cell">${court}<span>Play ______________________ · Step ${i+1}</span></div>`).join("")}<p class="pt-sheet-foot">theextracoach.com · draw and animate plays free</p></div>`;
+  const faqs=[["What's the best way to draw basketball plays?","Use a consistent key: numbers for offensive players, X's for defenders, a solid arrow for a cut, a dashed arrow for a pass, a zig-zag for a dribble and a line ending in a bar for a screen. Draw one step per court so players can follow the order."],
+    ["Can I print blank basketball court diagrams?","Yes. Print the half-court sheets on this page, 4 or 6 per page, or the single-court playbook page with room for notes and reads."],
+    ["Is there a free basketball play designer?","Yes. The Extra Coach play designer runs in your browser. Drag players, draw cuts, passes and screens, add a defense and watch the play animate. You can share plays with players in one link."],
+    ["Can I turn my hand-drawn plays into digital plays?","Yes. Take a photo of a play on a whiteboard or in a notebook and The Extra Coach draws it as an animated play you can edit."]];
+  const ld=[{"@context":"https://schema.org","@type":"FAQPage",mainEntity:faqs.map(([q,a])=>({"@type":"Question",name:q,acceptedAnswer:{"@type":"Answer",text:a}}))}];
+  return head({title:"Basketball Play Template: Free Printable Half Court Diagrams | The Extra Coach",desc,canon:"/basketball-play-template/",ld})+`
+<main class="sc-wrap sc-main">
+  <header class="sc-hero">
+    <p class="sc-eyebrow">Free · Printable · Black and white</p>
+    <h1>Basketball play templates</h1>
+    <p class="sc-lede">Clean, to-scale half court diagrams to print and draw on: four or six to a page for step-by-step plays, or one big court with room for reads and notes. Want it to move? Draw the same play in the free play designer and watch it run.</p>
+  </header>
+  <section class="sc-sec"><div class="pt-head"><div><h2>4 half courts per page</h2><p class="pt-who">One step per court: the most common way to draw a set.</p></div><button class="sc-btn pt-print" type="button" data-print="c4">Print 4 per page</button></div>
+    ${sheet("c4",4,"Play: ______________________________  Type: ____________","g4")}</section>
+  <section class="sc-sec"><div class="pt-head"><div><h2>6 half courts per page</h2><p class="pt-who">For longer sets, options and counters.</p></div><button class="sc-btn pt-print" type="button" data-print="c6">Print 6 per page</button></div>
+    ${sheet("c6",6,"Play: ______________________________  Type: ____________","g6")}</section>
+  <section class="sc-sec"><div class="pt-head"><div><h2>Playbook page with notes</h2><p class="pt-who">One big court, plus lines for the reads and coaching points.</p></div><button class="sc-btn pt-print" type="button" data-print="c1">Print playbook page</button></div>
+    <div class="pt-courts g1" id="c1"><p class="pt-sheet-title">Play: ______________________________  Type: ____________  Set: ____________</p><div class="pt-cell">${court}</div>
+      <div class="pt-lines"><b>Reads</b>${"<i></i>".repeat(4)}<b>Coaching points</b>${"<i></i>".repeat(4)}</div><p class="pt-sheet-foot">theextracoach.com · draw and animate plays free</p></div></section>
+  <section class="sc-sec"><h2>Diagram key</h2>${LEGEND}<p class="pt-who">Numbers 1–5 are the offense, X's are the defense.</p></section>
+  <aside class="sc-cta"><div><p class="sc-eyebrow">Make it move</p><h2>Draw it once, watch it run</h2>
+    <p>The free play designer animates every step, adds man or zone defense and shares the playbook with your players in one link. Already drew it on paper? Snap a photo and it comes in ready to edit.</p></div>
+    <a class="sc-btn" href="/basketball-play-designer/">Try the play designer</a></aside>
+  <section class="sc-sec td-faq"><h2>Questions</h2>${faqs.map(([q,a])=>`<details><summary>${q}</summary><p>${a}</p></details>`).join("")}</section>
+  <section class="sc-sec"><h2>Plays drawn with the designer</h2><div class="sc-grid">${ITEMS.filter(x=>x.kind==="play").map(card).join("")}</div></section>
+</main>
+${foot}
+${PRINT_JS}
+</body>
+</html>
+`;
+}
+
 /* ---- write it all ---- */
 const out=(rel,html)=>{const p=path.join(ROOT,rel);fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,html);};
 ITEMS.forEach(it=>out(urlOf(it).slice(1)+"index.html",itemPage(it,ITEMS)));
 out("basketball/index.html",hubPage(ITEMS));
 out("basketball-play-designer/index.html",designerPage(ITEMS));
+out("basketball-practice-plan-template/index.html",practiceTemplatePage());
+out("basketball-play-template/index.html",playTemplatePage());
 const today=new Date().toISOString().slice(0,10);
 out("sitemap.xml",`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${["/","/basketball-play-designer/","/basketball/",...ITEMS.map(urlOf)].map(u=>`  <url><loc>${SITE}${u}</loc><lastmod>${today}</lastmod></url>`).join("\n")}
+${["/","/basketball-play-designer/","/basketball-practice-plan-template/","/basketball-play-template/","/basketball/",...ITEMS.map(urlOf)].map(u=>`  <url><loc>${SITE}${u}</loc><lastmod>${today}</lastmod></url>`).join("\n")}
 </urlset>
 `);
 out("robots.txt",`User-agent: *
