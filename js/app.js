@@ -298,7 +298,7 @@ function renderMeter(s,avail,used){
   const ticks=[];for(let k=0;k<=avail;k+=30)ticks.push(k);if(ticks[ticks.length-1]!==avail)ticks.push(avail);
   $("#mTicks").innerHTML=avail?ticks.map(k=>`<span style="left:${k/scale*100}%">${fmt(s+k)}</span>`).join(""):"";
   if(!msgTimer)$("#mMsg").classList.remove("ok");
-  if(left<0&&!msgTimer)$("#mMsg").textContent=`Booked past ${fmt(s+avail)}. Shorten or remove ${-left} min of drills.`;
+  if(left<0&&!msgTimer)$("#mMsg").textContent=`Booked past ${fmt(s+avail)}. Runs ${-left} min over.`;
   else if(!msgTimer)$("#mMsg").textContent="";
 }
 let msgTimer=null;
@@ -367,8 +367,6 @@ function showNotice(t){const n=$("#notice");n.textContent=t;n.hidden=false;}
 
 function addBlock(b){
   const {left}=totals();
-  if(left<=0){flash("Practice is full. Shorten or remove a drill to make room.");return;}
-  if(b.minutes>left){flash(`${b.name} shortened to ${left} min to fit.`);b={...b,minutes:left};}
   cur.blocks.push({id:uid(),notes:"",...b});changed();
 }
 
@@ -379,7 +377,7 @@ $("#script").addEventListener("pointerdown",e=>{
   const btn=e.target.closest('button[data-act="inc"],button[data-act="dec"]');if(!btn)return;
   const li=btn.closest(".block"),b=cur.blocks[+li.dataset.i],inp=li.querySelector('[data-act="min"]'),up=btn.dataset.act==="inc";held=false;
   holdT=setTimeout(()=>{held=true;holdI=setInterval(()=>{
-    if(up){if(totals().left<=0){stopHold();flash("No minutes left. Take time from another drill first.");return;}b.minutes=Math.min(90,b.minutes+1);}
+    if(up){b.minutes=Math.min(90,b.minutes+1);}
     else b.minutes=Math.max(1,b.minutes-1);
     if(inp)inp.value=b.minutes;},110);},420);
 });
@@ -389,7 +387,7 @@ $("#script").addEventListener("click",e=>{
   const btn=e.target.closest("button[data-act]"); if(!btn)return;
   if(held&&(btn.dataset.act==="inc"||btn.dataset.act==="dec"))return;
   const i=+btn.closest(".block").dataset.i, b=cur.blocks[i], a=btn.dataset.act;
-  if(a==="inc"){if(totals().left<=0){flash("No minutes left. Take time from another drill first.");return;}b.minutes=Math.min(90,b.minutes+1);}
+  if(a==="inc"){b.minutes=Math.min(90,b.minutes+1);}
   if(a==="dec")b.minutes=Math.max(1,b.minutes-1);
   if(a==="up"&&i>0)[cur.blocks[i-1],cur.blocks[i]]=[cur.blocks[i],cur.blocks[i-1]];
   if(a==="down"&&i<cur.blocks.length-1)[cur.blocks[i+1],cur.blocks[i]]=[cur.blocks[i],cur.blocks[i+1]];
@@ -452,7 +450,6 @@ $("#ndForm").addEventListener("submit",async e=>{
   const cs=[...document.querySelectorAll("#ndCats input:checked")].map(x=>x.value),minutes=Math.max(1,Math.min(90,parseInt($("#ndMin").value)||10));
   const keep=$("#ndKeep").checked;
   if(keep&&!cs.length){msg($("#ndMsg"),"Pick a category so it's easy to find in the library (or uncheck “save to the drill library”).","err");return;}
-  if(totals().left<=0){msg($("#ndMsg"),"Practice is full. Shorten or remove a drill to make room.","err");return;}
   let drillId=null;
   if(keep){
     const same=drills.find(d=>d.name.toLowerCase()===name.toLowerCase());
@@ -470,7 +467,7 @@ $("#ndForm").addEventListener("submit",async e=>{
 $("#script").addEventListener("change",e=>{
   const el=e.target; const li=el.closest(".block"); if(!li)return;
   const b=cur.blocks[+li.dataset.i];
-  if(el.dataset.act==="min"){const max=Math.max(1,b.minutes+Math.max(0,totals().left));let v=Math.max(1,Math.min(90,parseInt(el.value)||1));if(v>max){flash(`Only ${max} min fit for ${b.name}.`);v=max;}b.minutes=v;changed();}
+  if(el.dataset.act==="min"){b.minutes=Math.max(1,Math.min(90,parseInt(el.value)||1));changed();}
   if(el.dataset.act==="note"){b.notes=el.value;scheduleSave();}
   if(el.dataset.act==="coach"){if(el.value)b.coach=el.value;else delete b.coach;scheduleSave();}
 });
@@ -509,8 +506,8 @@ function quickAdds(){return Array.isArray(SETTINGS.quickAdds)?SETTINGS.quickAdds
 function quickDrill(q){return (q.drillId&&drills.find(d=>d.id===q.drillId))||drills.find(d=>d.name.toLowerCase()===String(q.name||"").toLowerCase())||null;}
 function renderQuick(){
   const left=cur?totals().left:999;
-  $("#quickBar").innerHTML=quickAdds().map((q,i)=>`<button class="btn" type="button" data-qi="${i}"${left<=0?" disabled":""}>+ ${esc(q.name)}</button>`).join("");
-  const pq=$("#paQuick");if(pq)pq.innerHTML=quickAdds().map((q,i)=>`<button type="button" data-qi="${i}"${left<=0?" disabled":""}>+ ${esc(q.name)}<small>${q.minutes||""}${q.minutes?"m":""}</small></button>`).join("");
+  $("#quickBar").innerHTML=quickAdds().map((q,i)=>`<button class="btn" type="button" data-qi="${i}">+ ${esc(q.name)}</button>`).join("");
+  const pq=$("#paQuick");if(pq)pq.innerHTML=quickAdds().map((q,i)=>`<button type="button" data-qi="${i}">+ ${esc(q.name)}<small>${q.minutes||""}${q.minutes?"m":""}</small></button>`).join("");
   $("#quickEdit").hidden=!PERM.team;
 }
 /* Sticky add bar on the plan: search the library, quick adds (water, running…), new drill, photo. */
@@ -646,10 +643,10 @@ function renderPick(){
   const list=pickCat==="Plays"?[]:drills.filter(d=>(!pickCat||catsOf(d).includes(pickCat))&&(!q||(d.name+" "+catLabel(d)).toLowerCase().includes(q)));
   const plist=(!pickCat||pickCat==="Plays")?[...plays].sort((a,b)=>a.name.localeCompare(b.name)).filter(p=>!q||(p.name+" "+p.type).toLowerCase().includes(q)):[];
   const left=cur?totals().left:999;
-  const pbtn=(attr,name,m)=>left<=0?`<button disabled>Full</button>`:m>left?`<button class="trim" ${attr} aria-label="Add ${esc(name)} for ${left} minutes">Add ${left} min</button>`:`<button ${attr} aria-label="Add ${esc(name)}">Add</button>`;
+  const pbtn=(attr,name,m)=>`<button ${attr} aria-label="Add ${esc(name)}">Add</button>`;
   if($("#quickEditor").hidden)renderQuick();
   $("#picklist").innerHTML=list.length?list.map(d=>{const m=d.minutes||10;
-    const btn=left<=0?`<button disabled>Full</button>`:m>left?`<button class="trim" data-id="${d.id}" aria-label="Add ${esc(d.name)} for ${left} minutes">Add ${left} min</button>`:`<button data-id="${d.id}" aria-label="Add ${esc(d.name)}">Add</button>`;
+    const btn=`<button data-id="${d.id}" aria-label="Add ${esc(d.name)}">Add</button>`;
     return `<div class="pick"><div><b>${esc(d.name)}</b><span>${esc(catsOf(d).join(" · "))} · ${m} min</span></div>${btn}</div>`;}).join("")
     :(plist.length?"":`<div class="empty">${drills.length?"No drills match.":"Your drill library is empty. Add drills in the Drill Library tab."}</div>`);
   $("#picklist").innerHTML+=plist.map(p=>`<div class="pick play"><div><b>${esc(p.name)}</b><span>Play · ${esc(p.type)} · 10 min</span></div>${pbtn(`data-play="${p.id}"`,p.name,10)}</div>`).join("");
