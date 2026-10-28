@@ -7,7 +7,7 @@
 let rsSel=null;   // roster multi-select: a Set of player ids while selecting
 let pane="teams", ROSTER=[], TRIPS={}, unsubs=[], busDate=null, tripTimer=null, needsDb="", rosterEdit=null, food=null;
 try{pane=localStorage.getItem("cpp:tmPane")||"teams";}catch{}
-const can=()=>!!(typeof PERM!=="undefined"&&PERM.schedule);
+const can=()=>!!(typeof PERM!=="undefined"&&PERM.team);   // roster, bus lists, food sign-ups: "Team settings, roster & parent sign-ups"
 const isDbMissing=e=>/items_kind_check|check constraint|signup_boards|does not exist|schema cache/i.test((e&&e.message)||String(e||""));
 const DB_HELP=`<div class="msg err tm-db">This needs one database update. In Supabase, open <b>SQL Editor → New query</b>, paste the contents of <a href="https://raw.githubusercontent.com/nelsonsurehands-hash/practice-planner/main/supabase/team-tools.sql" target="_blank" rel="noopener">supabase/team-tools.sql</a>, and tap <b>Run</b>. Then reload the app.</div>`;
 const byNum=(a,b)=>(parseInt(a.number)||999)-(parseInt(b.number)||999)||String(a.name||"").localeCompare(b.name||"");

@@ -1,8 +1,8 @@
 let SPORT="basketball", CATS=SPORTS.basketball.cats;
 let ME={id:"me",name:"Coach"}, STAFF=[], READONLY=false;   // set by boot.js
 /* What this person may change on the current team (set by boot.js from their role and permissions). */
-const AREAS=["plans","plays","drills","schedule","share","staff"];
-let PERM={plans:true,plays:true,drills:true,schedule:true,share:true,staff:true};
+const AREAS=["plans","plays","drills","schedule","team","share","staff"];
+let PERM={plans:true,plays:true,drills:true,schedule:true,team:true,share:true,staff:true};
 function ago(ts){if(!ts)return "";const m=Math.round((Date.now()-ts)/60000);if(m<1)return "just now";if(m<60)return m+" min ago";const h=Math.round(m/60);if(h<24)return h+" hr ago";const d=Math.round(h/24);return d<7?d+" day"+(d>1?"s":"")+" ago":new Date(ts).toLocaleDateString("en-US",{month:"short",day:"numeric"});}
 function setReadOnly(flag){setPerms(Object.fromEntries(AREAS.map(a=>[a,!flag])));}
 /* View mode for saved plays: opening a play shows it locked so nothing changes by accident.
@@ -510,7 +510,7 @@ function renderQuick(){
   const left=cur?totals().left:999;
   $("#quickBar").innerHTML=quickAdds().map((q,i)=>`<button class="btn" type="button" data-qi="${i}"${left<=0?" disabled":""}>+ ${esc(q.name)}</button>`).join("");
   const pq=$("#paQuick");if(pq)pq.innerHTML=quickAdds().map((q,i)=>`<button type="button" data-qi="${i}"${left<=0?" disabled":""}>+ ${esc(q.name)}<small>${q.minutes||""}${q.minutes?"m":""}</small></button>`).join("");
-  $("#quickEdit").hidden=!PERM.schedule;
+  $("#quickEdit").hidden=!PERM.team;
 }
 /* Sticky add bar on the plan: search the library, quick adds (water, running…), new drill, photo. */
 function paMatches(q){q=q.trim().toLowerCase();if(!q)return [];

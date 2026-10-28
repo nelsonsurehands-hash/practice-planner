@@ -73,14 +73,16 @@ const roleName=r=>({owner:"Head coach",coach:"Coach",viewer:"View only"})[r]||r;
    Head coach: everything. Coach: everything except managing the staff. View only: nothing.
    A head coach (or anyone allowed to manage the staff) can switch any area on or off per person. */
 let PERMS_DB=true;   // false until supabase/roles.sql has been run
-const AREA_LABELS={plans:"Practice plans",plays:"Plays",drills:"Drill library",schedule:"Calendar, games & team settings",share:"Share plays with players",staff:"Manage staff & permissions"};
-const PRESETS={assistant:{label:"Assistant coach",perms:{plans:true,plays:true,drills:true,schedule:true,share:true,staff:false}},
-  manager:{label:"Team manager",perms:{plans:false,plays:false,drills:false,schedule:true,share:false,staff:false}},
-  view:{label:"View only",perms:{plans:false,plays:false,drills:false,schedule:false,share:false,staff:false}}};
+const AREA_LABELS={plans:"Practice plans",plays:"Plays",drills:"Drill library",schedule:"Calendar & games",team:"Team settings, roster & parent sign-ups",share:"Share plays with players",staff:"Manage staff & permissions"};
+const PRESETS={assistant:{label:"Assistant coach",perms:{plans:true,plays:true,drills:true,schedule:true,team:true,share:true,staff:false}},
+  manager:{label:"Team manager",perms:{plans:false,plays:false,drills:false,schedule:true,team:true,share:false,staff:false}},
+  view:{label:"View only",perms:{plans:false,plays:false,drills:false,schedule:false,team:false,share:false,staff:false}}};
 function permsFor(role,perms){
   const base=Object.fromEntries(AREAS.map(a=>[a,role==="owner"||(role==="coach"&&a!=="staff")]));
   if(role==="owner"||!perms)return base;
-  AREAS.forEach(a=>{if(typeof perms[a]==="boolean")base[a]=perms[a];});return base;
+  AREAS.forEach(a=>{if(typeof perms[a]==="boolean")base[a]=perms[a];});
+  if(typeof perms.team!=="boolean"&&typeof perms.schedule==="boolean")base.team=perms.schedule;   // set before team settings had their own switch
+  return base;
 }
 const canEdit=t=>t&&t.role!=="viewer";
 
@@ -615,7 +617,9 @@ window.onSettingsTab=function(force){
   {const f=draft.features||{};$("#sProg").innerHTML=progHTML("sProg",progOf(f));$("#sFeatures").innerHTML=featHTML(f);}
   renderRows();updatePreview();$("#sStatus").textContent="";
   renderStaff();renderAccount();$("#importBox").innerHTML="";
-  document.querySelectorAll(".st-form .st-edit .acc-body :is(input,select,button)").forEach(el=>el.disabled=!PERM.schedule);
+  const CAL_ACC=["acc-schedule","acc-games","acc-special"];
+  document.querySelectorAll(".st-form .st-edit").forEach(sec=>{const ok=CAL_ACC.includes(sec.id)?PERM.schedule:PERM.team;
+    sec.querySelectorAll(".acc-body :is(input,select,button)").forEach(el=>el.disabled=!ok);});
   accSummaries();
 };
 /* App icon choices, previewed in the colors and logo currently on the form. */
@@ -729,7 +733,17 @@ $("#sAddSpecial").addEventListener("click",()=>{draft.special.push({date:"",kind
 /* ---------- other teams' calendars (the All my teams calendar edits several teams) ---------- */
 const teamShort=t=>{const s=t.settings||{};return s.teamLabel||t.name;};
 const canSchedule=t=>!HOSTED||permsFor(t.role,t.perms).schedule;
+/* Calendar & games vs team settings: each person only sends the part they're allowed to change. */
+function limitSettings(t,st){
+  if(!HOSTED)return st;const p=t&&team&&t.id===team.id?PERM:permsFor(t.role,t.perms),old=JSON.parse(JSON.stringify((t&&t.settings)||{}));
+  if(p.schedule&&p.team)return st;
+  const out=p.team?{...st}:{...old};
+  CAL_KEYS.forEach(k=>{const src=p.schedule?st:old;if(src[k]===undefined)delete out[k];else out[k]=src[k];});
+  if(!p.team&&st.library!==undefined)out.library=st.library;
+  return out;
+}
 async function saveTeamSettings(t,st){
+  st=limitSettings(t,st);
   st.games=(st.games||[]).filter(g=>g.date).sort((a,b)=>a.date<b.date?-1:1);
   st.special=(st.special||[]).filter(x=>x.date).sort((a,b)=>a.date<b.date?-1:1);
   if(team&&t.id===team.id)return saveSettings(st);
@@ -738,6 +752,7 @@ async function saveTeamSettings(t,st){
   t.settings=st;teams=teams.map(x=>x.id===t.id?t:x);
 }
 async function saveSettings(st){
+  st=limitSettings(team,st);
   st.games=(st.games||[]).filter(g=>g.date).sort((a,b)=>a.date<b.date?-1:1);
   st.special=(st.special||[]).filter(x=>x.date).sort((a,b)=>a.date<b.date?-1:1);
   const name=[st.school,st.mascot].filter(Boolean).join(" ")||team.name;

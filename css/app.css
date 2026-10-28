@@ -490,7 +490,7 @@ body.pb-full{overflow:hidden}
 
 /* ---------- per-area permissions ---------- */
 .no-plans #view-plan .edit-only,.no-plays #view-plays .edit-only,.no-drills #view-lib .edit-only,
-.no-schedule #view-cal .edit-only,.no-schedule #view-settings .st-edit .edit-only,.no-schedule .set-save,
+.no-schedule #view-cal .edit-only,.no-schedule #view-settings :is(#acc-schedule,#acc-games,#acc-special) .edit-only,.no-team #view-settings :is(#acc-ident,#acc-team,#acc-features) .edit-only,.no-schedule.no-team .set-save,
 .no-share .edit-share,.readonly .edit-share{display:none!important}
 .no-plans .plan-grid,.no-drills .lib-grid{grid-template-columns:minmax(0,1fr)}
 .member{flex-wrap:wrap}

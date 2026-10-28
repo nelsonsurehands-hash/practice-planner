@@ -19,7 +19,7 @@ const reply = (status: number, body: unknown) =>
 const str = { type: "string" };
 const TOOLS: Record<string, { area: string; tool: Record<string, unknown>; prompt: (c: Record<string, unknown>) => string }> = {
   roster: {
-    area: "schedule",
+    area: "team",
     tool: {
       name: "save_roster",
       description: "Every player readable in the photo(s), with parent or guardian contact details when shown.",
