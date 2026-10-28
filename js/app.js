@@ -746,11 +746,11 @@ function renderAllDrills(){renderLib();renderPickCats();renderPick();}
 /* ---------- plays: drawing board + library ---------- */
 function hints(t){
   const n=sp().players, L=sp().tools;
-  return ({move:"Drag players and the ball. Lines attached to a player move with them.",
+  return ({move:"Tap a player to pick what they do (cut, screen, pass…), then tap the spot. Drag to move players and the ball.",
     o:`Tap to place the next player (1–${n}).`,d:`Tap to place the next defender (X1–X${n}).`,
     ball:"Tap a player to give them the ball.",
-    cut:`Drag from a player to draw a ${(L.cut||"move").toLowerCase()}.`,pass:`Tap the player to ${(L.pass||"pass").toLowerCase()} to. Keep tapping players to ${(L.pass||"pass").toLowerCase()} again in the same step.`,
-    dribble:`Drag from the player with the ball to draw a ${(L.dribble||"dribble").toLowerCase()}.`,screen:`Drag from a player to where she sets the ${(L.screen||"screen").toLowerCase()}.`,
+    cut:`Tap a player, then tap where they go. Or drag from a player to draw a curved ${(L.cut||"move").toLowerCase()}.`,pass:`Tap the player to ${(L.pass||"pass").toLowerCase()} to. Keep tapping players to ${(L.pass||"pass").toLowerCase()} again in the same step.`,
+    dribble:`Tap the player with the ball, then tap where they go. Or drag to draw a ${(L.dribble||"dribble").toLowerCase()}.`,screen:`Tap a player, then tap where they set the ${(L.screen||"screen").toLowerCase()}. Or drag from the player.`,
     label:"Tap a player to give them a label, like PG, QB or 1B.",
     look:"Tap teammates in order: 1st look, 2nd look, 3rd look. Looks are passes the ball carrier can make; they don't move the ball.",
     erase:"Tap a player, the ball or a line to remove it."})[t]||"";
@@ -768,7 +768,7 @@ function blankPlay(){const f=Object.keys(sp().forms)[0];return {id:null,name:"",
 
 /* geometry */
 /* editor rendering */
-function renderBoard(){$("#board").innerHTML=boardInner(withDefense(frame(),curDefense()),"screen",temp,false,optionGhost());renderOptBanner(fi);renderLooks();renderSeq();updUndo();}
+function renderBoard(){$("#board").innerHTML=boardInner(withDefense(frame(),curDefense()),"screen",temp,false,optionGhost())+qaRing();renderOptBanner(fi);renderLooks();renderSeq();updUndo();}
 /* On the first step of an option, show the step it branches from as faint lines, so the play stays in view. */
 function optionGhost(){
   const f=frame();if(!f.opt)return null;const L=playLines(play.frames),o=optionOf(play.frames,L,fi);
@@ -806,7 +806,7 @@ function renderEditor(){
   $("#pEditTitle").textContent=play.id?(!PERM.plays||PLAY_LOCK?play.name||"Play":"Edit play"):"New play";
   applyPlayLock();
 }
-function setTool(t){tool=t;document.querySelectorAll("#ptools [data-tool]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.tool===t));$("#pHint").textContent=hints(t);$("#labelBox").hidden=true;}
+function setTool(t){qaClose();tool=t;document.querySelectorAll("#ptools [data-tool]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.tool===t));$("#pHint").textContent=hints(t);$("#labelBox").hidden=true;}
 function pflash(t){$("#pHint").textContent=t;clearTimeout(hintTimer);hintTimer=setTimeout(()=>$("#pHint").textContent=hints(tool),3000);}
 function markDirty(){pdirty=true;$("#pStatus").textContent="Unsaved changes";}
 /* Undo / Redo. Redo keeps what Undo took back, until you change something new or open another play. */
@@ -964,6 +964,8 @@ const board=$("#board");
 board.addEventListener("pointerdown",e=>{
   if(!play||anim||!PERM.plays||PLAY_LOCK)return;
   const p=svgPt(e), fr=frame();
+  if(QA.menu){qaClose();return;}
+  if(QA.type){qaTap(p);return;}
   if(tool==="move"){
     const t=hitTok(p);if(!t)return;
     pushHist();const h=holderOf(fr);
@@ -1014,11 +1016,13 @@ board.addEventListener("pointermove",e=>{
     Object.assign(temp,{x2:p.x,y2:p.y,cx:2*m.x-(s.x+p.x)/2,cy:2*m.y-(s.y+p.y)/2});renderBoard();}
 });
 function endPointer(){
-  if(drag){if(drag.moved){syncPasses(frame());carryForward(fi,drag.before);markDirty();}else{hist.pop();if(redoKept){redo=redoKept;redoKept=null;}updUndo();}drag=null;return;}
+  if(drag){if(drag.moved){syncPasses(frame());carryForward(fi,drag.before);markDirty();}else{hist.pop();if(redoKept){redo=redoKept;redoKept=null;}updUndo();if(drag.t.kind==="o")qaOpen(drag.t);}drag=null;return;}
   if(!temp)return;
   const t=temp;temp=null;
   const s=t.pts[0],e=t.pts[t.pts.length-1];
-  if(t.pts.length<3||dist(s,e)<20){if(t.type==="pass"){tapPass(e);return;}renderBoard();pflash(hints(tool));return;}
+  if(t.pts.length<3||dist(s,e)<20){if(t.type==="pass"){tapPass(e);return;}
+    const who=t.from&&frame().tokens.find(x=>x.id===t.from&&x.kind==="o");if(who&&t.type!=="look"){qaStart(who,t.type);return;}
+    renderBoard();pflash(hints(tool));return;}
   let to=null,end={x:e.x,y:e.y};
   if(t.type==="pass"){
     /* Who catches it: a teammate whose cut ends where you let go, or a teammate standing there.
@@ -1036,6 +1040,56 @@ function endPointer(){
   if(t.type==="pass")pflash(to?`Pass to ${(frame().tokens.find(x=>x.id===to)||{}).n||"player"}: the ball moves to where they catch it. To pass again in this step, draw from that catch spot.`:"Pass to a spot: the ball moves to where you let go.");
 }
 board.addEventListener("pointerup",endPointer);
+
+/* ---------- Tap a player, pick an action, tap the spot ----------
+   With Move: tap a player (no drag) for a menu of what they can do. With Cut, Screen or Dribble:
+   tap a player, then tap where they go. Saves drawing lines by hand; a player's new cut, screen or
+   dribble replaces the one they had in this step. */
+const QA={menu:null,id:null,type:null};
+const QA_LBL={cut:"Cut",screen:"Screen",dribble:"Dribble",pass:"Pass",shot:"Shoot"};
+const QA_VERB={cut:"cuts to",screen:"sets the screen",dribble:"dribbles to",pass:"passes to"};
+const toolOn=k=>{const b=document.querySelector(`#ptools [data-tool="${k}"]`);return !b||!b.hidden;};
+function qaWho(){return QA.id&&frame().tokens.find(x=>x.id===QA.id);}
+function qaRing(){const t=qaWho();if(!t)return "";const d=t;
+  return `<circle cx="${d.x}" cy="${d.y}" r="22" style="fill:none;stroke:var(--accent);stroke-width:3;stroke-dasharray:5 4"/>`;}
+function qaClose(){const had=QA.menu||QA.id;if(QA.menu)QA.menu.remove();QA.menu=null;QA.id=null;QA.type=null;if(had&&play)renderBoard();}
+function qaOpen(t){
+  qaClose();const fr=frame(),has=finalHolder(fr)===t.id,shot=fr.actions.some(a=>a.type==="shot");
+  const opts=[...(has?["dribble","pass",...(shot?[]:["shot"])]:[]),"cut","screen"].filter(k=>k==="shot"||toolOn(k));
+  QA.id=t.id;renderBoard();
+  const m=document.createElement("div");m.className="qa-menu";m.setAttribute("role","menu");
+  m.innerHTML=`<b>${esc(String(t.label||t.n))}</b>`+opts.map(k=>`<button type="button" role="menuitem" data-qa="${k}">${esc((k!=="shot"&&sp().tools[k])||QA_LBL[k])}</button>`).join("")+`<button type="button" class="qa-x" data-qa="x" aria-label="Close">✕</button>`;
+  const fb=$("#boardFrame");fb.appendChild(m);
+  const d=t,pt=board.createSVGPoint();pt.x=d.x;pt.y=d.y;const c=pt.matrixTransform(board.getScreenCTM()),r=fb.getBoundingClientRect();
+  const w=m.offsetWidth,h=m.offsetHeight;let x=c.x-r.left-w/2,y=c.y-r.top-h-30;if(y<6)y=c.y-r.top+30;
+  m.style.left=Math.max(6,Math.min(r.width-w-6,x))+"px";m.style.top=Math.max(6,Math.min(r.height-h-6,y))+"px";
+  QA.menu=m;
+  m.addEventListener("pointerdown",e=>e.stopPropagation());
+  m.addEventListener("click",e=>{const b=e.target.closest("[data-qa]");if(!b)return;const k=b.dataset.qa,who=qaWho();
+    if(k==="x"||!who){qaClose();return;}
+    if(k==="shot"){qaClose();$("#pShot").click();return;}
+    m.remove();QA.menu=null;qaStart(who,k);});
+}
+function qaStart(t,type){
+  if(QA.menu){QA.menu.remove();QA.menu=null;}
+  QA.id=t.id;QA.type=type;renderBoard();
+  const n=String(t.label||t.n);
+  $("#pHint").textContent=type==="pass"?`Tap the teammate ${n} passes to. Tap ${n} again to cancel.`:`Tap where ${n} ${QA_VERB[type]}. Tap ${n} again to cancel.`;
+}
+function qaTap(p){
+  const fr=frame(),t=qaWho(),type=QA.type;
+  if(!t){qaClose();return;}
+  const st=destOf(fr,t.id)||t;
+  if(dist(p,{x:t.x,y:t.y})<22||dist(p,st)<22){qaClose();$("#pHint").textContent=hints(tool);return;}
+  QA.id=null;QA.type=null;
+  if(type==="pass"){tapPass(p);renderBoard();return;}
+  const s0={x:t.x,y:t.y};
+  pushHist();
+  editStep(()=>{fr.actions=fr.actions.filter(a=>!(a.from===t.id&&isMove(a)));
+    fr.actions.push({id:uid(),type,from:t.id,to:null,x1:s0.x,y1:s0.y,cx:(s0.x+p.x)/2,cy:(s0.y+p.y)/2,x2:p.x,y2:p.y});});
+  markDirty();renderBoard();
+  pflash(`${t.label||t.n} ${type==="screen"?"sets a screen":type==="dribble"?"dribbles":"cuts"}. Drag the line to bend it, or tap ${t.label||t.n} again to change it.`);
+}
 board.addEventListener("pointercancel",()=>{drag=null;temp=null;renderBoard();});
 
 /* toolbar + steps */
@@ -1108,7 +1162,7 @@ $("#pClear").addEventListener("click",e=>{
   if(!clearStepArmed){clearStepArmed=true;e.currentTarget.textContent="Tap again to clear lines";setTimeout(()=>{clearStepArmed=false;$("#pClear").textContent="Clear lines";},3000);return;}
   clearStepArmed=false;$("#pClear").textContent="Clear lines";pushHist();editStep(()=>{frame().actions=[];});markDirty();renderBoard();
 });
-$("#pSteps").addEventListener("click",e=>{const b=e.target.closest("[data-step]");if(!b)return;if(anim)stopAnim();fi=+b.dataset.step;renderSteps();renderBoard();});
+$("#pSteps").addEventListener("click",e=>{const b=e.target.closest("[data-step]");if(!b)return;qaClose();if(anim)stopAnim();fi=+b.dataset.step;renderSteps();renderBoard();});
 $("#pShot").addEventListener("click",()=>{
   if(anim)stopAnim();
   const fr=frame(),had=fr.actions.find(a=>a.type==="shot");
@@ -1168,6 +1222,7 @@ function animCaption(k){
 }
 /* line: undefined = the line of the step you're on; "main" = main play; or an option id */
 function startAnim(line){
+  if(QA.id||QA.menu)qaClose();
   if(!play.frames.length)return;
   if(line===undefined&&anim&&anim.paused&&!anim.done){anim.paused=false;anim.last=performance.now();$("#pPlay").innerHTML="&#10074;&#10074; Pause";requestAnimationFrame(tick);return;}
   if(line===undefined&&anim&&!anim.paused){anim.paused=true;$("#pPlay").innerHTML="&#9654; Resume";return;}
@@ -1286,15 +1341,18 @@ function enterFull(){
   const card=document.querySelector("#view-plays .board-card");
   const bar=document.createElement("div");bar.id="fsBar";bar.className="fs-bar";
   bar.innerHTML=`<div class="fs-row fs-head"><button class="btn" type="button" id="fsExit">✕ Exit</button><b class="fs-name" id="fsName"></b><span class="fs-gap"></span></div>
-    <div class="fs-row fs-scroll" id="fsTools"></div><div class="fs-row fs-scroll" id="fsSteps"></div><div class="fs-row fs-scroll" id="fsPlay"></div>`;
+    <div class="fs-row fs-scroll" id="fsTools"></div>`;
   card.insertBefore(bar,card.firstChild);
+  const bot=document.createElement("div");bot.id="fsBot";bot.className="fs-bar fs-bottom";
+  bot.innerHTML=`<div class="fs-row fs-scroll" id="fsSteps"></div><div class="fs-row fs-scroll" id="fsPlay"></div>`;
+  $("#boardFrame").after(bot);
   const head=bar.querySelector(".fs-head");
   {const u=document.createElement("button");u.type="button";u.className="btn edit-only";u.id="fsUndo";u.setAttribute("aria-label","Undo");u.innerHTML='↶<span class="fs-lbl"> Undo</span>';u.addEventListener("click",()=>$("#pUndo").click());head.insertBefore(u,head.querySelector(".fs-gap"));
    const r=document.createElement("button");r.type="button";r.className="btn edit-only";r.id="fsRedo";r.setAttribute("aria-label","Redo");r.innerHTML='↷<span class="fs-lbl"> Redo</span>';r.addEventListener("click",()=>$("#pRedo").click());head.insertBefore(r,head.querySelector(".fs-gap"));updUndo();}
   fsMove($("#pEditBtn"),head);fsMove($("#pDoneBtn"),head);fsMove($("#pSave"),head);fsMove($("#pStatus"),head);fsMove($("#pHelp"),head);
   fsMove($("#ptools"),$("#fsTools"));fsMove(document.querySelector("#view-plays .toolbar.edit-only:not(#ptools)"),$("#fsTools"));
   fsMove($("#pSteps").parentNode,$("#fsSteps"));
-  fsMove(document.querySelector("#view-plays .player"),$("#fsPlay"));fsMove($("#pLines"),$("#fsPlay"));fsMove($("#pAnimCap"),bar);
+  fsMove(document.querySelector("#view-plays .player"),$("#fsPlay"));fsMove($("#pLines"),$("#fsPlay"));fsMove($("#pAnimCap"),bot);
   {const o=document.createElement("button");o.type="button";o.className="btn";o.id="fsOrder";o.setAttribute("aria-expanded","false");o.textContent="Order of actions";
    o.addEventListener("click",()=>{const on=card.classList.toggle("show-seq");o.setAttribute("aria-expanded",on);});$("#fsPlay").insertBefore(o,$("#fsPlay").firstChild);}
   fsName();document.body.classList.add("pb-full");card.classList.add("full");
@@ -1305,7 +1363,7 @@ function enterFull(){
 function exitFull(){
   if(!FS.on)return;FS.on=false;
   FS.moved.reverse().forEach(([el,mark])=>{mark.parentNode.insertBefore(el,mark);mark.remove();});FS.moved=[];
-  const bar=$("#fsBar");if(bar)bar.remove();
+  const bar=$("#fsBar");if(bar)bar.remove();{const b2=$("#fsBot");if(b2)b2.remove();}
   document.body.classList.remove("pb-full");document.querySelector("#view-plays .board-card").classList.remove("full","show-seq");FS.auto=false;
   try{if(document.fullscreenElement)document.exitFullscreen();}catch{}
   document.querySelector("#view-plays .board-card").scrollIntoView({block:"start"});
