@@ -768,7 +768,7 @@ function blankPlay(){const f=Object.keys(sp().forms)[0];return {id:null,name:"",
 
 /* geometry */
 /* editor rendering */
-function renderBoard(){$("#board").innerHTML=boardInner(withDefense(frame(),curDefense()),"screen",temp,false,optionGhost());renderOptBanner(fi);renderLooks();renderSeq();}
+function renderBoard(){$("#board").innerHTML=boardInner(withDefense(frame(),curDefense()),"screen",temp,false,optionGhost());renderOptBanner(fi);renderLooks();renderSeq();updUndo();}
 /* On the first step of an option, show the step it branches from as faint lines, so the play stays in view. */
 function optionGhost(){
   const f=frame();if(!f.opt)return null;const L=playLines(play.frames),o=optionOf(play.frames,L,fi);
@@ -809,7 +809,13 @@ function renderEditor(){
 function setTool(t){tool=t;document.querySelectorAll("#ptools [data-tool]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.tool===t));$("#pHint").textContent=hints(t);$("#labelBox").hidden=true;}
 function pflash(t){$("#pHint").textContent=t;clearTimeout(hintTimer);hintTimer=setTimeout(()=>$("#pHint").textContent=hints(tool),3000);}
 function markDirty(){pdirty=true;$("#pStatus").textContent="Unsaved changes";}
-function pushHist(){hist.push(JSON.stringify({frames:play.frames,fi}));if(hist.length>60)hist.shift();}
+/* Undo / Redo. Redo keeps what Undo took back, until you change something new or open another play. */
+let redo=[],redoFor=null,redoKept=null;
+function pushHist(){hist.push(JSON.stringify({frames:play.frames,fi}));if(hist.length>60)hist.shift();redoKept=redo;redo=[];updUndo();}
+function redoList(){if(redoFor!==play){redo=[];redoFor=play;}return redo;}
+function updUndo(){const r=!!(play&&redoList().length),u=!!hist.length;
+  ["#pUndo","#fsUndo"].forEach(q=>{const b=$(q);if(b)b.disabled=!u;});["#pRedo","#fsRedo"].forEach(q=>{const b=$(q);if(b)b.disabled=!r;});}
+function applyHist(h){play.frames=h.frames;fi=Math.min(h.fi,play.frames.length-1);markDirty();renderSteps();renderBoard();}
 
 /* pointer handling */
 function svgPt(e){const svg=$("#board"),p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(svg.getScreenCTM().inverse());return {x:Math.max(VB.x+8,Math.min(VB.x+VB.w-8,q.x)),y:Math.max(VB.y+8,Math.min(VB.y+VB.h-8,q.y))};}
@@ -1008,7 +1014,7 @@ board.addEventListener("pointermove",e=>{
     Object.assign(temp,{x2:p.x,y2:p.y,cx:2*m.x-(s.x+p.x)/2,cy:2*m.y-(s.y+p.y)/2});renderBoard();}
 });
 function endPointer(){
-  if(drag){if(drag.moved){syncPasses(frame());carryForward(fi,drag.before);markDirty();}else hist.pop();drag=null;return;}
+  if(drag){if(drag.moved){syncPasses(frame());carryForward(fi,drag.before);markDirty();}else{hist.pop();if(redoKept){redo=redoKept;redoKept=null;}updUndo();}drag=null;return;}
   if(!temp)return;
   const t=temp;temp=null;
   const s=t.pts[0],e=t.pts[t.pts.length-1];
@@ -1092,7 +1098,10 @@ function setDefense(type,chase){
 }
 $("#pDef").addEventListener("change",e=>setDefense(e.target.value));
 $("#pChase").addEventListener("change",e=>setDefense("box1",e.target.value));
-$("#pUndo").addEventListener("click",()=>{if(!hist.length){pflash("Nothing to undo.");return;}const h=JSON.parse(hist.pop());play.frames=h.frames;fi=Math.min(h.fi,play.frames.length-1);markDirty();renderSteps();renderBoard();});
+$("#pUndo").addEventListener("click",()=>{if(!hist.length){pflash("Nothing to undo.");return;}
+  redoList().push(JSON.stringify({frames:play.frames,fi}));const h=JSON.parse(hist.pop());applyHist(h);});
+$("#pRedo").addEventListener("click",()=>{const r=redoList();if(!r.length){pflash("Nothing to redo.");return;}
+  hist.push(JSON.stringify({frames:play.frames,fi}));const h=JSON.parse(r.pop());applyHist(h);});
 let clearStepArmed=false;
 $("#pClear").addEventListener("click",e=>{
   if(!frame().actions.length){pflash("No lines to clear on this step.");return;}
@@ -1280,7 +1289,8 @@ function enterFull(){
     <div class="fs-row fs-scroll" id="fsTools"></div><div class="fs-row fs-scroll" id="fsSteps"></div><div class="fs-row fs-scroll" id="fsPlay"></div>`;
   card.insertBefore(bar,card.firstChild);
   const head=bar.querySelector(".fs-head");
-  {const u=document.createElement("button");u.type="button";u.className="btn edit-only";u.id="fsUndo";u.textContent="↶ Undo";u.addEventListener("click",()=>$("#pUndo").click());head.insertBefore(u,head.querySelector(".fs-gap"));}
+  {const u=document.createElement("button");u.type="button";u.className="btn edit-only";u.id="fsUndo";u.setAttribute("aria-label","Undo");u.innerHTML='↶<span class="fs-lbl"> Undo</span>';u.addEventListener("click",()=>$("#pUndo").click());head.insertBefore(u,head.querySelector(".fs-gap"));
+   const r=document.createElement("button");r.type="button";r.className="btn edit-only";r.id="fsRedo";r.setAttribute("aria-label","Redo");r.innerHTML='↷<span class="fs-lbl"> Redo</span>';r.addEventListener("click",()=>$("#pRedo").click());head.insertBefore(r,head.querySelector(".fs-gap"));updUndo();}
   fsMove($("#pEditBtn"),head);fsMove($("#pDoneBtn"),head);fsMove($("#pSave"),head);fsMove($("#pStatus"),head);fsMove($("#pHelp"),head);
   fsMove($("#ptools"),$("#fsTools"));fsMove(document.querySelector("#view-plays .toolbar.edit-only:not(#ptools)"),$("#fsTools"));
   fsMove($("#pSteps").parentNode,$("#fsSteps"));
@@ -1302,6 +1312,15 @@ function exitFull(){
 }
 function fsName(){const n=$("#fsName");if(n)n.textContent=(play&&play.name)||"New play";}
 $("#pFull").addEventListener("click",enterFull);
+/* Keyboard: Cmd/Ctrl+Z undoes, Shift+Cmd/Ctrl+Z or Ctrl+Y redoes (not while typing in a box). */
+document.addEventListener("keydown",e=>{
+  if(!(e.metaKey||e.ctrlKey)||e.altKey||!play||!PERM.plays||PLAY_LOCK)return;
+  if(e.target.closest&&e.target.closest("input,textarea,select,[contenteditable]"))return;
+  if(!document.querySelector("#view-plays")||document.querySelector("#view-plays").hidden)return;
+  const k=e.key.toLowerCase();
+  if(k==="z"&&!e.shiftKey){e.preventDefault();$("#pUndo").click();}
+  else if((k==="z"&&e.shiftKey)||k==="y"){e.preventDefault();$("#pRedo").click();}
+});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&FS.on&&!document.querySelector("dialog[open]"))exitFull();});
 document.addEventListener("fullscreenchange",()=>{if(!document.fullscreenElement&&FS.on&&matchMedia("(pointer:fine)").matches)exitFull();});
 /* Phones: editing a play opens the full-screen builder with its toolbar; Done puts it back. */
