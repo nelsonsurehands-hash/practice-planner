@@ -134,8 +134,9 @@ bar.addEventListener("click",async e=>{
   if(a==="drop"){if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent=play.draft?"Tap again to delete":"Tap again to discard";return;}await discardDraft();}
 });
 /* View mode buttons. Done with unsaved changes asks first, like leaving the play. */
-$("#pEditBtn").addEventListener("click",()=>{lockPlay(false);pflash("Editing. Tap Save play when you're done, or Done to lock it again.");});
-$("#pDoneBtn").addEventListener("click",()=>{if(!guardPlay(()=>lockPlay(true)))return;lockPlay(true);});
+$("#pEditBtn").addEventListener("click",()=>{lockPlay(false);if(window.autoFull)autoFull();pflash("Editing. Tap Save play when you're done, or Done to lock it again.");});
+const doneFull=()=>{if(FS.auto)exitFull();};
+$("#pDoneBtn").addEventListener("click",()=>{if(!guardPlay(()=>{lockPlay(true);doneFull();}))return;lockPlay(true);doneFull();});
 /* Check for a left-behind copy whenever the play designer is opened. */
 const _setTab=setTab;
 setTab=function(t){_setTab(t);if(t==="plays")updateBar();};

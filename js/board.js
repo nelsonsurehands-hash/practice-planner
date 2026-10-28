@@ -72,6 +72,7 @@ function boardInner(fr,mode,tmp,fade,ghost){
   if(ghost&&ghost.length)s+=`<g style="opacity:.22">`+ghost.map(a=>actSVG(a,c.act)).join("")+`</g>`;
   const acts=[...fr.actions];if(tmp)acts.push(tmp);
   s+=`<g style="opacity:${fade?0.3:1}">`+acts.map(a=>actSVG(a,c.act)).join("")+`</g>`;
+  if(!fade&&hasOrder(fr)){const L=seqList(fr);if(L.length&&L[L.length-1].beat>1)s+=`<g class="beats">`+L.map(x=>beatBadge(x.a,x.beat,P)).join("")+`</g>`;}
   {let n=0;const looks=acts.filter(a=>a.type==="look");if(looks.length)s+=`<g class="looks${fade?" faded":""}">`+looks.map(a=>lookSVG(a,++n,P)).join("")+`</g>`;}
   fr.tokens.filter(t=>t.kind!=="ball").forEach(t=>{
     if(t.kind==="o")s+=`<g><circle cx="${t.x}" cy="${t.y}" r="15" style="fill:${c.ofill};stroke:${c.o};stroke-width:3"/><text x="${t.x}" y="${t.y+6.5}" text-anchor="middle" style="fill:${c.o};font:700 ${lblSize(t)}px Arial,Helvetica,sans-serif">${esc(t.label||t.n)}</text></g>`;
@@ -80,6 +81,11 @@ function boardInner(fr,mode,tmp,fade,ghost){
   const b=fr.tokens.find(t=>t.kind==="ball");
   if(b)s+=`<circle cx="${b.x}" cy="${b.y}" r="7.5" style="fill:${c.ball};stroke:${P?"#000":"var(--ink)"};stroke-width:1.5"/>`;
   return s;
+}
+/* The step number of an action, in a small square on its line (only when the coach set the order). */
+function beatBadge(a,n,P){
+  const q=a.type==="pass"?{x:(a.x1+a.x2)/2,y:(a.y1+a.y2)/2}:qpt(a,.5),x=q.x.toFixed(1),y=q.y.toFixed(1);
+  return `<g><rect x="${(q.x-8.5).toFixed(1)}" y="${(q.y-8.5).toFixed(1)}" width="17" height="17" rx="4" style="fill:${P?"#fff":"var(--ink)"};stroke:${P?"#000":"var(--court)"};stroke-width:${P?1.4:2}"/><text x="${x}" y="${(q.y+4.2).toFixed(1)}" text-anchor="middle" style="fill:${P?"#000":"var(--court)"};font:800 11.5px Arial,Helvetica,sans-serif">${n}</text></g>`;
 }
 function lblSize(t){const n=String(t.label||t.n).length;return n>=3?10.5:n===2?14:18;}
 function boardSVG(fr,mode,w){fr=withDefense(fr,fr.defense);return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VB.x} ${VB.y} ${VB.w} ${VB.h}"${w?` width="${w}" height="${Math.round(w*VB.h/VB.w)}"`:""}>${boardInner(fr,mode)}</svg>`;}
@@ -104,6 +110,35 @@ function nextTokens(f){
   return toks;
 }
 
+/* ---------- order of actions inside a step ----------
+   a.beat = 1, 2, 3…: actions with the same number happen at the same time; a higher number waits
+   until the lower ones finish. A step with no numbers uses automatic timing (screens first, then cuts
+   and passes together). autoBeats shows that automatic order as numbers, so a coach can start from it. */
+const seqActs=f=>(f.actions||[]).filter(a=>a.type!=="look");
+const hasOrder=f=>seqActs(f).some(a=>a.beat);
+function packBeats(B){const u=[...new Set(B.filter(b=>b>0))].sort((x,y)=>x-y);return B.map(b=>b>0?u.indexOf(b)+1:0);}
+function autoBeats(f){
+  const A=f.actions||[],B=A.map(()=>0),h=holderOf(f),mv=id=>A.findIndex(a=>a.from===id&&isMove(a));
+  A.forEach((a,i)=>{if(a.type==="screen"&&a.from)B[i]=1;});
+  const base=B.some(Boolean)?2:1;let cur=base;
+  const passes=A.map((a,i)=>i).filter(i=>A[i].type==="pass"),shot=A.findIndex(a=>a.type==="shot");
+  if(h&&(passes.length||shot>=0)){const m=mv(h.id);if(m>=0&&!B[m]){B[m]=cur;cur++;}}
+  passes.forEach(i=>{const a=A[i];B[i]=cur;const m=a.to?mv(a.to):-1;
+    if(m>=0&&!B[m]){if(A[m].type==="dribble"){B[m]=cur+1;cur++;}else B[m]=cur;}
+    cur++;});
+  if(shot>=0)B[shot]=cur;
+  A.forEach((a,i)=>{if(!B[i]&&a.type!=="look")B[i]=base;});
+  return packBeats(B);
+}
+/* Beat of every action (0 for looks). New actions added after the order was set go last. */
+function beatsOf(f){
+  const A=f.actions||[];if(!hasOrder(f))return autoBeats(f);
+  let mx=Math.max(0,...A.map(a=>a.type!=="look"&&a.beat||0));
+  return packBeats(A.map(a=>a.type==="look"?0:(a.beat||++mx)));
+}
+/* The step's actions in the order they happen: [{a, i (index in actions), beat}] */
+function seqList(f){const B=beatsOf(f);return (f.actions||[]).map((a,i)=>({a,i,beat:B[i]})).filter(x=>x.beat).sort((x,y)=>x.beat-y.beat||x.i-y.i);}
+
 const ease=u=>u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2;
 
 function buildTransition(frames,i){
@@ -114,7 +149,9 @@ function buildTransition(frames,i){
   const anyMove=f.tokens.some(t=>{if(t.kind==="ball")return false;const e=g.find(x=>x.id===t.id);return e&&dist(t,e)>1;});
 
   /* Ball events in order: the passes, then a shot. */
-  const events=f.actions.filter(a=>a.type==="pass").concat(f.actions.filter(a=>a.type==="shot"));
+  const ord=hasOrder(f),BT=ord?beatsOf(f):null,nB=ord?Math.max(1,...BT):1,beatOf=a=>{const j=f.actions.indexOf(a);return j>=0&&BT[j]?BT[j]:nB;};
+  const events=ord?seqList(f).filter(x=>x.a.type==="pass"||x.a.type==="shot").map(x=>x.a)
+                  :f.actions.filter(a=>a.type==="pass").concat(f.actions.filter(a=>a.type==="shot"));
   const off0=b0&&h?{x:b0.x-h.x,y:b0.y-h.y}:{x:13,y:-13};
   const start0=b0?(h?{id:h.id,first:true}:{pt:{x:b0.x,y:b0.y}}):null;
   /* No pass drawn but the next step has the ball somewhere else: fly it there. */
@@ -131,10 +168,21 @@ function buildTransition(frames,i){
   const k=events.length,L=anyMove?0.5:0;
   /* Screens happen first: screeners get to their spot, then the cuts, dribbles and passes run. */
   const S=f.actions.some(a=>a.type==="screen"&&a.from)?0.42:0,sq=x=>S+x*(1-S);
-  const win=events.map((a,n)=>({s:sq((n+L)/Math.max(k,1)),e:sq((n+1)/Math.max(k,1))}));
+  let win=events.map((a,n)=>({s:sq((n+L)/Math.max(k,1)),e:sq((n+1)/Math.max(k,1))}));
+  /* Your order: each beat gets an equal slice of the step. A pass thrown while players move flies in the
+     back half of its beat (so a cutter catches it as the cut ends); passes in the same beat share it. */
+  if(ord){
+    win=events.map((a,n)=>{
+      if(!f.actions.includes(a))return {s:(nB-.5)/nB,e:1};   // ball flown to where the next step has it
+      const b=beatOf(a),same=events.filter(x=>f.actions.includes(x)&&beatOf(x)===b),m=same.length,j=same.indexOf(a);
+      const w0=(b-1)/nB,len=1/nB,busy=f.actions.some(x=>isMove(x)&&x.from&&beatOf(x)===b);
+      return {s:w0+len*(j+(busy?.5:0))/m,e:w0+len*(j+1)/m};
+    });
+  }
   const recv=id=>events.findIndex(a=>a.type==="pass"&&a.to===id);
   const sends=(id,after)=>events.findIndex((a,n)=>n>after&&a.from===id);
   const windowFor=(id,act)=>{
+    if(ord)return act?[(beatOf(act)-1)/nB,beatOf(act)/nB]:[0,1];
     if(S&&act&&act.type==="screen")return [0,S];
     const w=windowRaw(id,act);return S?[sq(w[0]),sq(w[1])]:w;
   };
@@ -186,7 +234,7 @@ function buildTransition(frames,i){
     return carry(c,u);
   };
   return {i,f,g,paths,ballAt,ballMove:ballAt,passCurve:null,moves:moves||!!(b0&&k),
-    moveDur:DUR.move*Math.max(1,0.5+0.5*k)*(S?1.35:1),last,added:g.filter(t=>!f.tokens.some(x=>x.id===t.id))};
+    moveDur:ord?DUR.move*Math.max(1,0.45+0.55*nB):DUR.move*Math.max(1,0.5+0.5*k)*(S?1.35:1),last,added:g.filter(t=>!f.tokens.some(x=>x.id===t.id))};
 }
 function animTokens(tr,phase,u){
   const out=[];
@@ -238,7 +286,7 @@ function compactFrame(f){
   const extra={};["fid","opt","optName","from","defense"].forEach(k=>{if(f[k])extra[k]=f[k];});
   return {...extra,caption:f.caption||"",
     tokens:f.tokens.map(t=>{const o={id:t.id,kind:t.kind,x:r(t.x),y:r(t.y)};if(t.n)o.n=t.n;if(t.label)o.label=t.label;return o;}),
-    actions:f.actions.map(a=>({type:a.type,from:a.from||null,to:a.to||null,x1:r(a.x1),y1:r(a.y1),cx:r(a.cx),cy:r(a.cy),x2:r(a.x2),y2:r(a.y2)}))};
+    actions:f.actions.map(a=>{const o={type:a.type,from:a.from||null,to:a.to||null,x1:r(a.x1),y1:r(a.y1),cx:r(a.cx),cy:r(a.cy),x2:r(a.x2),y2:r(a.y2)};if(a.beat)o.beat=a.beat;if(a.name)o.name=a.name;return o;})};
 }
 
 /* ---------- options (branches of a play) ----------

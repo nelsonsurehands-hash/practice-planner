@@ -768,7 +768,7 @@ function blankPlay(){const f=Object.keys(sp().forms)[0];return {id:null,name:"",
 
 /* geometry */
 /* editor rendering */
-function renderBoard(){$("#board").innerHTML=boardInner(withDefense(frame(),curDefense()),"screen",temp,false,optionGhost());renderOptBanner(fi);renderLooks();}
+function renderBoard(){$("#board").innerHTML=boardInner(withDefense(frame(),curDefense()),"screen",temp,false,optionGhost());renderOptBanner(fi);renderLooks();renderSeq();}
 /* On the first step of an option, show the step it branches from as faint lines, so the play stays in view. */
 function optionGhost(){
   const f=frame();if(!f.opt)return null;const L=playLines(play.frames),o=optionOf(play.frames,L,fi);
@@ -866,6 +866,55 @@ function renderLooks(){
 }
 document.addEventListener("input",e=>{const id=e.target.dataset&&e.target.dataset.lookname;if(!id||!play)return;const a=frame().actions.find(x=>x.id===id);if(a){a.name=e.target.value;markDirty();}});
 document.addEventListener("click",e=>{const b=e.target.closest("[data-lookdel]");if(!b||!play)return;pushHist();editStep(()=>{frame().actions=frame().actions.filter(x=>x.id!==b.dataset.lookdel);});markDirty();renderBoard();renderLooks();});
+/* Order of actions: the step's cuts, screens, dribbles, passes and shot in the order they happen.
+   "Then" waits for the action above to finish; "Same time" runs with it. */
+const SEQ_VERB={cut:"cuts",dribble:"dribbles",screen:"sets a screen",shot:"shoots"};
+function seqText(fr,a){
+  const nm=id=>{const t=fr.tokens.find(x=>x.id===id);return t?String(t.label||t.n):"?";};
+  if(a.type==="pass")return `<b>${esc(nm(a.from))}</b> passes to ${a.to?`<b>${esc(nm(a.to))}</b>`:"a spot"}`;
+  return `<b>${esc(nm(a.from))}</b> ${SEQ_VERB[a.type]||a.type}`;
+}
+const SEQ_ICON={cut:'<path d="M3 11L19 3" /><path d="M14 2.5l5 .5-2.4 4.4"/>',dribble:'<path d="M3 11l2.5-3 2.5 2.5 2.5-3 2.5 2.5 2.5-3 2.5 2"/>',
+  screen:'<path d="M3 8H17"/><path d="M17 3V13" style="stroke-width:2.6"/>',pass:'<path d="M3 11L19 3" style="stroke-dasharray:3 3"/><path d="M14 2.5l5 .5-2.4 4.4"/>',
+  shot:'<path d="M3 12Q10 -2 19 6" style="stroke-dasharray:.1 3.4;stroke-width:2.4"/><circle cx="19" cy="7" r="2.4"/>'};
+function renderSeq(){
+  const box=$("#pSeq");if(!box||!play)return;const fr=frame(),L=seqList(fr);
+  {const o=$("#fsOrder");if(o)o.hidden=L.length<2;}
+  if(L.length<2||anim){box.hidden=true;box.innerHTML="";return;}
+  box.hidden=false;
+  const ed=PERM.plays&&!PLAY_LOCK,own=hasOrder(fr);
+  box.innerHTML=`<div class="sq-head"><span class="lk-h">Order of actions</span><span class="sq-mode${own?" own":""}">${own?"Your order":"Automatic"}</span>${ed&&own?`<button type="button" class="sq-reset" data-seqreset>Reset to automatic</button>`:""}</div>
+  <ol class="sq-list">${L.map((x,j)=>{const same=j&&x.beat===L[j-1].beat;
+    return `<li class="sq-row${same?" same":""}">
+      ${j?(ed?`<button type="button" class="sq-link${same?" on":""}" data-seqlink="${j}" aria-label="${same?"Happens at the same time as the action above. Tap to make it wait.":"Waits for the action above. Tap to run it at the same time."}">${same?"Same time":"Then"}</button>`:`<span class="sq-link static">${same?"Same time":"Then"}</span>`):`<span class="sq-link static first">First</span>`}
+      <span class="sq-n">${x.beat}</span>
+      <svg class="sq-ic" viewBox="0 0 22 14" aria-hidden="true">${SEQ_ICON[x.a.type]||""}</svg>
+      <span class="sq-txt">${seqText(fr,x.a)}</span>
+      ${ed?`<span class="sq-mv"><button type="button" class="icon" data-sequp="${j}" aria-label="Move earlier"${j?"":" disabled"}>↑</button><button type="button" class="icon" data-seqdn="${j}" aria-label="Move later"${j<L.length-1?"":" disabled"}>↓</button></span>`:""}
+    </li>`;}).join("")}</ol>
+  ${FS.on?`<button type="button" class="sq-close" data-seqclose aria-label="Close order of actions">✕</button>`:""}
+  ${ed?`<p class="sq-hint">${own?"Press Play through to watch it in this order.":"Tap <b>Then</b> or <b>Same time</b>, or use the arrows, to set your own order."}</p>`:""}`;
+}
+/* Write a new order back: beats from the Then/Same-time links, and the actions list in that order. */
+function setSeq(list,same){
+  const fr=frame();let b=0;
+  list.forEach((x,j)=>{if(!j||!same[j])b++;x.a.beat=b;});
+  fr.actions=list.map(x=>x.a).concat(fr.actions.filter(a=>a.type==="look"));
+  markDirty();renderBoard();
+}
+document.addEventListener("click",e=>{
+  if(e.target.closest("[data-seqclose]")){document.querySelector("#view-plays .board-card").classList.remove("show-seq");const o=$("#fsOrder");if(o)o.setAttribute("aria-expanded","false");return;}
+  const t=e.target.closest("[data-seqlink],[data-sequp],[data-seqdn],[data-seqreset]");if(!t||!play||!t.closest("#pSeq"))return;
+  if(!PERM.plays||PLAY_LOCK)return;
+  const fr=frame(),L=seqList(fr),same=L.map((x,j)=>j>0&&x.beat===L[j-1].beat);
+  if(t.dataset.seqreset!==undefined){pushHist();fr.actions.forEach(a=>delete a.beat);markDirty();renderBoard();pflash("Back to automatic timing: screens first, then cuts and passes together.");return;}
+  if(t.dataset.seqlink){const j=+t.dataset.seqlink;pushHist();same[j]=!same[j];setSeq(L,same);return;}
+  const j=+(t.dataset.sequp||t.dataset.seqdn),k=t.dataset.sequp!==undefined?j-1:j+1;
+  if(k<0||k>=L.length)return;
+  const ball=x=>x.a.type==="pass"||x.a.type==="shot";
+  if(ball(L[j])&&ball(L[k])){pflash("Passes and the shot stay in the order you drew them. Change who moves around them instead.");return;}
+  pushHist();[L[j],L[k]]=[L[k],L[j]];setSeq(L,same);
+});
 /* Who has the ball after this step's passes (null if the last pass goes to an empty spot). */
 function finalHolder(fr){const h=holderOf(fr);let id=h?h.id:null;fr.actions.forEach(a=>{if(a.type==="pass")id=a.to||null;});return id;}
 /* Players who catch a pass in this step: a later pass from them starts where they caught it. */
@@ -1236,6 +1285,8 @@ function enterFull(){
   fsMove($("#ptools"),$("#fsTools"));fsMove(document.querySelector("#view-plays .toolbar.edit-only:not(#ptools)"),$("#fsTools"));
   fsMove($("#pSteps").parentNode,$("#fsSteps"));
   fsMove(document.querySelector("#view-plays .player"),$("#fsPlay"));fsMove($("#pLines"),$("#fsPlay"));
+  {const o=document.createElement("button");o.type="button";o.className="btn";o.id="fsOrder";o.setAttribute("aria-expanded","false");o.textContent="Order of actions";
+   o.addEventListener("click",()=>{const on=card.classList.toggle("show-seq");o.setAttribute("aria-expanded",on);});$("#fsPlay").insertBefore(o,$("#fsPlay").firstChild);}
   fsName();document.body.classList.add("pb-full");card.classList.add("full");
   $("#fsExit").addEventListener("click",exitFull);
   try{const el=document.documentElement;if(el.requestFullscreen&&matchMedia("(pointer:fine)").matches)el.requestFullscreen().catch(()=>{});}catch{}
@@ -1245,7 +1296,7 @@ function exitFull(){
   if(!FS.on)return;FS.on=false;
   FS.moved.reverse().forEach(([el,mark])=>{mark.parentNode.insertBefore(el,mark);mark.remove();});FS.moved=[];
   const bar=$("#fsBar");if(bar)bar.remove();
-  document.body.classList.remove("pb-full");document.querySelector("#view-plays .board-card").classList.remove("full");
+  document.body.classList.remove("pb-full");document.querySelector("#view-plays .board-card").classList.remove("full","show-seq");FS.auto=false;
   try{if(document.fullscreenElement)document.exitFullscreen();}catch{}
   document.querySelector("#view-plays .board-card").scrollIntoView({block:"start"});
 }
@@ -1253,7 +1304,15 @@ function fsName(){const n=$("#fsName");if(n)n.textContent=(play&&play.name)||"Ne
 $("#pFull").addEventListener("click",enterFull);
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&FS.on&&!document.querySelector("dialog[open]"))exitFull();});
 document.addEventListener("fullscreenchange",()=>{if(!document.fullscreenElement&&FS.on&&matchMedia("(pointer:fine)").matches)exitFull();});
-$("#pNewTop").addEventListener("click",()=>{$("#pNew").click();document.querySelector("#view-plays .board-card").scrollIntoView({behavior:"smooth",block:"start"});});
+/* Phones: editing a play opens the full-screen builder with its toolbar; Done puts it back. */
+const phoneEdit=()=>matchMedia("(pointer:coarse)").matches&&Math.min(innerWidth,innerHeight)<700;
+function autoFull(){if(phoneEdit()&&!FS.on&&PERM.plays&&!PLAY_LOCK){enterFull();FS.auto=true;}}
+$("#pNewTop").addEventListener("click",()=>{$("#pNew").click();if(phoneEdit()&&!PLAY_LOCK){autoFull();return;}document.querySelector("#view-plays .board-card").scrollIntoView({behavior:"smooth",block:"start"});});
+/* iPhone: stop pinch and double-tap zoom on the play builder (the page can still be zoomed elsewhere). */
+{const card=document.querySelector("#view-plays .board-card");
+ ["gesturestart","gesturechange"].forEach(ev=>card.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
+ let lastTap=0;card.addEventListener("touchend",e=>{const now=Date.now();if(now-lastTap<320&&!e.target.closest("input,textarea,select,button,a,label"))e.preventDefault();lastTap=now;},{passive:false});
+ card.addEventListener("touchmove",e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});}
 $("#pToLib").addEventListener("click",()=>document.querySelector("#view-plays .playlib").scrollIntoView({behavior:"smooth",block:"start"}));
 $("#plList").addEventListener("click",async e=>{
   let o=e.target.closest("[data-open]");const d=e.target.closest("[data-pdel]");
