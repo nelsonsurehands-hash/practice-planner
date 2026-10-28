@@ -297,11 +297,12 @@ function renderMeter(s,avail,used){
   }).join("");
   const ticks=[];for(let k=0;k<=avail;k+=30)ticks.push(k);if(ticks[ticks.length-1]!==avail)ticks.push(avail);
   $("#mTicks").innerHTML=avail?ticks.map(k=>`<span style="left:${k/scale*100}%">${fmt(s+k)}</span>`).join(""):"";
+  if(!msgTimer)$("#mMsg").classList.remove("ok");
   if(left<0&&!msgTimer)$("#mMsg").textContent=`Booked past ${fmt(s+avail)}. Shorten or remove ${-left} min of drills.`;
   else if(!msgTimer)$("#mMsg").textContent="";
 }
 let msgTimer=null;
-function flash(t){$("#mMsg").textContent=t;clearTimeout(msgTimer);msgTimer=setTimeout(()=>{msgTimer=null;renderPlan();},3500);}
+function flash(t,ok){const m=$("#mMsg");m.textContent=(ok?"✓ ":"")+t;m.classList.toggle("ok",!!ok);clearTimeout(msgTimer);msgTimer=setTimeout(()=>{msgTimer=null;renderPlan();},3500);}
 function renderCopyFrom(){
   const opts=Object.values(plans).filter(p=>p.date!==cur.date&&p.blocks&&p.blocks.length).sort((a,b)=>b.date.localeCompare(a.date));
   $("#copyFrom").innerHTML=`<option value="">Copy a past plan…</option>`+opts.map(p=>`<option value="${p.date}">${dLabel(p.date)}${p.focus?" — "+esc(p.focus):""}</option>`).join("");
@@ -328,7 +329,7 @@ async function duplicateTo(date,replaced){
   const sel=$("#planDate");if(![...sel.options].some(o=>o.value===date))buildDateSelect();
   sel.value=date;loadPlan(date);if(window.onViewChange)window.onViewChange();
   const used=copy.blocks.reduce((a,b)=>a+b.minutes,0),avail=toMin(copy.end)-toMin(copy.start);
-  flash(`Copied from ${dLabel(from)}${replaced?", replacing the plan that was here":""}.${used>avail?` This practice is ${avail} min, so ${used-avail} min of drills run past the end.`:""}`);
+  flash(`Copied from ${dLabel(from)}${replaced?", replacing the plan that was here":""}.${used>avail?` This practice is ${avail} min, so ${used-avail} min of drills run past the end.`:""}`,used<=avail);
   window.scrollTo({top:0,behavior:"smooth"});
 }
 $("#dupNext").addEventListener("click",e=>{
@@ -463,7 +464,7 @@ $("#ndForm").addEventListener("submit",async e=>{
   }
   addBlock({drillId,name,category:cs[0]||"",minutes,notes:$("#ndNote").value.trim()});
   $("#newDrillDlg").close();
-  flash(keep?`${name} added to practice and the drill library.`:`${name} added to practice.`);
+  flash(keep?`${name} added to practice and the drill library.`:`${name} added to practice.`,true);
   const last=$("#script").querySelector(".block:last-child");if(last){last.classList.add("just-moved");setTimeout(()=>last.classList.remove("just-moved"),900);}
 });
 $("#script").addEventListener("change",e=>{
@@ -565,7 +566,7 @@ $("#qeList").addEventListener("click",e=>{
 $("#qeList").addEventListener("input",e=>{const m=e.target.closest("[data-qmin]");if(m)qeDraft[+m.dataset.qmin].minutes=Math.max(1,+m.value||1);});
 $("#qeSave").addEventListener("click",async()=>{
   $("#qeMsg").textContent="Saving…";
-  try{await saveSettings({...(team.settings||{}),quickAdds:qeDraft});$("#quickEditor").hidden=true;renderQuick();flash("Quick adds saved for your staff.");}
+  try{await saveSettings({...(team.settings||{}),quickAdds:qeDraft});$("#quickEditor").hidden=true;renderQuick();flash("Quick adds saved for your staff.",true);}
   catch(err){$("#qeMsg").textContent="Not saved: "+(err.message||"check your connection");}
 });
 

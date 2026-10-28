@@ -71,6 +71,7 @@ textarea{resize:vertical;min-height:70px}
 .ticks span:first-child{transform:none}.ticks span:last-child{transform:translateX(-100%)}
 .mmsg{font-size:13px;font-weight:600;color:var(--warn);min-height:0}
 .mmsg:empty{display:none}
+.mmsg.ok{color:var(--good);background:var(--good-soft);border-radius:6px;padding:6px 10px}
 .pick button:disabled{background:var(--sunk);color:var(--muted);cursor:default}
 .pick button.trim{background:var(--ink);color:var(--bg)}
 
