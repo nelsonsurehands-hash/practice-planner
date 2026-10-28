@@ -805,10 +805,11 @@ async function renderStaff(){
     if(m.role==="owner")return `<p class="perm-sum">Head coach: can change everything</p>`;
     const p=permsFor(m.role,m.perms),on=AREAS.filter(a=>p[a]);
     const sum=on.length?"Can edit: "+on.map(a=>AREA_LABELS[a].split(/[,&]/)[0].trim().toLowerCase()).join(", "):"View only: can see and print everything, change nothing";
-    if(!mgr||!PERMS_DB)return `<p class="perm-sum">${esc(sum)}</p>`;
+    if(!mgr)return `<p class="perm-sum">${esc(sum)}</p>`;
+    if(!PERMS_DB)return `<p class="perm-sum">${esc(sum)}</p><p class="msg err" style="margin:4px 0 0">Changing a coach's access needs one database step (staff-access.sql).</p>`;
     const open=permOpen.has(m.user_id)||(isNew(m)&&!permOpen.has("x"+m.user_id));
     const preset=Object.keys(PRESETS).find(k=>AREAS.every(a=>!!PRESETS[k].perms[a]===!!p[a]));
-    return `<div class="perm-edit2${open?" open":""}"><div class="perm-line"><p class="perm-sum">${esc(sum)}</p><button class="btn perm-toggle" type="button" data-permopen="${m.user_id}" aria-expanded="${open}">${open?"Done":"Edit access"}</button></div>
+    return `<div class="perm-edit2${open?" open":""}">${permErr[m.user_id]?`<p class="msg err" style="margin:0 0 6px">${esc(permErr[m.user_id])}</p>`:""}${permSaved===m.user_id?`<p class="msg ok" data-permok="${m.user_id}" style="margin:0 0 6px">✓ Saved</p>`:""}<div class="perm-line"><p class="perm-sum">${esc(sum)}</p><button class="btn perm-toggle" type="button" data-permopen="${m.user_id}" aria-expanded="${open}">${open?"Done":"Edit access"}</button></div>
       ${open?`<div class="perm-presets"><span>Quick set:</span>${Object.entries(PRESETS).map(([k,v])=>`<button class="btn${preset===k?" on":""}" type="button" data-preset="${k}" data-uid="${m.user_id}" aria-pressed="${preset===k}">${v.label}</button>`).join("")}</div>
       <div class="inv-perms" role="group" aria-label="What ${esc(m.display_name||"this coach")} can view or edit">${AREAS.map(a=>{const yn=a==="share"||a==="staff",dis=a==="staff"&&!owner?" disabled":"",onA=!!p[a];
         return `<div class="inv-prow"><span>${AREA_LABELS[a]}</span><div class="seg inv-pv">${[[0,yn?"No":"View"],[1,yn?"Yes":"Edit"]].map(([v,l])=>`<button type="button" data-mpv="${a}" data-uid="${m.user_id}" data-v="${v}" aria-pressed="${onA===!!v}"${dis}>${l}</button>`).join("")}</div></div>`;}).join("")}
@@ -831,7 +832,7 @@ async function renderStaff(){
     <div class="msg" id="staffMsg"></div>
     <div class="actions" style="margin:0"><button class="btn danger" id="leaveTeam">Leave this team</button></div>`;
 }
-let permOpen=new Set();
+let permOpen=new Set(),permSaved=null;
 /* Invite link: one tap for a new coach, with their access chosen ahead of time. */
 let INV={access:"assistant",perms:{...PRESETS.assistant.perms},title:"Assistant Coach",one:true,teams:null,url:"",list:[],err:""},invLoaded=false;
 const INV_ACCESS={assistant:{label:"Assistant coach",title:"Assistant Coach"},manager:{label:"Team manager",title:"Team Manager"},view:{label:"View only",title:""},custom:{label:"Custom",title:""},owner:{label:"Head coach",title:"Head Coach"}};
@@ -905,9 +906,12 @@ async function getSchoolCode(fresh){
   if(error){msg($("#staffMsg"),/function|does not exist|schema cache/i.test(error.message)?"School codes need one database step: run supabase/team-tools.sql in Supabase → SQL Editor.":error.message,"err");return;}
   schoolCode=data;renderStaff();
 }
+let permErr={};
 async function savePerms(uid,perms){
   const {error}=await sb.rpc("set_member_perms",{p_team:team.id,p_user:uid,p_perms:perms});
-  if(error){msg($("#staffMsg"),error.message,"err");renderStaff();return;}
+  if(error){permErr[uid]=/function|does not exist|schema cache|not find/i.test(error.message||"")?"Couldn't save: changing a coach's access needs one database step (staff-access.sql). Ask Claude for it, or see the latest message in your chat.":"Couldn't save: "+error.message;
+    permOpen.add(uid);await renderStaff();return;}
+  delete permErr[uid];permSaved=uid;setTimeout(()=>{if(permSaved===uid){permSaved=null;const el=document.querySelector(`[data-permok="${uid}"]`);if(el)el.remove();}},2500);
   msg($("#staffMsg"),"Permissions saved","ok");
   const keep=document.querySelector(`.perm-edit [data-uid="${uid}"]`);await renderStaff();
   const det=document.querySelector(`.perm-edit [data-uid="${uid}"]`);if(det)det.closest("details").open=!!keep;
