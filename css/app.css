@@ -1499,8 +1499,26 @@ input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and
 .catboxes .cat-new{display:inline-flex;align-items:center;gap:4px}
 .catboxes .cat-new input{position:static;opacity:1;width:150px;height:auto;min-height:32px;padding:4px 10px;border-radius:20px;font-size:15px}
 .catboxes .cat-ok{border:0;background:var(--accent);color:var(--accent-ink);border-radius:20px;padding:5px 11px;font-size:13px;font-weight:600;cursor:pointer}
-/* practice plan: the add buttons ride along at the bottom of the screen while you scroll the plan */
-.plan-add{position:sticky;bottom:0;z-index:6;margin:12px -16px 0;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));
-  background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-top:1px solid var(--line);box-shadow:0 -8px 18px -12px rgba(0,0,0,.35)}
-.plan-add .btn{flex:1 1 auto}
-@media (max-width:520px){.plan-add{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:6px}.plan-add .btn{padding:10px 4px;font-size:13.5px;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}}
+/* practice plan: search, quick adds and new drill ride along at the bottom of the screen while you scroll the plan */
+.plan-add{position:sticky;bottom:0;z-index:6;margin:12px -16px 0;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;
+  background:color-mix(in srgb,var(--surface) 95%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-top:1px solid var(--line);box-shadow:0 -8px 18px -12px rgba(0,0,0,.35)}
+.pa-row{display:flex;gap:6px;align-items:stretch}
+.pa-row input{flex:1 1 0;width:0;min-width:0;min-height:44px;border-radius:10px;padding:8px 12px;font-size:16px}
+.pa-row .btn{flex:none;min-height:44px;padding:8px 14px}
+.pa-row .pa-photo{padding:8px 12px;font-size:18px}
+.pa-quick{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin:0 -2px;padding:0 2px}
+.pa-quick::-webkit-scrollbar{display:none}
+.pa-quick button{flex:none;display:inline-flex;align-items:baseline;gap:5px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:7px 12px;font:600 14px var(--body);cursor:pointer;touch-action:manipulation;white-space:nowrap}
+.pa-quick button small{font:500 11.5px var(--mono);color:var(--muted)}
+.pa-quick button:active{background:var(--accent-soft)}
+.pa-quick button:disabled{opacity:.45}
+.pa-quick:empty{display:none}
+.pa-results{position:absolute;left:12px;right:12px;bottom:calc(100% + 6px);max-height:min(50vh,360px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.25);padding:4px}
+.pa-hit{display:block;width:100%;text-align:left;border:0;background:none;color:var(--ink);padding:9px 10px;border-radius:8px;cursor:pointer}
+.pa-hit b{display:block;font-size:15px}.pa-hit small{color:var(--muted);font-size:12.5px}
+.pa-hit.on,.pa-hit:hover{background:var(--accent-soft)}
+.pa-new b{color:var(--accent)}
+.plan-add{max-width:calc(100% + 32px);overflow:visible}
+.pa-row input:focus{outline:2px solid var(--accent);outline-offset:-2px}
+.plan-add>*{min-width:0;max-width:100%}
+.pa-quick{min-width:0;width:100%}

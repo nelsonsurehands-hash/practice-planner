@@ -335,7 +335,11 @@
         <div class="mmsg" id="mMsg"></div>
       </div>
       <ol class="script" id="script"></ol>
-      <div class="plan-add edit-only"><button class="btn primary" type="button" id="planNew">+ New drill</button><button class="btn" type="button" id="planLib">+ From library</button><button class="btn" type="button" data-photo="practice">📷 From a photo</button></div>
+      <div class="plan-add edit-only" id="planAdd">
+        <div class="pa-results" id="paResults" hidden role="listbox" aria-label="Matching drills"></div>
+        <div class="pa-row"><input type="search" id="paSearch" placeholder="Search drills to add" autocomplete="off" enterkeyhint="done" aria-label="Search drills to add"><button class="btn primary" type="button" id="planNew" aria-label="New drill">+ New</button><button class="btn pa-photo" type="button" data-photo="practice" aria-label="Add from a photo">📷</button></div>
+        <div class="pa-quick" id="paQuick"></div>
+      </div>
       <div class="actions">
         <button class="btn edit-only" type="button" id="dupNext">Duplicate to next practice ›</button>
         <select id="dupTo" class="edit-only" style="width:auto;flex:0 1 210px" aria-label="Duplicate this plan to another day"><option value="">Duplicate to another day&hellip;</option></select>

@@ -444,7 +444,6 @@ function openNewDrill(){
   dlg.showModal();setTimeout(()=>$("#ndName").focus(),50);
 }
 $("#planNew").addEventListener("click",openNewDrill);
-$("#planLib").addEventListener("click",()=>{const b=document.querySelector(".bench");if(b)b.scrollIntoView({behavior:"smooth",block:"start"});setTimeout(()=>$("#pickSearch").focus({preventScroll:true}),350);});
 $("#ndCancel").addEventListener("click",()=>$("#newDrillDlg").close());
 $("#ndForm").addEventListener("submit",async e=>{
   e.preventDefault();
@@ -510,8 +509,37 @@ function quickDrill(q){return (q.drillId&&drills.find(d=>d.id===q.drillId))||dri
 function renderQuick(){
   const left=cur?totals().left:999;
   $("#quickBar").innerHTML=quickAdds().map((q,i)=>`<button class="btn" type="button" data-qi="${i}"${left<=0?" disabled":""}>+ ${esc(q.name)}</button>`).join("");
+  const pq=$("#paQuick");if(pq)pq.innerHTML=quickAdds().map((q,i)=>`<button type="button" data-qi="${i}"${left<=0?" disabled":""}>+ ${esc(q.name)}<small>${q.minutes||""}${q.minutes?"m":""}</small></button>`).join("");
   $("#quickEdit").hidden=!PERM.schedule;
 }
+/* Sticky add bar on the plan: search the library, quick adds (water, running…), new drill, photo. */
+function paMatches(q){q=q.trim().toLowerCase();if(!q)return [];
+  const score=d=>{const n=d.name.toLowerCase();return n.startsWith(q)?0:n.split(/[\s-]+/).some(w=>w.startsWith(q))?1:n.includes(q)?2:catsOf(d).some(c=>c.toLowerCase().includes(q))?3:9;};
+  return drills.map(d=>[score(d),d]).filter(x=>x[0]<9).sort((a,b)=>a[0]-b[0]||a[1].name.localeCompare(b[1].name)).slice(0,7).map(x=>x[1]);}
+let paSel=0;
+function renderPa(){
+  const q=$("#paSearch").value,box=$("#paResults");if(!q.trim()){box.hidden=true;box.innerHTML="";return;}
+  const list=paMatches(q);paSel=Math.min(paSel,Math.max(0,list.length-1));
+  box.innerHTML=list.map((d,i)=>`<button type="button" role="option" class="pa-hit${i===paSel?" on":""}" data-pa="${esc(d.id)}" aria-selected="${i===paSel}"><b>${esc(d.name)}</b><small>${esc(catLabel(d))} · ${d.minutes||10} min</small></button>`).join("")+
+    `<button type="button" class="pa-hit pa-new" data-panew><b>+ New drill “${esc(q.trim())}”</b><small>Add it to practice and the drill library</small></button>`;
+  box.hidden=false;
+}
+function paAdd(d){addBlock({drillId:d.id,name:d.name,category:catLabel(d),minutes:d.minutes||10});$("#paSearch").value="";renderPa();
+  const last=$("#script").querySelector(".block:last-child");if(last){last.classList.add("just-moved");setTimeout(()=>last.classList.remove("just-moved"),800);}}
+$("#paSearch").addEventListener("input",()=>{paSel=0;renderPa();});
+$("#paSearch").addEventListener("keydown",e=>{const list=paMatches($("#paSearch").value);
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();paSel=(paSel+(e.key==="ArrowDown"?1:-1)+list.length)%Math.max(1,list.length);renderPa();}
+  if(e.key==="Enter"){e.preventDefault();if(list[paSel])paAdd(list[paSel]);else if($("#paSearch").value.trim())paNew();}
+  if(e.key==="Escape"){$("#paSearch").value="";renderPa();}});
+function paNew(){const v=$("#paSearch").value.trim();$("#paSearch").value="";renderPa();openNewDrill();if(v)$("#ndName").value=v;}
+$("#planAdd").addEventListener("click",e=>{
+  const h=e.target.closest("[data-pa]");if(h){const d=drills.find(x=>x.id===h.dataset.pa);if(d)paAdd(d);return;}
+  if(e.target.closest("[data-panew]")){paNew();return;}
+  const b=e.target.closest("[data-qi]");if(b){const q=quickAdds()[+b.dataset.qi];if(!q)return;const d=quickDrill(q);
+    addBlock(d?{drillId:d.id,name:d.name,category:catsOf(d)[0]||"",minutes:q.minutes||d.minutes||10}:{drillId:null,name:q.name,category:"",minutes:q.minutes||5});}
+});
+document.addEventListener("click",e=>{if(!e.target.closest("#planAdd")){const box=$("#paResults");if(box&&!box.hidden)box.hidden=true;}});
+$("#paSearch").addEventListener("focus",()=>{if($("#paSearch").value.trim())renderPa();});
 $("#quickBar").addEventListener("click",e=>{
   const b=e.target.closest("[data-qi]");if(!b)return;const q=quickAdds()[+b.dataset.qi];if(!q)return;
   const d=quickDrill(q);
