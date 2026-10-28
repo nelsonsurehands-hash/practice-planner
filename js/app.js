@@ -440,7 +440,7 @@ $("#script").addEventListener("keydown",e=>{const h=e.target.closest("[data-drag
 function openNewDrill(){
   const dlg=$("#newDrillDlg");$("#ndForm").reset();$("#ndMsg").textContent="";
   const left=totals().left;$("#ndMin").value=Math.max(1,Math.min(10,left>0?left:10));
-  $("#ndCats").innerHTML=CATS.map(c=>`<label><input type="checkbox" value="${esc(c)}"><span>${esc(c)}</span></label>`).join("");
+  $("#ndCats").innerHTML=CATS.map(c=>catChip(c,false)).join("")+catAddBtn("ndCats");
   dlg.showModal();setTimeout(()=>$("#ndName").focus(),50);
 }
 $("#planNew").addEventListener("click",openNewDrill);
@@ -637,7 +637,36 @@ $("#picklist").addEventListener("click",e=>{
 
 /* ---------- library ---------- */
 const getCats=()=>[...document.querySelectorAll("#dCats input:checked")].map(x=>x.value);
-const setCats=a=>document.querySelectorAll("#dCats input").forEach(x=>x.checked=a.includes(x.value));
+const setCats=a=>{a.filter(c=>!document.querySelector(`#dCats input[value="${CSS.escape(c)}"]`)).forEach(c=>addCatChip("dCats",c,false));
+  document.querySelectorAll("#dCats input[type=checkbox]").forEach(x=>x.checked=a.includes(x.value));};
+/* Categories: the sport's list plus any the staff made up for their own drills (kept with the drills, so every coach sees them). */
+function mergeCats(){
+  const base=sp().cats,hasOther=base.includes("Other"),core=base.filter(c=>c!=="Other");
+  const mine=[...new Set(drills.flatMap(catsOf))].filter(c=>c&&!base.includes(c)).sort((a,b)=>a.localeCompare(b));
+  const next=[...core,...mine,...(hasOther?["Other"]:[])],changed=next.join("|")!==CATS.join("|");CATS=next;return changed;
+}
+const catChip=(c,on)=>`<label><input type="checkbox" value="${esc(c)}"${on?" checked":""}><span>${esc(c)}</span></label>`;
+const catAddBtn=id=>`<button type="button" class="cat-add" data-catadd="${id}">+ New category</button>`;
+function renderCatPick(){const on=getCats();$("#dCats").innerHTML=[...new Set([...CATS,...on])].map(c=>catChip(c,on.includes(c))).join("")+catAddBtn("dCats");}
+function renderLibCat(){const v=$("#libCat").value;$("#libCat").innerHTML=`<option value="">All categories</option>`+CATS.map(c=>`<option>${esc(c)}</option>`).join("");if(CATS.includes(v))$("#libCat").value=v;}
+function addCatChip(id,name,on){
+  const box=document.getElementById(id);if(!box)return;
+  const have=[...box.querySelectorAll("input[type=checkbox]")].find(x=>x.value.toLowerCase()===name.toLowerCase());
+  if(have){have.checked=on||have.checked;return;}
+  const add=box.querySelector(".cat-add,.cat-new");const t=document.createElement("span");t.innerHTML=catChip(name,on);
+  box.insertBefore(t.firstChild,add||null);
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-catadd]");if(!b)return;e.preventDefault();
+  const id=b.dataset.catadd,w=document.createElement("span");w.className="cat-new";
+  w.innerHTML=`<input type="text" maxlength="30" placeholder="New category" aria-label="New category name"><button type="button" class="cat-ok" aria-label="Add category">Add</button>`;
+  b.replaceWith(w);const inp=w.querySelector("input");inp.focus();
+  const done=keep=>{const v=inp.value.trim().replace(/\s+/g," ");const nm=v?v.charAt(0).toUpperCase()+v.slice(1):"";
+    if(keep&&nm)addCatChip(id,nm,true);const nb=document.createElement("span");nb.innerHTML=catAddBtn(id);w.replaceWith(nb.firstChild);
+    if(id==="dCats")$("#dCatErr").hidden=true;};
+  w.querySelector(".cat-ok").addEventListener("click",()=>done(true));
+  inp.addEventListener("keydown",ev=>{if(ev.key==="Enter"){ev.preventDefault();done(true);}if(ev.key==="Escape"){ev.preventDefault();done(false);}});
+  inp.addEventListener("blur",()=>setTimeout(()=>{if(w.isConnected)done(true);},150));
+});
 $("#dCats").addEventListener("change",()=>$("#dCatErr").hidden=true);
 let editing=null;
 function usage(){const u={};Object.values(plans).forEach(p=>(p.blocks||[]).forEach(b=>{if(b.drillId)u[b.drillId]=(u[b.drillId]||0)+1;}));return u;}
@@ -950,8 +979,7 @@ function refreshSportUI(){
   {const lb=document.querySelector('#ptools [data-tool="look"]');if(lb)lb.hidden=!S.tools.pass;}
   $("#pDefWrap").hidden=!S.defend;
   $("#board").setAttribute("aria-label",S.board);
-  $("#dCats").innerHTML=CATS.map((c,i)=>`<label><input type="checkbox" id="dc${i}" value="${c}"><span>${c}</span></label>`).join("");
-  $("#libCat").innerHTML=`<option value="">All categories</option>`+CATS.map(c=>`<option>${c}</option>`).join("");
+  mergeCats();renderCatPick();renderLibCat();
   const tb=document.querySelector(`#ptools [data-tool="${tool}"]`);if(tb&&tb.hidden)tool="move";
   setTool(tool);
 }
@@ -1308,7 +1336,8 @@ function startPlanner(store,settings){
   let firstPlans=true;
   const err=()=>showNotice("Couldn't load your team's data. Check your connection and reload.");
   unsubs.push(db.collection("drills").onSnapshot(s=>{
-    drills=s.docs.map(d=>{const x={id:d.id,...d.data()};x.name=titleCase(x.name||"");return x;});sortDrills();renderAllDrills();
+    drills=s.docs.map(d=>{const x={id:d.id,...d.data()};x.name=titleCase(x.name||"");return x;});sortDrills();
+    if(mergeCats()){renderCatPick();renderLibCat();}renderAllDrills();
   },err));
   unsubs.push(db.collection("plays").onSnapshot(s=>{
     plays=s.docs.map(d=>{const x={id:d.id,...d.data()};x.name=titleCase(x.name||"");if(x.frames&&x.frames.some(f=>f.opt))x.frames=optionsToLooks(x.frames);return x;});renderPlayLib();renderPickCats();renderPick();

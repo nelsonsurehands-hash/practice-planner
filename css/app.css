@@ -1494,3 +1494,13 @@ html{touch-action:manipulation}
 input[type=time],input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;min-height:42px;line-height:1.25}
 input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0;min-height:1.25em}
 .f{min-width:0}
+/* custom drill categories */
+.catboxes .cat-add{border:1px dashed var(--accent);background:none;color:var(--accent);border-radius:20px;padding:4px 10px;font-size:13px;font-weight:600;cursor:pointer}
+.catboxes .cat-new{display:inline-flex;align-items:center;gap:4px}
+.catboxes .cat-new input{position:static;opacity:1;width:150px;height:auto;min-height:32px;padding:4px 10px;border-radius:20px;font-size:15px}
+.catboxes .cat-ok{border:0;background:var(--accent);color:var(--accent-ink);border-radius:20px;padding:5px 11px;font-size:13px;font-weight:600;cursor:pointer}
+/* practice plan: the add buttons ride along at the bottom of the screen while you scroll the plan */
+.plan-add{position:sticky;bottom:0;z-index:6;margin:12px -16px 0;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));
+  background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-top:1px solid var(--line);box-shadow:0 -8px 18px -12px rgba(0,0,0,.35)}
+.plan-add .btn{flex:1 1 auto}
+@media (max-width:520px){.plan-add{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:6px}.plan-add .btn{padding:10px 4px;font-size:13.5px;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}}
