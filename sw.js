@@ -9,6 +9,7 @@ self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.
 self.addEventListener("fetch",e=>{
   const url=new URL(e.request.url);
   if(e.request.method!=="GET")return;
+  if(url.origin===location.origin&&(url.pathname.includes("/media/")||e.request.headers.has("range")))return;   // video: let the browser stream it (iPhones need range requests)
   if(url.origin===location.origin){
     // Network first for the app files so updates show up; fall back to cache offline.
     // cache:"no-cache" asks the server every time, so a new upload is picked up right away.

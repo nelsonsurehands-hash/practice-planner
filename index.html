@@ -98,6 +98,15 @@
     <span>School teams</span><i></i><span>AAU and club</span><i></i><span>Rec leagues</span><i></i><span>Basketball and more</span>
   </section>
 
+  <section class="lp-sec lp-video" id="lp-video">
+    <p class="lp-eyebrow">See it in 30 seconds</p>
+    <h2>Plays, calendar, parent links and live stats</h2>
+    <div class="lp-vid-frame">
+      <video id="lpVideo" src="media/the-extra-coach-demo.mp4" poster="media/demo-poster.jpg" muted loop playsinline controls preload="none"
+        aria-label="A 30-second tour of The Extra Coach: an animated play, the all-teams calendar, a parent schedule link and the live stat tracker"></video>
+    </div>
+  </section>
+
   <section class="lp-sec" id="lp-features">
     <p class="lp-eyebrow">What it does</p>
     <h2>Everything off your clipboard</h2>
@@ -762,5 +771,12 @@
 <script src="js/update.js"></script>
 <script src="js/brand.js"></script>
 <script src="js/track.js"></script>
+<script>
+/* Homepage video: plays (muted) while it's on screen, pauses when you scroll past. */
+(function(){const v=document.getElementById("lpVideo");if(!v||!("IntersectionObserver" in window))return;
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+  new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting&&e.intersectionRatio>.45){v.play().catch(()=>{});}else if(!v.paused&&!v.dataset.user)v.pause();}),{threshold:[0,.45,.8]}).observe(v);
+  v.addEventListener("click",()=>{v.dataset.user="1";});})();
+</script>
 </body>
 </html>
