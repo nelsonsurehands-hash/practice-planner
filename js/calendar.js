@@ -135,7 +135,12 @@ function renderHub(){
       if(d.game)o+=`<i class="hm g" style="--c:${esc(h.color)}" title="${esc(h.label)} game"></i>`;
       if(d.practice)o+=`<i class="hm p" style="--c:${esc(h.color)}" title="${esc(h.label)} practice"></i>`;
       if(d.off&&!d.game&&!d.practice)o+=`<i class="hm o" title="${esc(h.label)}: no practice"></i>`;return o;}).join("");
-    return `<button type="button" class="cal-cell hub${today?" today":""}" data-day="${iso}"><span class="d">${+iso.slice(8)}</span>${icons?`<span class="hub-icons">${icons}</span>`:""}${items.map(x=>`<span class="hub-ev ${x.kind}"><span class="hub-dots">${x.teams.map(h=>`<i style="background:${esc(h.color)}" title="${esc(h.label)}"></i>`).join("")}</span><b>${esc(x.text)}</b>${H.length>1?`<small>${esc(x.teams.map(h=>h.tag).join(", "))}</small>`:""}</span>`).join("")}</button>`;};
+    /* Notes for the day (No School, a holiday, "In the Elementary"…), each shown once even if several teams have it. */
+    const notes=[...new Set(H.flatMap(h=>{const d=h.days[iso];if(!d)return [];const n=[];
+      if(d.off&&d.off.note&&!/^no practice$/i.test(d.off.note))n.push(...String(d.off.note).split(" · "));
+      (d.tags||[]).forEach(x=>n.push(x));if(d.practice&&d.practice.notes)d.practice.notes.forEach(x=>n.push(x));
+      return n.map(x=>String(x).trim()).filter(x=>x&&!isBus(x)).map(x=>x.replace(/^in the elementary( gym)?$/i,"Elem. gym").replace(/^morning practice$/i,"AM practice"));}))];
+    return `<button type="button" class="cal-cell hub${today?" today":""}" data-day="${iso}"><span class="d">${+iso.slice(8)}</span>${icons?`<span class="hub-icons">${icons}</span>`:""}${notes.length?`<span class="hub-notes">${esc(notes.join(" · "))}</span>`:""}${items.map(x=>`<span class="hub-ev ${x.kind}"><span class="hub-dots">${x.teams.map(h=>`<i style="background:${esc(h.color)}" title="${esc(h.label)}"></i>`).join("")}</span><b>${esc(x.text)}</b>${H.length>1?`<small>${esc(x.teams.map(h=>h.tag).join(", "))}</small>`:""}</span>`).join("")}</button>`;};
   $("#calMonths").innerHTML=(one?[months[idx]]:months).map(([y,m])=>{const first=new Date(y,m,1),n=new Date(y,m+1,0).getDate(),pad=first.getDay();
     const isoD=dd=>`${y}-${String(m+1).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;let c="";for(let i=0;i<pad;i++)c+=`<div class="cal-cell pad"></div>`;
     for(let dd=1;dd<=n;dd++)c+=cell(isoD(dd));const tail=(7-((pad+n)%7))%7;for(let i=0;i<tail;i++)c+=`<div class="cal-cell pad"></div>`;

@@ -1617,3 +1617,5 @@ input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and
 @media (max-width:560px){.hub-peek{margin:auto auto 12px}}
 .hp-card:focus{outline:none}
 .cal-cell.today .hm{box-shadow:0 0 0 1.5px #fff}
+.hub-notes{display:none}
+@media (max-width:700px){.cal-cell.hub .hub-notes{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:9px;line-height:1.15;color:var(--muted);margin-top:3px;word-break:normal;overflow-wrap:anywhere;hyphens:auto;-webkit-hyphens:auto}}
