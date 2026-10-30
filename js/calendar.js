@@ -96,13 +96,22 @@ let hubOn=false;try{hubOn=localStorage.getItem("cpp:calHub")==="1";}catch{}
 const shortLabel=t=>{const s=t.settings||{},l=s.teamLabel||t.name||"Team";return l.replace(/\s+(basketball|volleyball|soccer|football|baseball|softball)$/i,"")||l;};
 function hubData(all){
   const list=[...teams].filter(t=>all||!VF.hideTeams.includes(t.id)).sort((a,b)=>String((a.settings||{}).teamLabel||a.name).localeCompare(String((b.settings||{}).teamLabel||b.name),undefined,{numeric:true}));
-  return list.map(t=>({t,label:shortLabel(t),color:(t.settings||{}).color||"#5b2a86",days:all?buildDays(t.settings||{}).days:filterDays(buildDays(t.settings||{}).days)}));
+  /* Teams from the same school often share one color: give the repeats their own dot color here. */
+  const used=new Set(),PAL=["#5b2a86","#d0632a","#1f7a8c","#b3283c","#3c8d2f","#c79a12","#2d5bd3","#8a4f7d"];
+  const tid=typeof team!=="undefined"&&team?team.id:null,pick=new Map();
+  [...list].sort((a,b)=>(b.id===tid)-(a.id===tid)).forEach(t=>{let c=String((t.settings||{}).color||"#5b2a86").toLowerCase();if(used.has(c))c=PAL.find(x=>!used.has(x))||c;used.add(c);pick.set(t,c);});
+  return list.map(t=>{const c=pick.get(t);
+    return {t,label:shortLabel(t),tag:tagOf(t),color:c,days:all?buildDays(t.settings||{}).days:filterDays(buildDays(t.settings||{}).days)};});
 }
+/* Short team name for a calendar cell: "8th", "7th B", "JV G". */
+function tagOf(t){const l=shortLabel(t),g=(l.match(/\b(\d+(st|nd|rd|th)|JV|Varsity|Freshman)\b/i)||[])[0]||l.split(" ")[0];
+  return g+(/\bboys\b/i.test(l)?" B":/\bgirls\b/i.test(l)?" G":"");}
 function hubItems(H,iso){
   const groups=new Map(),add=(kind,text,h)=>{const k=kind+"|"+text;if(!groups.has(k))groups.set(k,{kind,text,teams:[]});groups.get(k).teams.push(h);};
   H.forEach(h=>{const d=h.days[iso];if(!d)return;
     if(d.game){const g=d.game;add("game",`${g.home===false?"at":"vs"} ${g.opponent||"Game"}${g.time?" "+ampm(g.time).replace(":00",""):""}`,h);}
-    if(d.practice)add("practice",`Practice ${ampm(d.practice.start).replace(":00","")}`,h);
+    if(d.practice){const pr=d.practice,gym=/elementary/i.test(pr.note||"")?" · Elementary":"";
+      add("practice",`Practice ${(pr.end?span(pr.start,pr.end):ampm(pr.start)).replace(/:00/g,"")}${gym}`,h);}
     if(d.off&&d.off.note)add("off",/^no practice$/i.test(d.off.note)?"No practice":d.off.note,h);
     (d.tags||[]).filter(n=>!isBus(n)).forEach(n=>add("note",n,h));});
   return [...groups.values()];
@@ -121,7 +130,7 @@ function renderHub(){
   $("#calNav").hidden=!one;$("#calNavLabel").textContent=one?`${MONTHS[months[idx][1]]} ${months[idx][0]}`:"";
   $("#calPrev").disabled=idx<=0;$("#calNext").disabled=idx>=keys.length-1;$("#calMonths").classList.toggle("one-month",one);
   const cell=iso=>{const items=hubItems(H,iso),today=iso===todayISO();
-    return `<button type="button" class="cal-cell hub${today?" today":""}" data-day="${iso}"><span class="d">${+iso.slice(8)}</span>${items.map(x=>`<span class="hub-ev ${x.kind}"><span class="hub-dots">${x.teams.map(h=>`<i style="background:${esc(h.color)}" title="${esc(h.label)}"></i>`).join("")}</span><b>${esc(x.text)}</b>${x.teams.length<H.length||x.kind==="game"?`<small>${esc(x.teams.map(h=>h.label).join(", "))}</small>`:""}</span>`).join("")}</button>`;};
+    return `<button type="button" class="cal-cell hub${today?" today":""}" data-day="${iso}"><span class="d">${+iso.slice(8)}</span>${items.map(x=>`<span class="hub-ev ${x.kind}"><span class="hub-dots">${x.teams.map(h=>`<i style="background:${esc(h.color)}" title="${esc(h.label)}"></i>`).join("")}</span><b>${esc(x.text)}</b>${H.length>1?`<small>${esc(x.teams.map(h=>h.tag).join(", "))}</small>`:""}</span>`).join("")}</button>`;};
   $("#calMonths").innerHTML=(one?[months[idx]]:months).map(([y,m])=>{const first=new Date(y,m,1),n=new Date(y,m+1,0).getDate(),pad=first.getDay();
     const isoD=dd=>`${y}-${String(m+1).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;let c="";for(let i=0;i<pad;i++)c+=`<div class="cal-cell pad"></div>`;
     for(let dd=1;dd<=n;dd++)c+=cell(isoD(dd));const tail=(7-((pad+n)%7))%7;for(let i=0;i<tail;i++)c+=`<div class="cal-cell pad"></div>`;
