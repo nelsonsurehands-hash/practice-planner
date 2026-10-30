@@ -121,7 +121,8 @@ function renderHub(){
   const st={seasonStart:H.map(h=>(h.t.settings||{}).seasonStart).filter(Boolean).sort()[0],seasonEnd:H.map(h=>(h.t.settings||{}).seasonEnd).filter(Boolean).sort().pop()};
   const months=monthsToShow(st,all);
   $("#calEyebrow").textContent="All my teams";$("#calArrive").hidden=true;$("#calCallout").hidden=true;$("#calAddGame").hidden=!editable();
-  $("#calSeason").innerHTML=`<div class="hub-key">${H.map(h=>`<span><i style="background:${esc(h.color)}"></i>${esc(h.label)}</span>`).join("")}</div>`;
+  $("#calSeason").innerHTML=`<div class="hub-key">${H.map(h=>`<span><i style="background:${esc(h.color)}"></i>${esc(h.label)}</span>`).join("")}</div>
+    <div class="hub-legend"><span><i class="hm p" style="--c:var(--ink)"></i>Practice</span><span><i class="hm g" style="--c:var(--ink)"></i>Game</span><span><i class="hm o"></i>No practice</span><span class="hl-tip">Tap a day to see everything.</span></div>`;
   if(!months.length){$("#calMonths").innerHTML=`<div class="empty">No events on your teams yet.</div>`;$("#calGames").innerHTML="";$("#calFoot").textContent="";return;}
   const keys=months.map(([y,m])=>y+"-"+m);
   if(!calMonth||!keys.includes(calMonth)){const t=todayISO(),tk=+t.slice(0,4)+"-"+(+t.slice(5,7)-1);calMonth=keys.includes(tk)?tk:keys[0];}
@@ -130,7 +131,11 @@ function renderHub(){
   $("#calNav").hidden=!one;$("#calNavLabel").textContent=one?`${MONTHS[months[idx][1]]} ${months[idx][0]}`:"";
   $("#calPrev").disabled=idx<=0;$("#calNext").disabled=idx>=keys.length-1;$("#calMonths").classList.toggle("one-month",one);
   const cell=iso=>{const items=hubItems(H,iso),today=iso===todayISO();
-    return `<button type="button" class="cal-cell hub${today?" today":""}" data-day="${iso}"><span class="d">${+iso.slice(8)}</span>${items.map(x=>`<span class="hub-ev ${x.kind}"><span class="hub-dots">${x.teams.map(h=>`<i style="background:${esc(h.color)}" title="${esc(h.label)}"></i>`).join("")}</span><b>${esc(x.text)}</b>${H.length>1?`<small>${esc(x.teams.map(h=>h.tag).join(", "))}</small>`:""}</span>`).join("")}</button>`;};
+    const icons=H.map(h=>{const d=h.days[iso];if(!d)return "";let o="";
+      if(d.game)o+=`<i class="hm g" style="--c:${esc(h.color)}" title="${esc(h.label)} game"></i>`;
+      if(d.practice)o+=`<i class="hm p" style="--c:${esc(h.color)}" title="${esc(h.label)} practice"></i>`;
+      if(d.off&&!d.game&&!d.practice)o+=`<i class="hm o" title="${esc(h.label)}: no practice"></i>`;return o;}).join("");
+    return `<button type="button" class="cal-cell hub${today?" today":""}" data-day="${iso}"><span class="d">${+iso.slice(8)}</span>${icons?`<span class="hub-icons">${icons}</span>`:""}${items.map(x=>`<span class="hub-ev ${x.kind}"><span class="hub-dots">${x.teams.map(h=>`<i style="background:${esc(h.color)}" title="${esc(h.label)}"></i>`).join("")}</span><b>${esc(x.text)}</b>${H.length>1?`<small>${esc(x.teams.map(h=>h.tag).join(", "))}</small>`:""}</span>`).join("")}</button>`;};
   $("#calMonths").innerHTML=(one?[months[idx]]:months).map(([y,m])=>{const first=new Date(y,m,1),n=new Date(y,m+1,0).getDate(),pad=first.getDay();
     const isoD=dd=>`${y}-${String(m+1).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;let c="";for(let i=0;i<pad;i++)c+=`<div class="cal-cell pad"></div>`;
     for(let dd=1;dd<=n;dd++)c+=cell(isoD(dd));const tail=(7-((pad+n)%7))%7;for(let i=0;i<tail;i++)c+=`<div class="cal-cell pad"></div>`;
@@ -437,7 +442,25 @@ $("#dayBody").addEventListener("click",e=>{
     change(st=>{st.games=st.games.filter(x=>x.date!==iso);},"Game deleted",[b.dataset.team||team.id]);
   }
 });
-const dayOpen=iso=>openDay(iso,hubOn&&typeof teams!=="undefined"&&teams.length>1);
+const dayOpen=iso=>{const hub=hubOn&&typeof teams!=="undefined"&&teams.length>1;if(hub){hubPeek(iso);return;}openDay(iso,false);};
+/* All my teams: a quick look at one day, every team's games, practices and days off. Edit opens the full day. */
+function hubPeek(iso){
+  let dlg=$("#hubPeek");
+  if(!dlg){dlg=document.createElement("dialog");dlg.id="hubPeek";dlg.className="hub-peek";document.body.appendChild(dlg);
+    dlg.addEventListener("click",e=>{if(e.target===dlg||e.target.closest("[data-hpclose]")){dlg.close();return;}
+      const ed=e.target.closest("[data-hpedit]");if(ed){dlg.close();openDay(ed.dataset.hpedit,true);}});}
+  const H=hubData(true),rows=H.map(h=>{const d=h.days[iso];if(!d)return "";const l=[];
+    if(d.game){const g=d.game;l.push(`<li class="g"><b>${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")}</b><span>${g.time?ampm(g.time):"Time TBD"} · ${g.home===false?"Away":"Home"}${g.location?" · "+esc(g.location):""}${g.bus?" · Bus "+ampm(g.bus):""}</span></li>`);}
+    if(d.practice){const pr=d.practice;l.push(`<li class="p"><b>Practice</b><span>${span(pr.start,pr.end)}${pr.note?" · "+esc(pr.note):""}</span></li>`);}
+    if(d.off&&!d.practice)l.push(`<li class="o"><b>${esc(/^no practice$/i.test(d.off.note||"")?"No practice":d.off.note||"No practice")}</b></li>`);
+    (d.tags||[]).forEach(n=>l.push(`<li class="n"><span>${esc(n)}</span></li>`));
+    return l.length?`<section style="--c:${esc(h.color)}"><h4><i></i>${esc(h.label)}</h4><ul>${l.join("")}</ul></section>`:"";}).join("");
+  dlg.innerHTML=`<div class="hp-card"><div class="hp-head"><h3>${fullDay(iso)}</h3><button type="button" class="icon" data-hpclose aria-label="Close">✕</button></div>
+    ${rows||`<p class="help">Nothing scheduled for any team.</p>`}
+    ${editable()?`<div class="actions" style="margin:0"><button type="button" class="btn primary" data-hpedit="${iso}">Edit this day</button></div>`:""}</div>`;
+  if(!dlg.open)dlg.showModal();
+  const card=dlg.querySelector(".hp-card");card.tabIndex=-1;card.focus({preventScroll:true});
+}
 $("#calMonths").addEventListener("click",e=>{const c=e.target.closest("[data-day]");if(c)dayOpen(c.dataset.day);});
 $("#calGames").addEventListener("click",e=>{const r=e.target.closest("[data-day]");if(r)dayOpen(r.dataset.day);});
 $("#calAddGame").addEventListener("click",()=>{openDay(todayISO()>=(SETTINGS.seasonStart||"")?todayISO():SETTINGS.seasonStart,hubOn&&teams.length>1);const det=$("#dayBody").querySelector("details.day-edit:has(.day-game)");if(det)det.open=true;});
