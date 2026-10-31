@@ -4,10 +4,11 @@
 (function(){
 const dlg=document.createElement("dialog");dlg.id="aiDlg";dlg.className="ai-dlg";dlg.setAttribute("aria-labelledby","aiTitle");document.body.appendChild(dlg);
 const input=document.createElement("input");input.type="file";input.accept="image/*";input.multiple=true;input.hidden=true;document.body.appendChild(input);
+const PHOTO_ACCEPT="image/*",FILE_ACCEPT=".pdf,.xlsx,.xls,.ods,.csv,.tsv,.txt,.docx,application/pdf,text/plain,text/csv";
 let job=null;   // {kind, photos, result, used, limit}
-const KIND={roster:{title:"Add players from a photo",tip:"A printed or handwritten roster, a sign-up sheet, or a screenshot. Get the whole list in the picture, flat and in good light."},
-  schedule:{title:"Add to the calendar from a photo",tip:"A game schedule, district schedule or school calendar. Up to 4 photos for a schedule that runs across pages."},
-  practice:{title:"Add a practice plan from a photo",tip:"A practice plan on paper, a whiteboard or a screenshot, or a page of drills. Times or minutes for each drill help, but aren't required. Up to 4 photos."},
+const KIND={roster:{title:"Add players from a photo or file",tip:"A printed or handwritten roster, a sign-up sheet, or a screenshot. Get the whole list in the picture, flat and in good light."},
+  schedule:{title:"Add to the calendar from a photo or file",tip:"A game schedule, district schedule or school calendar. Up to 4 photos for a schedule that runs across pages."},
+  practice:{title:"Add a practice plan from a photo or file",tip:"A practice plan on paper, a whiteboard or a screenshot, or a page of drills. Times or minutes for each drill help, but aren't required. Up to 4 photos."},
   play:{title:"Draw a play from photos",tip:"A play on a whiteboard, in a notebook or printed. Numbers for players, X's for defenders. If the play is drawn across several pictures, add one photo per step, in order (up to 6)."}};
 const SETUP=`<p class="help">Reading photos needs the photo reader turned on in Supabase. Head coaches: see <b>supabase/functions/photo-import</b> in the app's files, or ask Claude to walk you through it.</p>`;
 
@@ -22,6 +23,36 @@ function shrink(file){
     im.src=url;
   });
 }
+/* ---------- files and typed text ----------
+   PDFs go to Claude as they are. Spreadsheets (Excel, CSV), Word files and text are turned into plain
+   text here on the phone, so only the words are sent. Each one counts like one photo. */
+const loadLib=(test,urls)=>test()?Promise.resolve():new Promise((ok,bad)=>{let i=0;const next=()=>{if(i>=urls.length){bad(new Error("Couldn't load the file reader. Check your connection and try again."));return;}
+  const sc=document.createElement("script");sc.src=urls[i++];sc.onload=()=>test()?ok():next();sc.onerror=()=>{sc.remove();next();};document.head.appendChild(sc);};next();});
+const XLSX_URLS=["https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"];
+const DOCX_URLS=["https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js","https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"];
+const b64=buf=>{const u=new Uint8Array(buf);let s="";for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);};
+const extOf=f=>(f.name.split(".").pop()||"").toLowerCase();
+async function toItem(file){
+  const ext=extOf(file),type=file.type||"";
+  if(/^image\//.test(type)||/^(jpe?g|png|gif|webp|heic|heif)$/.test(ext)){const p=await shrink(file);return {...p,t:"img",name:file.name};}
+  if(type==="application/pdf"||ext==="pdf"){
+    if(file.size>9.5e6)throw new Error(`${file.name} is too big (over 9 MB). Try a smaller PDF, or take photos of the pages instead.`);
+    return {t:"pdf",name:file.name,data:b64(await file.arrayBuffer())};}
+  if(/^(xlsx|xls|ods)$/.test(ext)){
+    await loadLib(()=>window.XLSX,XLSX_URLS);
+    const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:true});
+    const text=wb.SheetNames.map(n=>{const csv=XLSX.utils.sheet_to_csv(wb.Sheets[n],{blankrows:false,dateNF:"yyyy-mm-dd"}).trim();return csv?`Sheet "${n}":\n${csv}`:"";}).filter(Boolean).join("\n\n");
+    if(!text)throw new Error(`${file.name} looks empty.`);return {t:"text",name:file.name,text};}
+  if(ext==="docx"){
+    await loadLib(()=>window.mammoth,DOCX_URLS);
+    const r=await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()});const text=(r.value||"").trim();
+    if(!text)throw new Error(`${file.name} looks empty.`);return {t:"text",name:file.name,text};}
+  if(ext==="doc")throw new Error(`${file.name} is an old Word file (.doc). Save it as .docx or PDF and try again.`);
+  if(/^text\//.test(type)||/^(txt|csv|tsv|md|rtf)$/.test(ext)){const text=(await file.text()).trim();if(!text)throw new Error(`${file.name} looks empty.`);return {t:"text",name:file.name,text};}
+  throw new Error(`The app can't read ${file.name}. Use a photo, a PDF, an Excel or CSV file, a Word (.docx) file, or paste the text.`);
+}
+const ICON={pdf:"📄",text:"📝"};
+const tile=(ph,i)=>ph.t==="img"||!ph.t?`<img src="${ph.url}" alt="Photo ${i+1}">`:`<span class="ai-file"><b>${ICON[ph.t]||"📄"}</b><small>${esc(ph.name||"File")}</small></span>`;
 const MAX={roster:4,schedule:4,play:6,practice:4};
 function start(kind){
   if(typeof team==="undefined"||!team)return;
@@ -29,11 +60,13 @@ function start(kind){
   input.multiple=true;
   input.onchange=async()=>{
     const room=MAX[job.kind]-job.photos.length,files=[...input.files].slice(0,Math.max(0,room));input.value="";if(!files.length)return;
-    try{job.photos=job.photos.concat(await Promise.all(files.map(shrink)));}catch(e){show(`<p class="msg err">${esc(e.message)}</p>`);return;}
+    show(`<div class="ai-reading"><div class="ai-spin" aria-hidden="true"></div><p><b>Opening ${files.length===1?esc(files[0].name):files.length+" files"}…</b></p></div>`);
+    try{job.photos=job.photos.concat(await Promise.all(files.map(toItem)));}catch(e){show(`<p class="msg err">${esc(e.message)}</p>`,`<button class="btn" type="button" data-ai="restart">Start over</button>${job.photos.length?`<button class="btn primary" type="button" data-ai="stage">Back</button>`:""}`);return;}
     stage();
   };
   show(`<p class="help" style="margin-top:0">${KIND[kind].tip}</p>
-    <div class="actions" style="margin:0"><button class="btn primary" type="button" data-ai="pick">📷 Take or choose ${job.kind==="roster"?"a photo":"photos"}</button></div>
+    <div class="actions ai-src" style="margin:0"><button class="btn primary" type="button" data-ai="pick">📷 ${job.kind==="roster"?"Photo":"Photos"}</button><button class="btn" type="button" data-ai="file">📄 File</button><button class="btn" type="button" data-ai="paste">✏️ Paste text</button></div>
+    <p class="help" style="margin:0">Files: PDF, Excel or CSV, Word (.docx) or a text file. Or paste text from an email or website.</p>
     ${HOSTED||window.__photoMock?"":`<p class="msg err" style="margin:0">${(window.APP_CONFIG||{}).env==="test"?"The test version can't read photos (it has no server). Try Add from a photo in the real app at theextracoach.com.":"Photo reading works once the app is connected to Supabase (it's in demo mode now)."}</p>`}`);
 }
 /* Check the photos before reading: add more, put them in order, or remove one. */
@@ -41,11 +74,12 @@ function stage(){
   const n=job.photos.length,max=MAX[job.kind];
   show(`<p class="help" style="margin-top:0">${job.kind==="play"?"Add a photo for each step of the play, in order: photo 1 is the start. Claude puts them together as one play.":
       job.kind==="schedule"?"Add every page of the schedule.":job.kind==="practice"?"Add every page of the practice plan, in order.":"Add every page of the roster."}</p>
-    <ol class="ai-stage">${job.photos.map((ph,i)=>`<li><img src="${ph.url}" alt="Photo ${i+1}"><span class="ai-n">${job.kind==="play"?"Step ":""}${i+1}</span>
+    <ol class="ai-stage">${job.photos.map((ph,i)=>`<li>${tile(ph,i)}<span class="ai-n">${job.kind==="play"?"Step ":""}${i+1}</span>
       <span class="ai-move">${i?`<button type="button" class="icon" data-mv="${i}" data-dir="-1" aria-label="Move earlier">‹</button>`:""}${i<n-1?`<button type="button" class="icon" data-mv="${i}" data-dir="1" aria-label="Move later">›</button>`:""}<button type="button" class="icon" data-rm="${i}" aria-label="Remove photo">✕</button></span></li>`).join("")}
-      ${n<max?`<li class="ai-add"><button type="button" data-ai="pick">＋<span>${job.kind==="play"?"Add the next step":"Add another photo"}</span></button></li>`:""}</ol>
-    <p class="help">${n} of ${max} photos.${job.kind==="play"&&n>1?" Each photo becomes one or more steps.":""}</p>`,
-    `<button class="btn" type="button" data-ai="restart">Start over</button><button class="btn primary" type="button" data-ai="read"${n?"":" disabled"}>Read ${n} photo${n===1?"":"s"}</button>`);
+      ${n<max?`<li class="ai-add"><button type="button" data-ai="pick">＋<span>${job.kind==="play"?"Add the next step":"Add a photo"}</span></button></li>
+        <li class="ai-add"><button type="button" data-ai="file">＋<span>Add a file</span></button></li><li class="ai-add"><button type="button" data-ai="paste">＋<span>Paste text</span></button></li>`:""}</ol>
+    <p class="help">${n} of ${max} photos or files.${job.kind==="play"&&n>1?" Each photo becomes one or more steps.":""}</p>`,
+    `<button class="btn" type="button" data-ai="restart">Start over</button><button class="btn primary" type="button" data-ai="read"${n?"":" disabled"}>Read ${n===1&&job.photos[0].t&&job.photos[0].t!=="img"?"it":`${n} ${job.photos.every(p=>!p.t||p.t==="img")?"photo":"item"}${n===1?"":"s"}`}</button>`);
 }
 function show(body,foot){
   dlg.innerHTML=`<div class="dlg ai"><div class="hg-head"><h2 id="aiTitle">${KIND[job.kind].title}</h2><button type="button" class="icon" data-ai="close" aria-label="Close">✕</button></div>
@@ -53,8 +87,8 @@ function show(body,foot){
   if(!dlg.open)dlg.showModal();
 }
 async function read(){
-  show(`<div class="ai-reading"><div class="ai-thumbs">${job.photos.map(p=>`<img src="${p.url}" alt="">`).join("")}</div>
-    <div class="ai-spin" aria-hidden="true"></div><p><b>Reading your photo…</b><br><span class="help">This takes about 10 to 30 seconds.</span></p></div>`);
+  show(`<div class="ai-reading"><div class="ai-thumbs">${job.photos.map((p,i)=>tile(p,i)).join("")}</div>
+    <div class="ai-spin" aria-hidden="true"></div><p><b>Reading ${job.photos.every(p=>!p.t||p.t==="img")?"your photo":"it"}…</b><br><span class="help">This takes about 10 to 30 seconds.</span></p></div>`);
   const st=SETTINGS||{};
   const context=job.kind==="schedule"?{today:todayISO(),seasonStart:st.seasonStart,seasonEnd:st.seasonEnd,team:[team.name,st.teamLabel].filter(Boolean).join(" ")}:
     job.kind==="play"?{sport:st.sport||"basketball",players:sp().players,types:sp().playTypes,photos:job.photos.length}:
@@ -64,7 +98,10 @@ async function read(){
     if(window.__photoMock)r=await window.__photoMock(job.kind,context);
     else if(!HOSTED)throw new Error((window.APP_CONFIG||{}).env==="test"?"The test version can't read photos (it has no server). Try Add from a photo in the real app at theextracoach.com.":"Photo reading works once the app is connected to Supabase (it's in demo mode now).");
     else{
-      const {data,error}=await sb.functions.invoke("photo-import",{body:{kind:job.kind,team:team.id,images:job.photos.map(p=>({data:p.data,type:p.type})),context}});
+      const {data,error}=await sb.functions.invoke("photo-import",{body:{kind:job.kind,team:team.id,context,
+        images:job.photos.filter(p=>!p.t||p.t==="img").map(p=>({data:p.data,type:p.type})),
+        docs:job.photos.filter(p=>p.t==="pdf").map(p=>({data:p.data,type:"application/pdf",name:p.name})),
+        texts:job.photos.filter(p=>p.t==="text").map(p=>({name:p.name,text:p.text}))}});
       if(error){let m=error.message||"",status=error.context&&error.context.status;try{const j=await error.context.json();m=j.error||j.message||m;}catch{}
         if(status===404||(!status&&/not found|Failed to send|FunctionsFetchError|Failed to fetch/i.test(m+" "+(error.name||""))&&!/server|key/i.test(m)))throw Object.assign(new Error("The photo reader isn't turned on yet."),{setup:true});
         throw new Error(m||"Couldn't read the photo.");}
@@ -78,7 +115,7 @@ async function read(){
     show(`<p class="msg err">${esc(e.message||String(e))}</p>${e.setup?SETUP:""}`,`<button class="btn" type="button" data-ai="restart">Try another photo</button>${job.photos.length?`<button class="btn" type="button" data-ai="read">Try again</button>`:""}<button class="btn" type="button" data-ai="close">Close</button>`);
   }
 }
-const usage=()=>job.limit?`<span class="help ai-usage">${job.used} of ${job.limit} photos used this month</span>`:"";
+const usage=()=>job.limit?`<span class="help ai-usage">${job.used} of ${job.limit} photos and files used this month</span>`:"";
 
 /* ---------- roster ---------- */
 function reviewRoster(){
@@ -278,8 +315,13 @@ dlg.addEventListener("click",async e=>{
   const b=e.target.closest("[data-ai]");if(!b)return;
   const a=b.dataset.ai;
   if(a==="close")dlg.close();
-  if(a==="pick")input.click();
-  if(a==="restart"){job.photos=[];job.result=null;input.click();}
+  if(a==="pick"){input.accept=PHOTO_ACCEPT;input.click();}
+  if(a==="file"){input.accept=FILE_ACCEPT;input.click();}
+  if(a==="paste")pasteBox();
+  if(a==="stage")stage();
+  if(a==="pasted"){const t=(dlg.querySelector("#aiPaste").value||"").trim();if(!t){dlg.querySelector("#aiPaste").focus();return;}
+    job.photos.push({t:"text",name:"Pasted text",text:t});stage();}
+  if(a==="restart"){job.photos=[];job.result=null;start(job.kind);}
   if(a==="read")read();
   if(a==="apply"){b.disabled=true;b.textContent="Saving…";
     try{if(job.kind==="roster")await applyRoster();else if(job.kind==="schedule")await applySchedule();else if(job.kind==="practice")await applyPractice();else applyPlay();}
@@ -302,6 +344,12 @@ dlg.addEventListener("change",e=>{const f=e.target.closest("select[data-f]");if(
   const p=e.target.closest("[data-p]");if(p&&job&&job.pr){job.pr[p.dataset.p]=p.value;if(p.dataset.p==="date"&&p.value){const t=practiceTimes(p.value);if(!job.result.start)job.pr.start=t.start;if(!job.result.end)job.pr.end=t.end;}
     const keepRows=job.blocks.map((_,i)=>dlg.querySelector(`[data-row="${i}"]`).checked);renderPractice();keepRows.forEach((v,i)=>{const c=dlg.querySelector(`[data-row="${i}"]`);if(c)c.checked=v;});count();}
   if(e.target.name==="prmode"&&job&&job.pr)job.pr.mode=e.target.value;});
-window.PhotoAI={start};
+function pasteBox(){
+  if(job.photos.length>=MAX[job.kind]){stage();return;}
+  show(`<label class="f" style="margin:0">Paste or type it here<textarea id="aiPaste" rows="10" placeholder="${job.kind==="schedule"?"e.g. Tue Jan 5 vs Ozark 5:30 (home)…":job.kind==="roster"?"e.g. #3 Ava Johnson, mom Jen 417-555-0100…":job.kind==="practice"?"e.g. 4:20 Dynamic warmup 10 min…":"Describe the play step by step…"}"></textarea></label>`,
+    `<button class="btn" type="button" data-ai="${job.photos.length?"stage":"restart"}">Back</button><button class="btn primary" type="button" data-ai="pasted">Add text</button>`);
+  setTimeout(()=>{const t=dlg.querySelector("#aiPaste");if(t)t.focus();},50);
+}
+window.PhotoAI={start,_job:()=>job};
 document.addEventListener("click",e=>{const b=e.target.closest("[data-photo]");if(b)start(b.dataset.photo);});
 })();

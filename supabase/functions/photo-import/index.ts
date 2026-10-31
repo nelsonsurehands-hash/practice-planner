@@ -218,12 +218,17 @@ async function handle(req: Request): Promise<Response> {
   if (!raw.trim()) return reply(500, { error: "The photo reader isn't set up: add the ANTHROPIC_API_KEY secret in Supabase." });
   if (!key) return reply(500, { error: "The photo reader's key in Supabase doesn't look like an Anthropic API key. In Supabase → Edge Functions → Secrets, replace ANTHROPIC_API_KEY with a key from console.anthropic.com → API keys (it starts with sk-ant-)." });
 
-  let body: { kind?: string; team?: string; images?: { data: string; type: string }[]; context?: Record<string, unknown> };
+  let body: { kind?: string; team?: string; images?: { data: string; type: string }[]; docs?: { data: string; type: string; name?: string }[];
+    texts?: { name?: string; text: string }[]; context?: Record<string, unknown> };
   try { body = await req.json(); } catch { return reply(400, { error: "Bad request." }); }
   const spec = TOOLS[body.kind || ""];
   if (!spec || !body.team) return reply(400, { error: "Bad request." });
   const images = (body.images || []).slice(0, 6).filter((i) => i && i.data && /^image\/(jpeg|png|webp|gif)$/.test(i.type));
-  if (!images.length) return reply(400, { error: "Add a photo first." });
+  // Files: PDFs go to Claude as documents; spreadsheets, Word files and pasted text arrive as plain text.
+  const docs = (body.docs || []).slice(0, 3).filter((d) => d && d.data && d.type === "application/pdf" && d.data.length < 14_000_000);
+  const texts = (body.texts || []).slice(0, 6).filter((t) => t && typeof t.text === "string" && t.text.trim()).map((t) => ({ name: String(t.name || "Text").slice(0, 120), text: t.text.slice(0, 60000) }));
+  const items = images.length + docs.length + texts.length;
+  if (!items) return reply(400, { error: "Add a photo, a file or some text first." });
 
   // Who's asking, and may they change this part of the team?
   const url = Deno.env.get("SUPABASE_URL")!;
@@ -240,7 +245,7 @@ async function handle(req: Request): Promise<Response> {
   const monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0, 0, 0, 0);
   const { data: rows } = await admin.from("ai_usage").select("photos").eq("team_id", body.team).gte("created_at", monthStart.toISOString());
   const used = (rows || []).reduce((n: number, r: { photos: number }) => n + (r.photos || 1), 0);
-  if (used + images.length > LIMIT) return reply(429, { error: `Your team has used its ${LIMIT} photos for this month. It resets on the 1st.`, used, limit: LIMIT });
+  if (used + items > LIMIT) return reply(429, { error: `Your team has used its ${LIMIT} photos for this month. It resets on the 1st.`, used, limit: LIMIT });
 
   const res = await fetch((Deno.env.get("ANTHROPIC_BASE_URL") || "https://api.anthropic.com") + "/v1/messages", {
     method: "POST",
@@ -257,7 +262,9 @@ async function handle(req: Request): Promise<Response> {
             ...(images.length > 1 ? [{ type: "text", text: `Photo ${k + 1} of ${images.length}:` }] : []),
             { type: "image", source: { type: "base64", media_type: i.type, data: i.data } },
           ]),
-          { type: "text", text: spec.prompt(body.context || {}) },
+          ...docs.map((d) => ({ type: "document", source: { type: "base64", media_type: "application/pdf", data: d.data } })),
+          ...texts.map((t) => ({ type: "text", text: `File "${t.name}":\n${t.text}` })),
+          { type: "text", text: (docs.length || texts.length ? "Some or all of the material above is a document, spreadsheet or typed text rather than a photo. Read it the same way, and wherever the instructions below say photo, treat it as this material.\n\n" : "") + spec.prompt(body.context || {}) },
         ],
       }],
     }),
@@ -281,6 +288,6 @@ async function handle(req: Request): Promise<Response> {
     const v = input[k];
     if (typeof v === "string" && /^\s*[\[{]/.test(v)) { try { input[k] = JSON.parse(v); } catch { /* keep as text */ } }
   }
-  await admin.from("ai_usage").insert({ team_id: body.team, user_id: user.id, kind: body.kind, photos: images.length });
-  return reply(200, { result: use.input, used: used + images.length, limit: LIMIT });
+  await admin.from("ai_usage").insert({ team_id: body.team, user_id: user.id, kind: body.kind, photos: items });
+  return reply(200, { result: use.input, used: used + items, limit: LIMIT });
 }
