@@ -147,7 +147,9 @@ async function applyRoster(){
 
 /* ---------- schedule ---------- */
 const DAY_TYPES=[["noschool","No school"],["holiday","Holiday / break"],["nopractice","No practice"],["tryout","Tryouts"],["meeting","Meeting"],["extra","Extra practice"],["other","Note"]];
-const levelMatch=(lv)=>{if(!lv)return true;const mine=String(SETTINGS.teamLabel||"").toLowerCase(),l=String(lv).toLowerCase();
+const levelMatch=(lv,label)=>{if(!lv)return true;const mine=String(label===undefined?SETTINGS.teamLabel||"":label).toLowerCase(),l=String(lv).toLowerCase();
+  const sex=s=>/\bboys?\b|\bmen'?s?\b/.test(s)?"b":/\bgirls?\b|\bwomen'?s?\b|\blady\b/.test(s)?"g":"";
+  if(sex(l)&&sex(mine)&&sex(l)!==sex(mine))return false;
   const num=s=>(s.match(/\b(\d{1,2})(st|nd|rd|th)?\b/)||[])[1];
   if(num(l)&&num(mine))return num(l)===num(mine);
   if(/\bjv\b|junior varsity/.test(l))return /\bjv\b|junior varsity/.test(mine);
@@ -156,24 +158,36 @@ const levelMatch=(lv)=>{if(!lv)return true;const mine=String(SETTINGS.teamLabel|
   return mine.includes(l)||l.includes(mine);};
 function reviewSchedule(){
   const st=SETTINGS,haveG=new Set((st.games||[]).map(g=>g.date)),valid=d=>/^\d{4}-\d{2}-\d{2}$/.test(d||"");
-  job.games=(job.result.games||[]).filter(g=>valid(g.date)).sort((a,b)=>a.date<b.date?-1:1).map(g=>({...g,dup:haveG.has(g.date),mine:levelMatch(g.level)}));
-  job.days=(job.result.days||[]).filter(d=>valid(d.date)).sort((a,b)=>a.date<b.date?-1:1);
+  /* Which of your teams each date goes to. Games go to the team whose grade matches (this team if none does);
+     no-school days and holidays go to every team at the school. */
+  job.teams=(typeof teams!=="undefined"?teams:[team]).filter(t=>t.id===team.id||((typeof canSchedule!=="function"||canSchedule(t))&&
+    String((t.settings||{}).school||t.name).trim().toLowerCase()===String(st.school||team.name).trim().toLowerCase()));
+  const lab=t=>(t.settings||{}).teamLabel||t.name;
+  const gameTeams=lv=>{if(!lv)return [team.id];const m=job.teams.filter(t=>levelMatch(lv,lab(t))).map(t=>t.id);return m.length?m:[team.id];};
+  job.games=(job.result.games||[]).filter(g=>valid(g.date)).sort((a,b)=>a.date<b.date?-1:1).map(g=>({...g,dup:haveG.has(g.date),mine:!g.level||job.teams.some(t=>levelMatch(g.level,lab(t))),to:gameTeams(g.level)}));
+  job.days=(job.result.days||[]).filter(d=>valid(d.date)).sort((a,b)=>a.date<b.date?-1:1)
+    .map(d=>({...d,label:d.label||(DAY_TYPES.find(x=>x[0]===d.type)||[])[1]||"",to:/^(noschool|holiday)$/.test(d.type)?job.teams.map(t=>t.id):[team.id]}));
   const levels=[...new Set(job.games.map(g=>g.level).filter(Boolean))];
   if(!job.games.length&&!job.days.length){show(`<p class="msg err">No games or dates found in that photo. Try a closer, straight-on picture.</p>`,`<button class="btn primary" type="button" data-ai="restart">Try another photo</button>`);return;}
   const homeSel=(i,h)=>`<select data-f="g${i}.home" aria-label="Home or away"><option value="home"${h==="home"?" selected":""}>Home</option><option value="away"${h==="away"?" selected":""}>Away</option>${h==="unknown"?`<option value="unknown" selected>Home or away?</option>`:""}</select>`;
-  show(`<p class="help" style="margin-top:0">Check the dates against the photo, uncheck anything you don't want, then add it to ${esc(st.teamLabel||team.name)}'s calendar.</p>
+  const many=job.teams.length>1;
+  const toPick=(k,ids)=>many?`<div class="ai-to" role="group" aria-label="Teams">${job.teams.map(t=>`<label class="ai-tchip"><input type="checkbox" data-to="${k}" value="${esc(t.id)}"${ids.includes(t.id)?" checked":""}><span>${esc(lab(t))}</span></label>`).join("")}</div>`:"";
+  show(`<p class="help" style="margin-top:0">Check the dates against the photo, fix any titles, uncheck anything you don't want, then add ${many?"each one to the teams it's for":`it to ${esc(st.teamLabel||team.name)}'s calendar`}.</p>
     ${job.result.notes?`<p class="ai-note">${esc(job.result.notes)}</p>`:""}
-    ${levels.length?`<p class="ai-note">This schedule lists games for ${esc(levels.join(", "))}. Games that look like they're for ${esc(st.teamLabel||"this team")} are checked.</p>`:""}
+    ${levels.length?`<p class="ai-note">This schedule lists games for ${esc(levels.join(", "))}. Games that look like they're for ${many?"one of your teams are checked, with that team picked":esc(st.teamLabel||"this team")+" are checked"}.</p>`:""}
     ${job.games.length?`<h3 class="gp-h">Games (${job.games.length})</h3><div class="ai-list">${job.games.map((g,i)=>`<div class="ai-row${g.home==="unknown"?" unsure":""}">
       <label class="ai-chk"><input type="checkbox" data-g="${i}"${!g.dup&&g.mine?" checked":""}><span class="sr">Add</span></label>
       <div class="ai-fields ai-game"><input type="date" data-f="g${i}.date" value="${esc(g.date)}" aria-label="Date"><input type="time" data-f="g${i}.time" value="${esc(g.time||"")}" aria-label="Time">
         ${homeSel(i,g.home)}<input data-f="g${i}.opponent" value="${esc(g.opponent||"")}" aria-label="Opponent" class="ai-opp">
-        ${g.level||g.note||g.dup?`<small class="ai-flag">${[g.level?"For: "+esc(g.level):"",g.note?esc(g.note):"",g.dup?"A game is already on the calendar that day":""].filter(Boolean).join(" · ")}</small>`:""}</div></div>`).join("")}</div>`:""}
+        <input data-f="g${i}.event" value="${esc(g.event||"")}" placeholder="Event (optional), e.g. COC Tournament" aria-label="Event" class="ai-opp">
+        ${g.level||g.note||g.dup?`<small class="ai-flag">${[g.level?"For: "+esc(g.level):"",g.note?esc(g.note):"",g.dup?"A game is already on the calendar that day":""].filter(Boolean).join(" · ")}</small>`:""}
+        ${toPick("g"+i,g.to)}</div></div>`).join("")}</div>`:""}
     ${job.days.length?`<h3 class="gp-h">Special days (${job.days.length})</h3><div class="ai-list">${job.days.map((d,i)=>`<div class="ai-row">
       <label class="ai-chk"><input type="checkbox" data-d="${i}" checked><span class="sr">Add</span></label>
       <div class="ai-fields ai-day"><span class="ai-dates">${esc(longDay(d.date))}${d.end&&d.end>d.date?" – "+esc(longDay(d.end)):""}</span>
-        <select data-f="d${i}.type" aria-label="Kind of day">${DAY_TYPES.map(([v,l])=>`<option value="${v}"${d.type===v?" selected":""}>${l}</option>`).join("")}</select>
-        <input data-f="d${i}.label" value="${esc(d.label||"")}" placeholder="Label" aria-label="Label"></div></div>`).join("")}</div>`:""}`,
+        <input data-f="d${i}.label" value="${esc(d.label||"")}" placeholder="Title, e.g. Fall Break" aria-label="Title">
+        <select data-f="d${i}.type" aria-label="Category">${DAY_TYPES.map(([v,l])=>`<option value="${v}"${d.type===v?" selected":""}>${l}</option>`).join("")}</select>
+        ${toPick("d"+i,d.to)}</div></div>`).join("")}</div>`:""}`,
     `${usage()}<button class="btn" type="button" data-ai="restart">Different photo</button><button class="btn primary" type="button" data-ai="apply">Add to calendar</button>`);
   count();
 }
@@ -181,25 +195,33 @@ const longDay=iso=>dObj(iso).toLocaleDateString("en-US",{weekday:"short",month:"
 function dayEntry(d){
   const L=String(d.label||"").trim();
   switch(d.type){
-    case "noschool":return {kind:"note",note:"No School"};
+    case "noschool":return {kind:"note",note:L||"No School"};
     case "holiday":return {kind:"off",note:L||"Holiday"};
     case "nopractice":return {kind:"off",note:"No practice"};
-    case "tryout":return {kind:"note",note:"Tryouts"};
+    case "tryout":return {kind:"note",note:/tryout/i.test(L)?L:"Tryouts"+(L&&!/^tryouts?$/i.test(L)?" · "+L:"")};
     case "meeting":return {kind:"note",note:L||"Meeting"};
     case "extra":return {kind:"extra",note:L};
     default:return L?{kind:"note",note:L}:null;
   }
 }
 async function applySchedule(){
-  const st=JSON.parse(JSON.stringify(team.settings||{}));st.games=st.games||[];st.special=st.special||[];
+  const pickTo=(k,dflt)=>{const b=[...dlg.querySelectorAll(`[data-to="${k}"]`)];return b.length?b.filter(x=>x.checked).map(x=>x.value):dflt;};
+  const per=new Map(),get=id=>{if(!per.has(id)){const t=id===team.id?team:job.teams.find(x=>x.id===id);const st=JSON.parse(JSON.stringify((t&&t.settings)||{}));st.games=st.games||[];st.special=st.special||[];per.set(id,{t,st});}return per.get(id);};
   let ng=0,nd=0,unk=0;
   job.games.forEach((g,i)=>{if(!dlg.querySelector(`[data-g="${i}"]`).checked||!g.date||!g.opponent)return;
-    st.games=st.games.filter(x=>x.date!==g.date);st.games.push({date:g.date,opponent:g.opponent.trim(),time:g.time||"",home:g.home!=="away"});ng++;if(g.home==="unknown")unk++;});
+    const ids=pickTo("g"+i,[team.id]);if(!ids.length)return;
+    ids.forEach(id=>{const {st}=get(id);st.games=st.games.filter(x=>x.date!==g.date);
+      st.games.push({date:g.date,opponent:g.opponent.trim(),time:g.time||"",home:g.home!=="away",...(String(g.event||"").trim()?{event:g.event.trim()}:{})});});
+    ng++;if(g.home==="unknown")unk++;});
   job.days.forEach((d,i)=>{if(!dlg.querySelector(`[data-d="${i}"]`).checked)return;const e=dayEntry(d);if(!e)return;
-    let day=d.date;const last=d.end&&d.end>d.date&&d.end<=addDays(d.date,60)?d.end:d.date;
-    while(day<=last){if(!st.special.some(x=>x.date===day&&x.kind===e.kind&&(x.note||"")===(e.note||""))){st.special.push({date:day,...e});nd++;}day=addDays(day,1);}});
-  await saveSettings(st);if(window.onCalChange)window.onCalChange();
-  dlg.close();showNotice(`Added ${ng} game${ng===1?"":"s"} and ${nd} special day${nd===1?"":"s"} to the calendar.${unk?` ${unk} game${unk===1?" was":"s were"} marked Home because the photo didn't say. Check them in the calendar.`:""}`);
+    const ids=pickTo("d"+i,[team.id]);if(!ids.length)return;
+    ids.forEach(id=>{const {st}=get(id);let day=d.date;const last=d.end&&d.end>d.date&&d.end<=addDays(d.date,60)?d.end:d.date;
+      while(day<=last){if(!st.special.some(x=>x.date===day&&x.kind===e.kind&&(x.note||"")===(e.note||""))){st.special.push({date:day,...e});}day=addDays(day,1);}});
+    nd++;});
+  const names=[];
+  for(const [id,{t,st}] of per){if(!t)continue;if(id===team.id)await saveSettings(st);else await saveTeamSettings(t,st);names.push((t.settings||{}).teamLabel||t.name);}
+  if(window.onCalChange)window.onCalChange();
+  dlg.close();showNotice(`Added ${ng} game${ng===1?"":"s"} and ${nd} special date${nd===1?"":"s"}${names.length>1?" to "+names.join(", "):" to the calendar"}.${unk?` ${unk} game${unk===1?" was":"s were"} marked Home because the photo didn't say. Check them in the calendar.`:""}`);
 }
 
 /* ---------- play ---------- */

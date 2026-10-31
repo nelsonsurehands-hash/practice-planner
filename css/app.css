@@ -1629,3 +1629,10 @@ input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and
 .ai-thumbs .ai-file{width:90px;height:110px;min-height:0;padding:4px;border:1px solid var(--line)}.ai-thumbs .ai-file small{display:none}
 .ai-src{flex-wrap:wrap}
 #aiPaste{min-height:180px;font:inherit;font-size:15px}
+/* Import review: which teams each date goes to */
+.ai-to{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px}
+.ai-tchip{display:inline-flex;align-items:center;cursor:pointer}
+.ai-tchip input{position:absolute;opacity:0;width:1px;height:1px}
+.ai-tchip span{border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12.5px;font-weight:600;color:var(--muted);background:var(--surface)}
+.ai-tchip input:checked+span{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.ai-tchip input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
