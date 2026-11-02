@@ -168,11 +168,43 @@ function reviewSchedule(){
   job.days=(job.result.days||[]).filter(d=>valid(d.date)).sort((a,b)=>a.date<b.date?-1:1)
     .map(d=>({...d,label:d.label||(DAY_TYPES.find(x=>x[0]===d.type)||[])[1]||"",to:/^(noschool|holiday)$/.test(d.type)?job.teams.map(t=>t.id):[team.id]}));
   const levels=[...new Set(job.games.map(g=>g.level).filter(Boolean))];
+  /* A schedule for a team you don't coach (Varsity, the boys): offer to save it as a comparison list instead. */
+  job.levels=levels;
+  job.mode=job.games.length&&levels.length&&!job.games.some(g=>g.mine)?"ref":"team";
+  job.refName=levels.length===1?titleCaseL(levels[0]):levels.length?levels.map(titleCaseL).join(" / "):"";
   if(!job.games.length&&!job.days.length){show(`<p class="msg err">No games or dates found in that photo. Try a closer, straight-on picture.</p>`,`<button class="btn primary" type="button" data-ai="restart">Try another photo</button>`);return;}
+  renderScheduleReview();
+}
+const titleCaseL=s=>String(s||"").replace(/\b\w/g,c=>c.toUpperCase());
+function refTeams(){const n=String(job.refName||"").toLowerCase(),lab=t=>String((t.settings||{}).teamLabel||t.name).toLowerCase();
+  const g=/\bgirls?\b|women|lady/.test(n)?"girls":/\bboys?\b|\bmen\b/.test(n)?"boys":"";
+  const m=g?job.teams.filter(t=>lab(t).includes(g)):[];return (m.length?m:job.teams.filter(t=>t.id===team.id)).map(t=>t.id);}
+function renderScheduleReview(){
+  const st=SETTINGS,levels=job.levels||[],ref=job.mode==="ref",rt=ref?refTeams():null;
+  const lab=t=>(t.settings||{}).teamLabel||t.name;
   const homeSel=(i,h)=>`<select data-f="g${i}.home" aria-label="Home or away"><option value="home"${h==="home"?" selected":""}>Home</option><option value="away"${h==="away"?" selected":""}>Away</option>${h==="unknown"?`<option value="unknown" selected>Home or away?</option>`:""}</select>`;
   const many=job.teams.length>1;
   const toPick=(k,ids)=>many?`<div class="ai-to" role="group" aria-label="Teams">${job.teams.map(t=>`<label class="ai-tchip"><input type="checkbox" data-to="${k}" value="${esc(t.id)}"${ids.includes(t.id)?" checked":""}><span>${esc(lab(t))}</span></label>`).join("")}</div>`:"";
-  show(`<p class="help" style="margin-top:0">Check the dates against the photo, fix any titles, uncheck anything you don't want, then add ${many?"each one to the teams it's for":`it to ${esc(st.teamLabel||team.name)}'s calendar`}.</p>
+  const modeBox=`<fieldset class="ai-mode"><legend>Whose schedule is this?</legend>
+      <label class="ai-mopt"><input type="radio" name="aimode" value="team"${ref?"":" checked"}><span><b>My team's</b><small>Games and dates go on your schedule.</small></span></label>
+      <label class="ai-mopt"><input type="radio" name="aimode" value="ref"${ref?" checked":""}><span><b>Another team's, to compare</b><small>e.g. Varsity. Shown beside your dates so you can spot overlaps. Not added as a team, and parents don't see it.</small></span></label>
+      ${ref?`<label class="f ai-refname">Name this schedule<input id="aiRefName" value="${esc(job.refName||"")}" placeholder="e.g. Varsity Girls" maxlength="40"></label>`:""}</fieldset>`;
+  if(ref){show(`${modeBox}
+    <p class="help">Every date below is saved under <b>${esc(job.refName||"this name")}</b>${many?" on the teams you pick":""}. Fix any titles, add details, and uncheck anything you don't need.</p>
+    ${job.games.length?`<h3 class="gp-h">Games (${job.games.length})</h3><div class="ai-list">${job.games.map((g,i)=>`<div class="ai-row">
+      <label class="ai-chk"><input type="checkbox" data-g="${i}" checked><span class="sr">Add</span></label>
+      <div class="ai-fields ai-game"><input type="date" data-f="g${i}.date" value="${esc(g.date)}" aria-label="Date"><input type="time" data-f="g${i}.time" value="${esc(g.time||"")}" aria-label="Time">
+        ${homeSel(i,g.home)}<input data-f="g${i}.opponent" value="${esc(g.opponent||"")}" aria-label="Opponent" class="ai-opp">
+        <input data-f="g${i}.event" value="${esc(g.event||"")}" placeholder="Details (optional), e.g. COC Tournament, JV 5:00" aria-label="Details" class="ai-opp">
+        ${toPick("g"+i,rt)}</div></div>`).join("")}</div>`:""}
+    ${job.days.length?`<h3 class="gp-h">Other dates (${job.days.length})</h3><div class="ai-list">${job.days.map((d,i)=>`<div class="ai-row">
+      <label class="ai-chk"><input type="checkbox" data-d="${i}" checked><span class="sr">Add</span></label>
+      <div class="ai-fields ai-day"><span class="ai-dates">${esc(longDay(d.date))}${d.end&&d.end>d.date?" – "+esc(longDay(d.end)):""}</span>
+        <input data-f="d${i}.label" value="${esc(d.label||"")}" placeholder="Title" aria-label="Title">
+        ${toPick("d"+i,rt)}</div></div>`).join("")}</div>`:""}`,
+    `${usage()}<button class="btn" type="button" data-ai="restart">Different photo</button><button class="btn primary" type="button" data-ai="apply">Add to calendar</button>`);
+    count();return;}
+  show(`${modeBox}<p class="help" style="margin-top:0">Check the dates against the photo, fix any titles, uncheck anything you don't want, then add ${many?"each one to the teams it's for":`it to ${esc(st.teamLabel||team.name)}'s calendar`}.</p>
     ${job.result.notes?`<p class="ai-note">${esc(job.result.notes)}</p>`:""}
     ${levels.length?`<p class="ai-note">This schedule lists games for ${esc(levels.join(", "))}. Games that look like they're for ${many?"one of your teams are checked, with that team picked":esc(st.teamLabel||"this team")+" are checked"}.</p>`:""}
     ${job.games.length?`<h3 class="gp-h">Games (${job.games.length})</h3><div class="ai-list">${job.games.map((g,i)=>`<div class="ai-row${g.home==="unknown"?" unsure":""}">
@@ -205,6 +237,7 @@ function dayEntry(d){
   }
 }
 async function applySchedule(){
+  if(job.mode==="ref")return applyRef();
   const pickTo=(k,dflt)=>{const b=[...dlg.querySelectorAll(`[data-to="${k}"]`)];return b.length?b.filter(x=>x.checked).map(x=>x.value):dflt;};
   const per=new Map(),get=id=>{if(!per.has(id)){const t=id===team.id?team:job.teams.find(x=>x.id===id);const st=JSON.parse(JSON.stringify((t&&t.settings)||{}));st.games=st.games||[];st.special=st.special||[];per.set(id,{t,st});}return per.get(id);};
   let ng=0,nd=0,unk=0;
@@ -222,6 +255,29 @@ async function applySchedule(){
   for(const [id,{t,st}] of per){if(!t)continue;if(id===team.id)await saveSettings(st);else await saveTeamSettings(t,st);names.push((t.settings||{}).teamLabel||t.name);}
   if(window.onCalChange)window.onCalChange();
   dlg.close();showNotice(`Added ${ng} game${ng===1?"":"s"} and ${nd} special date${nd===1?"":"s"}${names.length>1?" to "+names.join(", "):" to the calendar"}.${unk?` ${unk} game${unk===1?" was":"s were"} marked Home because the photo didn't say. Check them in the calendar.`:""}`);
+}
+
+/* Save another team's schedule as a comparison list: settings.events, one name for every date. */
+async function applyRef(){
+  const name=String((dlg.querySelector("#aiRefName")||{}).value||job.refName||"").trim().slice(0,40)||"Other schedule";
+  const pickTo=(k,dflt)=>{const b=[...dlg.querySelectorAll(`[data-to="${k}"]`)];return b.length?b.filter(x=>x.checked).map(x=>x.value):dflt;};
+  const per=new Map(),get=id=>{if(!per.has(id)){const t=id===team.id?team:job.teams.find(x=>x.id===id);const st=JSON.parse(JSON.stringify((t&&t.settings)||{}));st.events=st.events||[];per.set(id,{t,st,adds:[]});}return per.get(id);};
+  let n=0;
+  job.games.forEach((g,i)=>{if(!dlg.querySelector(`[data-g="${i}"]`).checked||!g.date)return;const ids=pickTo("g"+i,[team.id]);if(!ids.length)return;
+    const opp=String(g.opponent||"").trim(),e={date:g.date,list:name,title:opp?(g.home==="away"?"at ":"vs ")+opp:"Game",kind:"game",...(g.time?{time:g.time}:{}),
+      ...(g.home==="home"||g.home==="away"?{home:g.home==="home"}:{}),...(()=>{const info=[String(g.event||"").trim(),g.location||""].filter(Boolean).join(" · ");return info?{info}:{};})()};
+    ids.forEach(id=>get(id).adds.push(e));n++;});
+  job.days.forEach((d,i)=>{if(!dlg.querySelector(`[data-d="${i}"]`).checked||!d.date)return;const ids=pickTo("d"+i,[team.id]);if(!ids.length)return;
+    const title=String(d.label||"").trim()||(DAY_TYPES.find(x=>x[0]===d.type)||[])[1]||"Event";
+    const last=d.end&&d.end>d.date&&d.end<=addDays(d.date,60)?d.end:d.date;
+    ids.forEach(id=>{let day=d.date;while(day<=last){get(id).adds.push({date:day,list:name,title});day=addDays(day,1);}});n++;});
+  const names=[];
+  for(const [id,{t,st,adds}] of per){if(!t||!adds.length)continue;
+    /* Re-importing the same schedule replaces those dates instead of doubling them. */
+    const dates=new Set(adds.map(a=>a.date));st.events=st.events.filter(x=>!(x.list===name&&dates.has(x.date))).concat(adds).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.time||"").localeCompare(b.time||""));
+    if(id===team.id)await saveSettings(st);else await saveTeamSettings(t,st);names.push((t.settings||{}).teamLabel||t.name);}
+  if(window.onCalChange)window.onCalChange();
+  dlg.close();showNotice(`Added ${n} ${name} date${n===1?"":"s"} to compare${names.length>1?" on "+names.join(", "):""}. They show in their own color, and you can hide them with the Compare chip above the calendar.`);
 }
 
 /* ---------- play ---------- */
@@ -365,7 +421,10 @@ dlg.addEventListener("input",e=>{
 dlg.addEventListener("change",e=>{const f=e.target.closest("select[data-f]");if(f)f.dispatchEvent(new Event("input",{bubbles:true}));
   const p=e.target.closest("[data-p]");if(p&&job&&job.pr){job.pr[p.dataset.p]=p.value;if(p.dataset.p==="date"&&p.value){const t=practiceTimes(p.value);if(!job.result.start)job.pr.start=t.start;if(!job.result.end)job.pr.end=t.end;}
     const keepRows=job.blocks.map((_,i)=>dlg.querySelector(`[data-row="${i}"]`).checked);renderPractice();keepRows.forEach((v,i)=>{const c=dlg.querySelector(`[data-row="${i}"]`);if(c)c.checked=v;});count();}
-  if(e.target.name==="prmode"&&job&&job.pr)job.pr.mode=e.target.value;});
+  if(e.target.name==="prmode"&&job&&job.pr)job.pr.mode=e.target.value;
+  if(e.target.name==="aimode"&&job&&job.kind==="schedule"){job.mode=e.target.value;renderScheduleReview();}});
+dlg.addEventListener("input",e=>{if(e.target.id==="aiRefName"&&job){job.refName=e.target.value;
+  const p=dlg.querySelector(".ai-mode + .help b");if(p)p.textContent=e.target.value||"this name";}});
 function pasteBox(){
   if(job.photos.length>=MAX[job.kind]){stage();return;}
   show(`<label class="f" style="margin:0">Paste or type it here<textarea id="aiPaste" rows="10" placeholder="${job.kind==="schedule"?"e.g. Tue Jan 5 vs Ozark 5:30 (home)…":job.kind==="roster"?"e.g. #3 Ava Johnson, mom Jen 417-555-0100…":job.kind==="practice"?"e.g. 4:20 Dynamic warmup 10 min…":"Describe the play step by step…"}"></textarea></label>`,
