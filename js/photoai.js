@@ -185,7 +185,7 @@ function renderScheduleReview(){
   const toPick=(k,ids)=>many?`<div class="ai-to" role="group" aria-label="Teams">${job.teams.map(t=>`<label class="ai-tchip"><input type="checkbox" data-to="${k}" value="${esc(t.id)}"${ids.includes(t.id)?" checked":""}><span>${esc(lab(t))}</span></label>`).join("")}</div>`:"";
   const modeBox=`<fieldset class="ai-mode"><legend>Add these as</legend>
       <label class="ai-mopt"><input type="radio" name="aimode" value="team"${ref?"":" checked"}><span><b>Games and days on my schedule</b></span></label>
-      <label class="ai-mopt"><input type="radio" name="aimode" value="ref"${ref?" checked":""}><span><b>A group of dates</b><small>All under one name, e.g. Varsity or School events.</small></span></label>
+      <label class="ai-mopt"><input type="radio" name="aimode" value="ref"${ref?" checked":""}><span><b>A group of dates</b><small>Your own events, kept separate from your teams and grouped under one name, e.g. Varsity or School events.</small></span></label>
       ${ref?`<label class="f ai-refname">Group name<input id="aiRefName" value="${esc(job.refName||"")}" placeholder="e.g. Varsity" maxlength="40"></label>`:""}</fieldset>`;
   if(ref){show(`${modeBox}
     <p class="help">Every date below goes under <b>${esc(job.refName||"this name")}</b>. Edit any title or details, and uncheck anything you don't need.</p>
@@ -194,12 +194,12 @@ function renderScheduleReview(){
       <div class="ai-fields ai-game"><input type="date" data-f="g${i}.date" value="${esc(g.date)}" aria-label="Date"><input type="time" data-f="g${i}.time" value="${esc(g.time||"")}" aria-label="Time">
         ${homeSel(i,g.home)}<input data-f="g${i}.opponent" value="${esc(g.opponent||"")}" aria-label="Opponent" class="ai-opp">
         <input data-f="g${i}.event" value="${esc(g.event||"")}" placeholder="Details (optional)" aria-label="Details" class="ai-opp">
-        ${toPick("g"+i,rt)}</div></div>`).join("")}</div>`:""}
+        </div></div>`).join("")}</div>`:""}
     ${job.days.length?`<h3 class="gp-h">Other dates (${job.days.length})</h3><div class="ai-list">${job.days.map((d,i)=>`<div class="ai-row">
       <label class="ai-chk"><input type="checkbox" data-d="${i}" checked><span class="sr">Add</span></label>
       <div class="ai-fields ai-day"><span class="ai-dates">${esc(longDay(d.date))}${d.end&&d.end>d.date?" – "+esc(longDay(d.end)):""}</span>
         <input data-f="d${i}.label" value="${esc(d.label||"")}" placeholder="Title" aria-label="Title">
-        ${toPick("d"+i,rt)}</div></div>`).join("")}</div>`:""}`,
+        </div></div>`).join("")}</div>`:""}`,
     `${usage()}<button class="btn" type="button" data-ai="restart">Different photo</button><button class="btn primary" type="button" data-ai="apply">Add to calendar</button>`);
     count();return;}
   show(`${modeBox}<p class="help" style="margin-top:0">Check the dates against the photo, fix any titles, uncheck anything you don't want, then add ${many?"each one to the teams it's for":`it to ${esc(st.teamLabel||team.name)}'s calendar`}.</p>
@@ -257,25 +257,19 @@ async function applySchedule(){
 
 /* Save a group of dates under one name: settings.events. */
 async function applyRef(){
-  const name=String((dlg.querySelector("#aiRefName")||{}).value||job.refName||"").trim().slice(0,40)||"Other dates";
-  const pickTo=(k,dflt)=>{const b=[...dlg.querySelectorAll(`[data-to="${k}"]`)];return b.length?b.filter(x=>x.checked).map(x=>x.value):dflt;};
-  const per=new Map(),get=id=>{if(!per.has(id)){const t=id===team.id?team:job.teams.find(x=>x.id===id);const st=JSON.parse(JSON.stringify((t&&t.settings)||{}));st.events=st.events||[];per.set(id,{t,st,adds:[]});}return per.get(id);};
-  let n=0;
-  job.games.forEach((g,i)=>{if(!dlg.querySelector(`[data-g="${i}"]`).checked||!g.date)return;const ids=pickTo("g"+i,[team.id]);if(!ids.length)return;
-    const opp=String(g.opponent||"").trim(),e={date:g.date,list:name,title:opp?(g.home==="away"?"at ":"vs ")+opp:"Game",kind:"game",...(g.time?{time:g.time}:{}),
-      ...(g.home==="home"||g.home==="away"?{home:g.home==="home"}:{}),...(()=>{const info=[String(g.event||"").trim(),g.location||""].filter(Boolean).join(" · ");return info?{info}:{};})()};
-    ids.forEach(id=>get(id).adds.push(e));n++;});
-  job.days.forEach((d,i)=>{if(!dlg.querySelector(`[data-d="${i}"]`).checked||!d.date)return;const ids=pickTo("d"+i,[team.id]);if(!ids.length)return;
+  const name=String((dlg.querySelector("#aiRefName")||{}).value||job.refName||"").trim().slice(0,40)||"My events";
+  const rows=[];let n=0;
+  job.games.forEach((g,i)=>{if(!dlg.querySelector(`[data-g="${i}"]`).checked||!g.date)return;
+    const opp=String(g.opponent||"").trim(),info=[String(g.event||"").trim(),g.location||""].filter(Boolean).join(" · ");
+    rows.push({date:g.date,list:name,title:opp?(g.home==="away"?"at ":g.home==="home"?"vs ":"")+opp:"Game",time:g.time||null,info:info||null});n++;});
+  job.days.forEach((d,i)=>{if(!dlg.querySelector(`[data-d="${i}"]`).checked||!d.date)return;
     const title=String(d.label||"").trim()||(DAY_TYPES.find(x=>x[0]===d.type)||[])[1]||"Event";
-    const last=d.end&&d.end>d.date&&d.end<=addDays(d.date,60)?d.end:d.date;
-    ids.forEach(id=>{let day=d.date;while(day<=last){get(id).adds.push({date:day,list:name,title});day=addDays(day,1);}});n++;});
-  const names=[];
-  for(const [id,{t,st,adds}] of per){if(!t||!adds.length)continue;
-    /* Re-importing the same schedule replaces those dates instead of doubling them. */
-    const dates=new Set(adds.map(a=>a.date));st.events=st.events.filter(x=>!(x.list===name&&dates.has(x.date))).concat(adds).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.time||"").localeCompare(b.time||""));
-    if(id===team.id)await saveSettings(st);else await saveTeamSettings(t,st);names.push((t.settings||{}).teamLabel||t.name);}
+    const last=d.end&&d.end>d.date&&d.end<=addDays(d.date,60)?d.end:d.date;let day=d.date;
+    while(day<=last){rows.push({date:day,list:name,title,time:null,info:null});day=addDays(day,1);}n++;});
+  /* Re-importing the same list replaces those dates instead of doubling them. */
+  await window.MyEvents.replace(name,rows);
   if(window.onCalChange)window.onCalChange();
-  dlg.close();showNotice(`Added ${n} date${n===1?"":"s"} under ${name}${names.length>1?" for "+names.join(", "):""}.`);
+  dlg.close();showNotice(`Added ${n} event${n===1?"":"s"} under ${name}.`);
 }
 
 /* ---------- play ---------- */

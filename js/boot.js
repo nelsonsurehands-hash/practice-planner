@@ -1136,7 +1136,7 @@ $("#shareClose").addEventListener("click",e=>{e.preventDefault();$("#shareDlg").
    Export: pick what goes in the file (plays, drill library, practice plans, calendar, roster, or
    everything). A plays-only file is how you send plays to another coach: they import it on their team.
    Import: shows what's in the file and lets you pick which parts to bring in. Nothing is deleted. */
-const CAL_KEYS=["games","special","events","seasonStart","seasonEnd","practiceDays","weekdayStart","weekdayEnd","weekendStart","weekendEnd","minPractices","arriveEarly","practiceNote"];
+const CAL_KEYS=["games","special","seasonStart","seasonEnd","practiceDays","weekdayStart","weekdayEnd","weekendStart","weekendEnd","minPractices","arriveEarly","practiceNote"];
 const sendable=()=>plays.filter(p=>!p.draft).sort((a,b)=>a.name.localeCompare(b.name));
 function exportPanel(){
   const st=team.settings||{},ps=sendable(),ng=(st.games||[]).length,nd=(st.special||[]).length,nr=(window.TM&&TM.roster.length)||0;

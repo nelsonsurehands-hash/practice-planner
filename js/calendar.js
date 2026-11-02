@@ -111,8 +111,26 @@ function tagOf(t){const l=shortLabel(t),g=(l.match(/\b(\d+(st|nd|rd|th)|JV|Varsi
    Saved in settings.events, never part of your practices, games or the parent calendar. ---------- */
 const REFPAL=["#0f766e","#9a3412","#1d4ed8","#a16207","#6d28d9","#be185d"];
 const refColor=name=>{let h=0;for(const c of String(name||""))h=(h*31+c.charCodeAt(0))>>>0;return REFPAL[h%REFPAL.length];};
-function refEvents(sts){const seen=new Set(),out=[];sts.forEach(st=>(st.events||[]).forEach(e=>{if(!e||!e.date)return;
-  const k=[e.date,e.list,e.title,e.time].join("|");if(seen.has(k))return;seen.add(k);out.push({...e,list:e.list||"Other dates"});}));return out;}
+/* My events: the coach's own, not tied to any team (table coach_events; this browser in demo mode). */
+let MY_EV=null,myEvBusy=false;const MYK="cpp:myEvents";
+const myHosted=()=>typeof HOSTED!=="undefined"&&HOSTED;
+async function loadMyEvents(){if(MY_EV||myEvBusy)return;myEvBusy=true;
+  try{if(myHosted()){const {data,error}=await sb.from("coach_events").select("id,date,title,time,info,list").order("date");MY_EV=error?[]:(data||[]);}
+    else MY_EV=JSON.parse(localStorage.getItem(MYK)||"[]");}catch{MY_EV=[];}
+  myEvBusy=false;if(window.onCalChange)window.onCalChange();}
+const myLocal=()=>{try{localStorage.setItem(MYK,JSON.stringify(MY_EV));}catch{}};
+const myTableErr=err=>new Error(/coach_events|relation|schema cache/i.test(err.message||"")?"Personal events aren't set up on the server yet.":err.message);
+window.MyEvents={
+  list:()=>MY_EV||[],
+  async add(rows){if(MY_EV===null)await loadMyEvents();rows=rows.map(r=>({date:r.date,title:r.title||"Event",time:r.time||null,info:r.info||null,list:r.list||"My events"}));
+    if(myHosted()){const {data,error}=await sb.from("coach_events").insert(rows).select("id,date,title,time,info,list");if(error)throw myTableErr(error);MY_EV.push(...data);}
+    else{MY_EV.push(...rows.map(r=>({...r,id:"e"+Math.random().toString(36).slice(2,10)})));myLocal();}},
+  async remove(ids){if(!ids.length)return;if(myHosted()){const {error}=await sb.from("coach_events").delete().in("id",ids);if(error)throw myTableErr(error);}
+    MY_EV=(MY_EV||[]).filter(e=>!ids.includes(e.id));if(!myHosted())myLocal();},
+  async replace(list,rows){if(MY_EV===null)await loadMyEvents();const dates=new Set(rows.map(r=>r.date));
+    await this.remove((MY_EV||[]).filter(e=>e.list===list&&dates.has(e.date)).map(e=>e.id));await this.add(rows);}
+};
+function refEvents(){if(MY_EV===null){loadMyEvents();return [];}return MY_EV.filter(e=>e&&e.date).map(e=>({...e,list:e.list||"My events"}));}
 const refListNames=evs=>[...new Set(evs.map(e=>e.list))].sort();
 function refMap(evs){const m={};evs.forEach(e=>{if((VF.hideRef||[]).includes(e.list))return;(m[e.date]=m[e.date]||[]).push(e);});
   Object.values(m).forEach(l=>l.sort((a,b)=>(a.time||"").localeCompare(b.time||"")));return m;}
@@ -130,7 +148,7 @@ function hubItems(H,iso){
   return [...groups.values()];
 }
 function renderHub(){
-  const H=hubData(),all={};{const ev=refEvents(hubData(true).map(h=>h.t.settings||{}));REFNAMES=refListNames(ev);REFS=refMap(ev);}H.forEach(h=>Object.assign(all,h.days));
+  const H=hubData(),all={};{const ev=refEvents();REFNAMES=refListNames(ev);REFS=refMap(ev);}H.forEach(h=>Object.assign(all,h.days));
   const st={seasonStart:H.map(h=>(h.t.settings||{}).seasonStart).filter(Boolean).sort()[0],seasonEnd:H.map(h=>(h.t.settings||{}).seasonEnd).filter(Boolean).sort().pop()};
   const months=monthsToShow(st,all);
   $("#calEyebrow").textContent="All my teams";$("#calArrive").hidden=true;$("#calCallout").hidden=true;$("#calAddGame").hidden=!editable();
@@ -172,7 +190,7 @@ function filterDays(days){if(!VF.hide.practice&&!VF.hide.game&&!VF.hide.off)retu
   Object.entries(days).forEach(([k,d])=>{const x={...d};if(VF.hide.practice)delete x.practice;if(VF.hide.game)delete x.game;if(VF.hide.off){delete x.off;delete x.tags;}if(x.practice||x.game||x.off||x.tags)out[k]=x;});return out;}
 function renderFilter(){
   const el=$("#calFilter");if(!el)return;const hub=hubOn&&typeof teams!=="undefined"&&teams.length>1;
-  {const sts=hub?teams.map(t=>t.settings||{}):[typeof SETTINGS!=="undefined"?SETTINGS:{}];REFNAMES=refListNames(refEvents(sts));}
+  REFNAMES=refListNames(refEvents());
   const chip=(attr,val,on,label,dot)=>`<label class="vf-chip${on?" on":""}"><input type="checkbox" ${attr}="${esc(val)}"${on?" checked":""}>${dot?`<i class="hub-dot" style="background:${esc(dot)}"></i>`:""}<span>${esc(label)}</span></label>`;
   el.innerHTML=`<span class="vf-k">Show</span>${hub?hubData(true).map(h=>chip("data-vft",h.t.id,!VF.hideTeams.includes(h.t.id),h.label,h.color)).join(""):""}${[["practice","Practices"],["game","Games"],["off","Days off & notes"]].map(([k,l])=>chip("data-vfk",k,!VF.hide[k],l)).join("")}${REFNAMES.length?`<span class="vf-k vf-cmp">Groups</span>`+REFNAMES.map(n=>chip("data-vfr",n,!VF.hideRef.includes(n),n,refColor(n))).join(""):""}`;
 }
@@ -185,7 +203,7 @@ function render(){
   if(hubOn&&typeof teams!=="undefined"&&teams.length>1){renderHub();return;}
   if(typeof SETTINGS==="undefined"||!$("#calMonths"))return;
   const st=SETTINGS,{days,practices}=buildDays(st),months=monthsToShow(st,days);
-  {const ev=refEvents([st]);REFNAMES=refListNames(ev);REFS=refMap(ev);}
+  {const ev=refEvents();REFNAMES=refListNames(ev);REFS=refMap(ev);}
   $("#calEyebrow").textContent=[st.school&&st.mascot?st.school+" "+st.mascot:st.school||st.mascot,st.teamLabel].filter(Boolean).join(" · ");
   const fmtM=iso=>iso?`${MONTHS[+iso.slice(5,7)-1]} ${iso.slice(0,4)}`:"";
   {const a=+st.arriveEarly||0,el=$("#calArrive");if(el){el.hidden=!a;el.textContent=a?`⏰ Please have players arrive at practice at least ${a} minutes early.`:"";}}
@@ -322,10 +340,15 @@ function renderDay(){
       ${ed?delBtn("restore",regular?"Remove day off (practice goes back on)":"Remove day off"):""}</div>`;
   }
   if(d.tags&&!d.practice&&d.tags.some(n=>!isBus(n)))h+=`<div class="day-ev"><b>Notes</b>${noteChips()}</div>`;
-  {const rs=(st.events||[]).map((e,i)=>({e,i})).filter(o=>o.e.date===iso);
-    if(rs.length)h+=`<div class="day-ev ref"><b>${esc([...new Set(rs.map(o=>o.e.list||"Other dates"))].join(", "))}</b><ul class="ref-list">${rs.map(({e,i})=>`<li style="--rc:${refColor(e.list||"Other dates")}"><i></i><div><b>${esc(e.title||"Event")}</b><small>${esc([e.list||"Other dates",e.time?ampm(e.time):"",e.info].filter(Boolean).join(" · "))}</small></div>${ed?`<button type="button" class="linkbtn" data-act="delRef" data-ref="${i}">Remove</button>`:""}</li>`).join("")}</ul>
-      ${ed?[...new Set(rs.map(o=>o.e.list||"Other dates"))].map(n=>`<button type="button" class="linkbtn" data-act="delRefList" data-list="${esc(n)}">Remove all ${esc(n)} dates</button>`).join(""):""}</div>`;
-    if(!d.game&&!d.practice&&!d.off&&!d.tags&&!rs.length)h+=`<p class="help">Nothing scheduled.</p>`;}
+  {const rs=refEvents().filter(e=>e.date===iso).sort((x,y)=>(x.time||"").localeCompare(y.time||"")),groups=refListNames(refEvents());
+    if(rs.length)h+=`<div class="day-ev ref"><b>My events</b><ul class="ref-list">${rs.map(e=>`<li style="--rc:${refColor(e.list)}"><i></i><div><b>${esc(e.title||"Event")}</b><small>${esc([e.list,e.time?ampm(e.time):"",e.info].filter(Boolean).join(" · "))}</small></div><button type="button" class="linkbtn" data-act="delRef" data-id="${esc(e.id)}">Remove</button></li>`).join("")}</ul>
+      ${[...new Set(rs.map(e=>e.list))].map(n=>`<button type="button" class="linkbtn" data-act="delRefList" data-list="${esc(n)}">Remove the whole ${esc(n)} group</button>`).join("")}</div>`;
+    if(!d.game&&!d.practice&&!d.off&&!d.tags&&!rs.length)h+=`<p class="help">Nothing scheduled.</p>`;
+    h+=`<details class="day-edit"><summary>Add my own event</summary><div class="day-form"><label class="f">Title<input id="meTitle" placeholder="e.g. Varsity vs Ozark"></label>
+      <div class="grid2"><label class="f">Time<input type="time" id="meTime"></label><label class="f">Group<input id="meList" list="meLists" placeholder="e.g. Varsity" value="${esc(groups[0]||"")}"></label></div>
+      <datalist id="meLists">${groups.map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
+      <label class="f">Details<input id="meInfo" placeholder="Optional"></label><p class="help" style="margin:0">Only you see this. It isn't added to any team.</p>
+      <div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="addMyEv">Add event</button></div></div></details>`;}
   if(ed&&(dayHub||!d.game))h+=`<details class="day-edit"><summary>Add a game this day</summary>${gameForm({date:iso,home:true,time:"17:30"},dayHub?((teams.filter(canSchedule).find(t=>!((t.settings||{}).games||[]).some(y=>y.date===iso))||team).id):null)}</details>`;
   if(ed&&!d.practice&&!d.off){const t=practiceTimes(iso,st);
     h+=`<details class="day-edit"><summary>Add a practice this day</summary><div class="day-form"><div class="grid2"><label class="f">Starts<input type="time" id="dpStart" value="${t.start}"></label><label class="f">Ends<input type="time" id="dpEnd" value="${t.end}"></label></div>
@@ -398,7 +421,7 @@ async function change(fn,done,targets){
     render();renderDay();msg($("#dayMsg"),(done||"Saved")+(ids.length>1?` (${ids.length} teams)`:""),"ok");
   }catch(err){msg($("#dayMsg"),"Not saved: "+(err.message||"check your connection"),"err");}
 }
-$("#dayBody").addEventListener("click",e=>{
+$("#dayBody").addEventListener("click",async e=>{
   const q=e.target.closest("[data-mdq]");
   if(q){const k=q.dataset.mdq,dow=dObj(dayIso).getDay(),wkEnd=addDays(dayIso,6-dow);
     document.querySelectorAll("#dayBody [data-mdday]").forEach(x=>{const d=x.dataset.mdday;
@@ -446,8 +469,13 @@ $("#dayBody").addEventListener("click",e=>{
     change(st=>{setTime(st,iso,true);more.forEach(d=>setTime(st,d,false));},
       more.length?`Practice time saved for ${more.length+1} practices (${span(start,end)}).`:"Practice saved");
   }
-  if(a==="delRef"){const e=(SETTINGS.events||[])[+b.dataset.ref];if(e)change(st=>{st.events=(st.events||[]).filter(x=>!(x.date===e.date&&x.list===e.list&&x.title===e.title&&(x.time||"")===(e.time||"")));},"Removed");}
-  if(a==="delRefList"){const n=b.dataset.list;change(st=>{st.events=(st.events||[]).filter(x=>(x.list||"Other dates")!==n);},`Removed all ${n} dates`);}
+  if(a==="delRef"||a==="delRefList"||a==="addMyEv"){
+    try{if(a==="delRef")await MyEvents.remove([b.dataset.id]);
+      if(a==="delRefList"){const n=b.dataset.list;await MyEvents.remove(MyEvents.list().filter(e=>(e.list||"My events")===n).map(e=>e.id));}
+      if(a==="addMyEv"){const title=$("#meTitle").value.trim();if(!title){msg($("#dayMsg"),"Add a title.","err");$("#meTitle").focus();return;}
+        await MyEvents.add([{date:iso,title,time:$("#meTime").value||null,list:$("#meList").value.trim()||"My events",info:$("#meInfo").value.trim()||null}]);}
+      render();renderDay();msg($("#dayMsg"),a==="addMyEv"?"Event added":"Removed","ok");}
+    catch(err){msg($("#dayMsg"),"Not saved: "+(err.message||"check your connection"),"err");}return;}
   if(a==="restore")change(st=>{st.special=st.special.filter(x=>!(x.date===iso&&x.kind==="off"));},"Day off removed");
   if(a==="delPractice")change(st=>{
     if(isRegular(st,iso)){if(!st.special.some(x=>x.date===iso&&x.kind==="off"))st.special.push({date:iso,kind:"off",note:"No practice"});}
