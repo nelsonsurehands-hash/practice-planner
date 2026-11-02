@@ -61,8 +61,7 @@ function cellHTML(iso,d){
   }
   if(d.tags){body+=evHTML(d.tags);after+=tagsHTML(d.tags);}
   body+=after+rf;
-  const clash=rf&&(d.game||d.practice)?" ref-clash":"";
-  return `<button type="button" class="cal-cell ${cls}${clash}${today?" today":""}" data-day="${iso}"><span class="d">${+iso.slice(8)}</span>${body}</button>`;
+  return `<button type="button" class="cal-cell ${cls}${today?" today":""}" data-day="${iso}"><span class="d">${+iso.slice(8)}</span>${body}</button>`;
 }
 function monthHTML(y,m,days){
   const first=new Date(y,m,1),n=new Date(y,m+1,0).getDate(),pad=first.getDay();
@@ -108,12 +107,12 @@ function hubData(all){
 /* Short team name for a calendar cell: "8th", "7th B", "JV G". */
 function tagOf(t){const l=shortLabel(t),g=(l.match(/\b(\d+(st|nd|rd|th)|JV|Varsity|Freshman)\b/i)||[])[0]||l.split(" ")[0];
   return g+(/\bboys\b/i.test(l)?" B":/\bgirls\b/i.test(l)?" G":"");}
-/* ---------- Compare schedules: another team's dates (Varsity, the boys…) shown beside yours.
+/* ---------- Date groups: dates added under one name (Varsity, School events…).
    Saved in settings.events, never part of your practices, games or the parent calendar. ---------- */
 const REFPAL=["#0f766e","#9a3412","#1d4ed8","#a16207","#6d28d9","#be185d"];
 const refColor=name=>{let h=0;for(const c of String(name||""))h=(h*31+c.charCodeAt(0))>>>0;return REFPAL[h%REFPAL.length];};
 function refEvents(sts){const seen=new Set(),out=[];sts.forEach(st=>(st.events||[]).forEach(e=>{if(!e||!e.date)return;
-  const k=[e.date,e.list,e.title,e.time].join("|");if(seen.has(k))return;seen.add(k);out.push({...e,list:e.list||"Other schedule"});}));return out;}
+  const k=[e.date,e.list,e.title,e.time].join("|");if(seen.has(k))return;seen.add(k);out.push({...e,list:e.list||"Other dates"});}));return out;}
 const refListNames=evs=>[...new Set(evs.map(e=>e.list))].sort();
 function refMap(evs){const m={};evs.forEach(e=>{if((VF.hideRef||[]).includes(e.list))return;(m[e.date]=m[e.date]||[]).push(e);});
   Object.values(m).forEach(l=>l.sort((a,b)=>(a.time||"").localeCompare(b.time||"")));return m;}
@@ -136,7 +135,7 @@ function renderHub(){
   const months=monthsToShow(st,all);
   $("#calEyebrow").textContent="All my teams";$("#calArrive").hidden=true;$("#calCallout").hidden=true;$("#calAddGame").hidden=!editable();
   $("#calSeason").innerHTML=`<div class="hub-key">${H.map(h=>`<span><i style="background:${esc(h.color)}"></i>${esc(h.label)}</span>`).join("")}</div>
-    <div class="hub-legend"><span><i class="hm p" style="--c:var(--ink)"></i>Practice</span><span><i class="hm g" style="--c:var(--ink)"></i>Game</span><span><i class="hm o"></i>No practice</span>${REFNAMES.length?`<span><i class="hm r" style="--c:var(--muted)"></i>Compare (${esc(REFNAMES.join(", "))})</span>`:""}<span class="hl-tip">Tap a day to see everything.</span></div>`;
+    <div class="hub-legend"><span><i class="hm p" style="--c:var(--ink)"></i>Practice</span><span><i class="hm g" style="--c:var(--ink)"></i>Game</span><span><i class="hm o"></i>No practice</span>${REFNAMES.length?`<span><i class="hm r" style="--c:var(--muted)"></i>${esc(REFNAMES.join(", "))}</span>`:""}<span class="hl-tip">Tap a day to see everything.</span></div>`;
   if(!months.length){$("#calMonths").innerHTML=`<div class="empty">No events on your teams yet.</div>`;$("#calGames").innerHTML="";$("#calFoot").textContent="";return;}
   const keys=months.map(([y,m])=>y+"-"+m);
   if(!calMonth||!keys.includes(calMonth)){const t=todayISO(),tk=+t.slice(0,4)+"-"+(+t.slice(5,7)-1);calMonth=keys.includes(tk)?tk:keys[0];}
@@ -175,7 +174,7 @@ function renderFilter(){
   const el=$("#calFilter");if(!el)return;const hub=hubOn&&typeof teams!=="undefined"&&teams.length>1;
   {const sts=hub?teams.map(t=>t.settings||{}):[typeof SETTINGS!=="undefined"?SETTINGS:{}];REFNAMES=refListNames(refEvents(sts));}
   const chip=(attr,val,on,label,dot)=>`<label class="vf-chip${on?" on":""}"><input type="checkbox" ${attr}="${esc(val)}"${on?" checked":""}>${dot?`<i class="hub-dot" style="background:${esc(dot)}"></i>`:""}<span>${esc(label)}</span></label>`;
-  el.innerHTML=`<span class="vf-k">Show</span>${hub?hubData(true).map(h=>chip("data-vft",h.t.id,!VF.hideTeams.includes(h.t.id),h.label,h.color)).join(""):""}${[["practice","Practices"],["game","Games"],["off","Days off & notes"]].map(([k,l])=>chip("data-vfk",k,!VF.hide[k],l)).join("")}${REFNAMES.length?`<span class="vf-k vf-cmp">Compare</span>`+REFNAMES.map(n=>chip("data-vfr",n,!VF.hideRef.includes(n),n,refColor(n))).join(""):""}`;
+  el.innerHTML=`<span class="vf-k">Show</span>${hub?hubData(true).map(h=>chip("data-vft",h.t.id,!VF.hideTeams.includes(h.t.id),h.label,h.color)).join(""):""}${[["practice","Practices"],["game","Games"],["off","Days off & notes"]].map(([k,l])=>chip("data-vfk",k,!VF.hide[k],l)).join("")}${REFNAMES.length?`<span class="vf-k vf-cmp">Groups</span>`+REFNAMES.map(n=>chip("data-vfr",n,!VF.hideRef.includes(n),n,refColor(n))).join(""):""}`;
 }
 document.addEventListener("change",e=>{const t=e.target;
   if(t.dataset.vft!==undefined){VF.hideTeams=t.checked?VF.hideTeams.filter(x=>x!==t.dataset.vft):[...new Set([...VF.hideTeams,t.dataset.vft])];saveVF();render();}
@@ -191,7 +190,6 @@ function render(){
   const fmtM=iso=>iso?`${MONTHS[+iso.slice(5,7)-1]} ${iso.slice(0,4)}`:"";
   {const a=+st.arriveEarly||0,el=$("#calArrive");if(el){el.hidden=!a;el.textContent=a?`⏰ Please have players arrive at practice at least ${a} minutes early.`:"";}}
   $("#calSeason").innerHTML=st.seasonStart?`<b>${fmtM(st.seasonStart)} – ${fmtM(st.seasonEnd)}</b><small>${practices.length} practices · ${(st.games||[]).length} games</small>`:"";
-  if(REFNAMES.length)$("#calSeason").innerHTML+=`<p class="ref-key"><i></i>Dashed: ${esc(REFNAMES.join(", "))}, to compare. <b></b>A dot means it's the same day as one of your games or practices.</p>`;
   $("#calAddGame").hidden=!editable();
   if(!months.length){
     $("#calMonths").innerHTML=`<div class="empty">No schedule yet. Set your season dates and practice days below (Season &amp; practice setup), or tap + Game to add your first game.</div>`;
@@ -325,8 +323,8 @@ function renderDay(){
   }
   if(d.tags&&!d.practice&&d.tags.some(n=>!isBus(n)))h+=`<div class="day-ev"><b>Notes</b>${noteChips()}</div>`;
   {const rs=(st.events||[]).map((e,i)=>({e,i})).filter(o=>o.e.date===iso);
-    if(rs.length)h+=`<div class="day-ev ref"><b>Compare schedules</b><span>Not your team's. Shown so you can spot overlaps.</span><ul class="ref-list">${rs.map(({e,i})=>`<li style="--rc:${refColor(e.list||"Other schedule")}"><i></i><div><b>${esc(e.title||"Event")}</b><small>${esc([e.list||"Other schedule",e.time?ampm(e.time):"",e.info].filter(Boolean).join(" · "))}</small></div>${ed?`<button type="button" class="linkbtn" data-act="delRef" data-ref="${i}">Remove</button>`:""}</li>`).join("")}</ul>
-      ${ed?[...new Set(rs.map(o=>o.e.list||"Other schedule"))].map(n=>`<button type="button" class="linkbtn" data-act="delRefList" data-list="${esc(n)}">Remove every ${esc(n)} date</button>`).join(""):""}</div>`;
+    if(rs.length)h+=`<div class="day-ev ref"><b>${esc([...new Set(rs.map(o=>o.e.list||"Other dates"))].join(", "))}</b><ul class="ref-list">${rs.map(({e,i})=>`<li style="--rc:${refColor(e.list||"Other dates")}"><i></i><div><b>${esc(e.title||"Event")}</b><small>${esc([e.list||"Other dates",e.time?ampm(e.time):"",e.info].filter(Boolean).join(" · "))}</small></div>${ed?`<button type="button" class="linkbtn" data-act="delRef" data-ref="${i}">Remove</button>`:""}</li>`).join("")}</ul>
+      ${ed?[...new Set(rs.map(o=>o.e.list||"Other dates"))].map(n=>`<button type="button" class="linkbtn" data-act="delRefList" data-list="${esc(n)}">Remove all ${esc(n)} dates</button>`).join(""):""}</div>`;
     if(!d.game&&!d.practice&&!d.off&&!d.tags&&!rs.length)h+=`<p class="help">Nothing scheduled.</p>`;}
   if(ed&&(dayHub||!d.game))h+=`<details class="day-edit"><summary>Add a game this day</summary>${gameForm({date:iso,home:true,time:"17:30"},dayHub?((teams.filter(canSchedule).find(t=>!((t.settings||{}).games||[]).some(y=>y.date===iso))||team).id):null)}</details>`;
   if(ed&&!d.practice&&!d.off){const t=practiceTimes(iso,st);
@@ -449,7 +447,7 @@ $("#dayBody").addEventListener("click",e=>{
       more.length?`Practice time saved for ${more.length+1} practices (${span(start,end)}).`:"Practice saved");
   }
   if(a==="delRef"){const e=(SETTINGS.events||[])[+b.dataset.ref];if(e)change(st=>{st.events=(st.events||[]).filter(x=>!(x.date===e.date&&x.list===e.list&&x.title===e.title&&(x.time||"")===(e.time||"")));},"Removed");}
-  if(a==="delRefList"){const n=b.dataset.list;change(st=>{st.events=(st.events||[]).filter(x=>(x.list||"Other schedule")!==n);},`Removed every ${n} date`);}
+  if(a==="delRefList"){const n=b.dataset.list;change(st=>{st.events=(st.events||[]).filter(x=>(x.list||"Other dates")!==n);},`Removed all ${n} dates`);}
   if(a==="restore")change(st=>{st.special=st.special.filter(x=>!(x.date===iso&&x.kind==="off"));},"Day off removed");
   if(a==="delPractice")change(st=>{
     if(isRegular(st,iso)){if(!st.special.some(x=>x.date===iso&&x.kind==="off"))st.special.push({date:iso,kind:"off",note:"No practice"});}
@@ -486,7 +484,7 @@ function hubPeek(iso){
     return l.length?`<section style="--c:${esc(h.color)}"><h4><i></i>${esc(h.label)}</h4><ul>${l.join("")}</ul></section>`:"";}).join("");
   dlg.innerHTML=`<div class="hp-card"><div class="hp-head"><h3>${fullDay(iso)}</h3><button type="button" class="icon" data-hpclose aria-label="Close">✕</button></div>
     ${rows||(REFS[iso]?"":`<p class="help">Nothing scheduled for any team.</p>`)}
-    ${(REFS[iso]||[]).length?`<section class="hp-ref"><h4>Compare</h4><ul>${REFS[iso].map(e=>`<li style="--c:${refColor(e.list)}"><b>${esc(e.title||"Event")}</b><span>${esc([e.list,e.time?ampm(e.time):"",e.info].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul></section>`:""}
+    ${(REFS[iso]||[]).length?`<section class="hp-ref"><ul>${REFS[iso].map(e=>`<li style="--c:${refColor(e.list)}"><b>${esc(e.title||"Event")}</b><span>${esc([e.list,e.time?ampm(e.time):"",e.info].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul></section>`:""}
     ${editable()?`<div class="actions" style="margin:0"><button type="button" class="btn primary" data-hpedit="${iso}">Edit this day</button></div>`:""}</div>`;
   if(!dlg.open)dlg.showModal();
   const card=dlg.querySelector(".hp-card");card.tabIndex=-1;card.focus({preventScroll:true});

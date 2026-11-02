@@ -170,32 +170,30 @@ function reviewSchedule(){
   const levels=[...new Set(job.games.map(g=>g.level).filter(Boolean))];
   /* A schedule for a team you don't coach (Varsity, the boys): offer to save it as a comparison list instead. */
   job.levels=levels;
-  job.mode=job.games.length&&levels.length&&!job.games.some(g=>g.mine)?"ref":"team";
-  job.refName=levels.length===1?titleCaseL(levels[0]):levels.length?levels.map(titleCaseL).join(" / "):"";
+  job.mode="team";
+  job.refName="";
   if(!job.games.length&&!job.days.length){show(`<p class="msg err">No games or dates found in that photo. Try a closer, straight-on picture.</p>`,`<button class="btn primary" type="button" data-ai="restart">Try another photo</button>`);return;}
   renderScheduleReview();
 }
 const titleCaseL=s=>String(s||"").replace(/\b\w/g,c=>c.toUpperCase());
-function refTeams(){const n=String(job.refName||"").toLowerCase(),lab=t=>String((t.settings||{}).teamLabel||t.name).toLowerCase();
-  const g=/\bgirls?\b|women|lady/.test(n)?"girls":/\bboys?\b|\bmen\b/.test(n)?"boys":"";
-  const m=g?job.teams.filter(t=>lab(t).includes(g)):[];return (m.length?m:job.teams.filter(t=>t.id===team.id)).map(t=>t.id);}
+function refTeams(){return [team.id];}
 function renderScheduleReview(){
   const st=SETTINGS,levels=job.levels||[],ref=job.mode==="ref",rt=ref?refTeams():null;
   const lab=t=>(t.settings||{}).teamLabel||t.name;
   const homeSel=(i,h)=>`<select data-f="g${i}.home" aria-label="Home or away"><option value="home"${h==="home"?" selected":""}>Home</option><option value="away"${h==="away"?" selected":""}>Away</option>${h==="unknown"?`<option value="unknown" selected>Home or away?</option>`:""}</select>`;
   const many=job.teams.length>1;
   const toPick=(k,ids)=>many?`<div class="ai-to" role="group" aria-label="Teams">${job.teams.map(t=>`<label class="ai-tchip"><input type="checkbox" data-to="${k}" value="${esc(t.id)}"${ids.includes(t.id)?" checked":""}><span>${esc(lab(t))}</span></label>`).join("")}</div>`:"";
-  const modeBox=`<fieldset class="ai-mode"><legend>Whose schedule is this?</legend>
-      <label class="ai-mopt"><input type="radio" name="aimode" value="team"${ref?"":" checked"}><span><b>My team's</b><small>Games and dates go on your schedule.</small></span></label>
-      <label class="ai-mopt"><input type="radio" name="aimode" value="ref"${ref?" checked":""}><span><b>Another team's, to compare</b><small>e.g. Varsity. Shown beside your dates so you can spot overlaps. Not added as a team, and parents don't see it.</small></span></label>
-      ${ref?`<label class="f ai-refname">Name this schedule<input id="aiRefName" value="${esc(job.refName||"")}" placeholder="e.g. Varsity Girls" maxlength="40"></label>`:""}</fieldset>`;
+  const modeBox=`<fieldset class="ai-mode"><legend>Add these as</legend>
+      <label class="ai-mopt"><input type="radio" name="aimode" value="team"${ref?"":" checked"}><span><b>Games and days on my schedule</b></span></label>
+      <label class="ai-mopt"><input type="radio" name="aimode" value="ref"${ref?" checked":""}><span><b>A group of dates</b><small>All under one name, e.g. Varsity or School events.</small></span></label>
+      ${ref?`<label class="f ai-refname">Group name<input id="aiRefName" value="${esc(job.refName||"")}" placeholder="e.g. Varsity" maxlength="40"></label>`:""}</fieldset>`;
   if(ref){show(`${modeBox}
-    <p class="help">Every date below is saved under <b>${esc(job.refName||"this name")}</b>${many?" on the teams you pick":""}. Fix any titles, add details, and uncheck anything you don't need.</p>
+    <p class="help">Every date below goes under <b>${esc(job.refName||"this name")}</b>. Edit any title or details, and uncheck anything you don't need.</p>
     ${job.games.length?`<h3 class="gp-h">Games (${job.games.length})</h3><div class="ai-list">${job.games.map((g,i)=>`<div class="ai-row">
       <label class="ai-chk"><input type="checkbox" data-g="${i}" checked><span class="sr">Add</span></label>
       <div class="ai-fields ai-game"><input type="date" data-f="g${i}.date" value="${esc(g.date)}" aria-label="Date"><input type="time" data-f="g${i}.time" value="${esc(g.time||"")}" aria-label="Time">
         ${homeSel(i,g.home)}<input data-f="g${i}.opponent" value="${esc(g.opponent||"")}" aria-label="Opponent" class="ai-opp">
-        <input data-f="g${i}.event" value="${esc(g.event||"")}" placeholder="Details (optional), e.g. COC Tournament, JV 5:00" aria-label="Details" class="ai-opp">
+        <input data-f="g${i}.event" value="${esc(g.event||"")}" placeholder="Details (optional)" aria-label="Details" class="ai-opp">
         ${toPick("g"+i,rt)}</div></div>`).join("")}</div>`:""}
     ${job.days.length?`<h3 class="gp-h">Other dates (${job.days.length})</h3><div class="ai-list">${job.days.map((d,i)=>`<div class="ai-row">
       <label class="ai-chk"><input type="checkbox" data-d="${i}" checked><span class="sr">Add</span></label>
@@ -257,9 +255,9 @@ async function applySchedule(){
   dlg.close();showNotice(`Added ${ng} game${ng===1?"":"s"} and ${nd} special date${nd===1?"":"s"}${names.length>1?" to "+names.join(", "):" to the calendar"}.${unk?` ${unk} game${unk===1?" was":"s were"} marked Home because the photo didn't say. Check them in the calendar.`:""}`);
 }
 
-/* Save another team's schedule as a comparison list: settings.events, one name for every date. */
+/* Save a group of dates under one name: settings.events. */
 async function applyRef(){
-  const name=String((dlg.querySelector("#aiRefName")||{}).value||job.refName||"").trim().slice(0,40)||"Other schedule";
+  const name=String((dlg.querySelector("#aiRefName")||{}).value||job.refName||"").trim().slice(0,40)||"Other dates";
   const pickTo=(k,dflt)=>{const b=[...dlg.querySelectorAll(`[data-to="${k}"]`)];return b.length?b.filter(x=>x.checked).map(x=>x.value):dflt;};
   const per=new Map(),get=id=>{if(!per.has(id)){const t=id===team.id?team:job.teams.find(x=>x.id===id);const st=JSON.parse(JSON.stringify((t&&t.settings)||{}));st.events=st.events||[];per.set(id,{t,st,adds:[]});}return per.get(id);};
   let n=0;
@@ -277,7 +275,7 @@ async function applyRef(){
     const dates=new Set(adds.map(a=>a.date));st.events=st.events.filter(x=>!(x.list===name&&dates.has(x.date))).concat(adds).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.time||"").localeCompare(b.time||""));
     if(id===team.id)await saveSettings(st);else await saveTeamSettings(t,st);names.push((t.settings||{}).teamLabel||t.name);}
   if(window.onCalChange)window.onCalChange();
-  dlg.close();showNotice(`Added ${n} ${name} date${n===1?"":"s"} to compare${names.length>1?" on "+names.join(", "):""}. They show in their own color, and you can hide them with the Compare chip above the calendar.`);
+  dlg.close();showNotice(`Added ${n} date${n===1?"":"s"} under ${name}${names.length>1?" for "+names.join(", "):""}.`);
 }
 
 /* ---------- play ---------- */
