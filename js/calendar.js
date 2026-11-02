@@ -109,7 +109,7 @@ function tagOf(t){const l=shortLabel(t),g=(l.match(/\b(\d+(st|nd|rd|th)|JV|Varsi
   return g+(/\bboys\b/i.test(l)?" B":/\bgirls\b/i.test(l)?" G":"");}
 /* ---------- Date groups: dates added under one name (Varsity, School events…).
    Saved in settings.events, never part of your practices, games or the parent calendar. ---------- */
-const REFPAL=["#0f766e","#9a3412","#1d4ed8","#a16207","#6d28d9","#be185d"];
+const REFPAL=["#0e9f8e","#e0712c","#3b82f6","#c99a06","#8b5cf6","#e0457b"];
 const refColor=name=>{let h=0;for(const c of String(name||""))h=(h*31+c.charCodeAt(0))>>>0;return REFPAL[h%REFPAL.length];};
 /* My events: the coach's own, not tied to any team (table coach_events; this browser in demo mode). */
 let MY_EV=null,myEvBusy=false;const MYK="cpp:myEvents";
@@ -192,6 +192,7 @@ function renderFilter(){
   const el=$("#calFilter");if(!el)return;const hub=hubOn&&typeof teams!=="undefined"&&teams.length>1;
   REFNAMES=refListNames(refEvents());
   const chip=(attr,val,on,label,dot)=>`<label class="vf-chip${on?" on":""}"><input type="checkbox" ${attr}="${esc(val)}"${on?" checked":""}>${dot?`<i class="hub-dot" style="background:${esc(dot)}"></i>`:""}<span>${esc(label)}</span></label>`;
+  {const dot=$("#calFiltDot");if(dot)dot.hidden=!(VF.hideTeams.length||Object.values(VF.hide).some(Boolean)||(VF.hideRef||[]).length);}
   el.innerHTML=`<span class="vf-k">Show</span>${hub?hubData(true).map(h=>chip("data-vft",h.t.id,!VF.hideTeams.includes(h.t.id),h.label,h.color)).join(""):""}${[["practice","Practices"],["game","Games"],["off","Days off & notes"]].map(([k,l])=>chip("data-vfk",k,!VF.hide[k],l)).join("")}${REFNAMES.length?`<span class="vf-k vf-cmp">Groups</span>`+REFNAMES.map(n=>chip("data-vfr",n,!VF.hideRef.includes(n),n,refColor(n))).join(""):""}`;
 }
 document.addEventListener("change",e=>{const t=e.target;
@@ -344,10 +345,11 @@ function renderDay(){
     if(rs.length)h+=`<div class="day-ev ref"><b>My events</b><ul class="ref-list">${rs.map(e=>`<li style="--rc:${refColor(e.list)}"><i></i><div><b>${esc(e.title||"Event")}</b><small>${esc([e.list,e.time?ampm(e.time):"",e.info].filter(Boolean).join(" · "))}</small></div><button type="button" class="linkbtn" data-act="delRef" data-id="${esc(e.id)}">Remove</button></li>`).join("")}</ul>
       ${[...new Set(rs.map(e=>e.list))].map(n=>`<button type="button" class="linkbtn" data-act="delRefList" data-list="${esc(n)}">Remove the whole ${esc(n)} group</button>`).join("")}</div>`;
     if(!d.game&&!d.practice&&!d.off&&!d.tags&&!rs.length)h+=`<p class="help">Nothing scheduled.</p>`;
-    h+=`<details class="day-edit"><summary>Add my own event</summary><div class="day-form"><label class="f">Title<input id="meTitle" placeholder="e.g. Varsity vs Ozark"></label>
-      <div class="grid2"><label class="f">Time<input type="time" id="meTime"></label><label class="f">Group<input id="meList" list="meLists" placeholder="e.g. Varsity" value="${esc(groups[0]||"")}"></label></div>
+    h+=`<details class="day-edit" id="meBox"><summary>Add my own event</summary><div class="day-form"><label class="f">Title<input id="meTitle" placeholder="e.g. Varsity vs Ozark"></label>
+      <div class="grid2"><label class="f">Date<input type="date" id="meDate" value="${iso}"></label><label class="f">Time<input type="time" id="meTime"></label></div>
+      <div class="grid2"><label class="f">Group<input id="meList" list="meLists" placeholder="e.g. Varsity" value="${esc(groups[0]||"")}"></label><label class="f">Details<input id="meInfo" placeholder="Optional"></label></div>
       <datalist id="meLists">${groups.map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
-      <label class="f">Details<input id="meInfo" placeholder="Optional"></label><p class="help" style="margin:0">Only you see this. It isn't added to any team.</p>
+      <p class="help" style="margin:0">Only you see this. It isn't added to any team.</p>
       <div class="actions" style="margin:0"><button class="btn primary" type="button" data-act="addMyEv">Add event</button></div></div></details>`;}
   if(ed&&(dayHub||!d.game))h+=`<details class="day-edit"><summary>Add a game this day</summary>${gameForm({date:iso,home:true,time:"17:30"},dayHub?((teams.filter(canSchedule).find(t=>!((t.settings||{}).games||[]).some(y=>y.date===iso))||team).id):null)}</details>`;
   if(ed&&!d.practice&&!d.off){const t=practiceTimes(iso,st);
@@ -473,7 +475,7 @@ $("#dayBody").addEventListener("click",async e=>{
     try{if(a==="delRef")await MyEvents.remove([b.dataset.id]);
       if(a==="delRefList"){const n=b.dataset.list;await MyEvents.remove(MyEvents.list().filter(e=>(e.list||"My events")===n).map(e=>e.id));}
       if(a==="addMyEv"){const title=$("#meTitle").value.trim();if(!title){msg($("#dayMsg"),"Add a title.","err");$("#meTitle").focus();return;}
-        await MyEvents.add([{date:iso,title,time:$("#meTime").value||null,list:$("#meList").value.trim()||"My events",info:$("#meInfo").value.trim()||null}]);}
+        await MyEvents.add([{date:$("#meDate").value||iso,title,time:$("#meTime").value||null,list:$("#meList").value.trim()||"My events",info:$("#meInfo").value.trim()||null}]);}
       render();renderDay();msg($("#dayMsg"),a==="addMyEv"?"Event added":"Removed","ok");}
     catch(err){msg($("#dayMsg"),"Not saved: "+(err.message||"check your connection"),"err");}return;}
   if(a==="restore")change(st=>{st.special=st.special.filter(x=>!(x.date===iso&&x.kind==="off"));},"Day off removed");
@@ -629,4 +631,29 @@ function calendarPdf(st,ev,team0){
   }
   return doc;
 }
+/* + Add menu: close it after a pick or a tap elsewhere; "My event" opens today with the form ready. */
+document.addEventListener("click",e=>{const m=document.querySelector(".cal-add[open]");
+  if(m&&(!e.target.closest(".cal-add")||e.target.closest(".cal-menu button")))m.open=false;
+  const f=document.querySelector(".cal-filt[open]");if(f&&!e.target.closest(".cal-filt"))f.open=false;
+  if(e.target.closest("#calMyEv"))myEvDialog();});
+/* A small form just for adding one of your own events. */
+function myEvDialog(){
+  let d=$("#myEvDlg");
+  if(!d){d=document.createElement("dialog");d.id="myEvDlg";d.className="hub-peek";document.body.appendChild(d);
+    d.addEventListener("click",async e=>{if(e.target===d||e.target.closest("[data-mex]")){d.close();return;}
+      if(!e.target.closest("[data-mesave]"))return;const title=$("#mxTitle").value.trim(),date=$("#mxDate").value;
+      if(!title||!date){msg($("#mxMsg"),"Add a title and date.","err");return;}
+      try{await MyEvents.add([{date,title,time:$("#mxTime").value||null,list:$("#mxList").value.trim()||"My events",info:$("#mxInfo").value.trim()||null}]);
+        d.close();render();showNotice(`Added ${title} on ${longDay(date)}.`);}catch(err){msg($("#mxMsg"),"Not saved: "+(err.message||"check your connection"),"err");}});}
+  const groups=refListNames(refEvents());
+  d.innerHTML=`<div class="hp-card"><div class="hp-head"><h3>My event</h3><button type="button" class="icon" data-mex aria-label="Close">✕</button></div>
+    <label class="f">Title<input id="mxTitle" placeholder="e.g. Varsity vs Ozark"></label>
+    <div class="grid2"><label class="f">Date<input type="date" id="mxDate" value="${todayISO()}"></label><label class="f">Time<input type="time" id="mxTime"></label></div>
+    <div class="grid2"><label class="f">Group<input id="mxList" list="mxLists" placeholder="e.g. Varsity" value="${esc(groups[0]||"")}"></label><label class="f">Details<input id="mxInfo" placeholder="Optional"></label></div>
+    <datalist id="mxLists">${groups.map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
+    <p class="help" style="margin:0">Only you see this. It isn't added to any team.</p><div class="msg" id="mxMsg"></div>
+    <div class="actions" style="margin:0"><button type="button" class="btn" data-mex>Cancel</button><button type="button" class="btn primary" data-mesave>Add event</button></div></div>`;
+  d.showModal();setTimeout(()=>$("#mxTitle").focus(),50);
+}
 })();
+

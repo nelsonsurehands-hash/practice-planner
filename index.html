@@ -480,26 +480,28 @@
     <label class="cal-teamsel" id="calTeamWrap" hidden><span>Team</span><select id="calTeam" aria-label="Show the calendar for"></select></label>
     <div class="cal-season" id="calSeason"></div>
   </div>
-  <div class="cal-legend" aria-label="Legend">
-    <span><i class="sw game"></i>Game</span><span><i class="sw tryout"></i>Tryouts</span><span><i class="sw practice"></i>Practice</span>
-    <span><i class="sw meeting"></i>Meeting</span><span><i class="sw bus"></i>Bus</span><span><i class="sw holiday"></i>Holiday / no school</span><span><i class="sw nopr"></i>No practice</span><span><i class="plan-dot key" aria-hidden="true">P</i>Practice plan</span>
-  </div>
-  <div class="cal-tools">
-    <button class="btn" type="button" id="calToday">Today</button>
-    <button class="btn" type="button" id="calIcs">Export calendar</button>
-    <button class="btn edit-only" type="button" id="calSetupBtn">⚙ Season &amp; practice times</button>
-    <button class="btn" type="button" id="calShare" data-feature="plink">🔗 Parent link</button>
-    <button class="btn edit-only" type="button" id="calAddGame">+ Game</button>
-    <button class="btn edit-only" type="button" data-photo="schedule">📷 Add from a photo or file</button>
-    <span class="help" id="calHint">Tap a day to see it, open its practice plan, or change it.</span>
+  <div class="cal-bar">
+    <details class="cal-add"><summary class="btn primary">+ Add</summary>
+      <div class="cal-menu" role="menu">
+        <button type="button" class="edit-only" id="calAddGame" role="menuitem"><b>Game</b><small>One game for this team</small></button>
+        <button type="button" class="edit-only" data-photo="schedule" role="menuitem"><b>From a photo or file</b><small>A schedule, flyer, spreadsheet or text</small></button>
+        <button type="button" id="calMyEv" role="menuitem"><b>My event</b><small>Just for you, not on any team</small></button>
+      </div></details>
+    <button class="btn" type="button" id="calShare" data-feature="plink">Parent link</button>
+    <button class="btn" type="button" id="calIcs">Export</button>
+    <button class="btn edit-only cal-gear" type="button" id="calSetupBtn" aria-label="Season and practice times" title="Season &amp; practice times"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1c.5.4 1.1.7 1.7 1l.4 2.5h4l.4-2.5c.6-.3 1.2-.6 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
   </div>
   <div class="cal-callout" id="calCallout" hidden></div>
-  <div class="cal-filter" id="calFilter" role="group" aria-label="Show on the calendar"></div>
   <div class="cal-viewbar">
-    <div class="seg" role="group" aria-label="Calendar view"><button type="button" data-calview="month" aria-pressed="true">Month</button><button type="button" data-calview="all" aria-pressed="false">Full season</button></div>
+    <div class="seg" role="group" aria-label="Calendar view"><button type="button" data-calview="month" aria-pressed="true">Month</button><button type="button" data-calview="all" aria-pressed="false">Season</button></div>
+    <button class="btn cal-today" type="button" id="calToday">Today</button><details class="cal-filt"><summary class="btn">Filter<i class="filt-dot" id="calFiltDot" hidden></i></summary><div class="cal-filter" id="calFilter" role="group" aria-label="Show on the calendar"></div></details>
     <div class="cal-nav" id="calNav"><button class="btn" type="button" id="calPrev" aria-label="Previous month">‹</button><b id="calNavLabel"></b><button class="btn" type="button" id="calNext" aria-label="Next month">›</button></div>
   </div>
   <div id="calMonths"></div>
+  <div class="cal-legend cal-key" aria-label="Legend">
+    <span><i class="sw game"></i>Game</span><span><i class="sw tryout"></i>Tryouts</span><span><i class="sw practice"></i>Practice</span>
+    <span><i class="sw meeting"></i>Meeting</span><span><i class="sw bus"></i>Bus</span><span><i class="sw holiday"></i>Holiday / no school</span><span><i class="sw nopr"></i>No practice</span><span><i class="plan-dot key" aria-hidden="true">P</i>Practice plan</span>
+  </div>
   <div class="cal-list-wrap"><table class="cal-list" id="calGames"></table></div>
   <p class="help cal-foot" id="calFoot"></p>
   <section class="cal-setup st-form" id="calSetup">
