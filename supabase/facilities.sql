@@ -132,6 +132,8 @@ language plpgsql security definer set search_path = public as $$
 declare r text; d boolean; clash fac_bookings;
 begin
   select role, direct into r, d from fac_members where org_id = new.org_id and user_id = auth.uid();
+  -- the school can turn approval off: then every editor books directly
+  d := coalesce(d, false) or not coalesce((select approval from fac_orgs where id = new.org_id), true);
   if not exists(select 1 from fac_spaces where id = new.space_id and org_id = new.org_id) then
     raise exception 'That space is not part of this school';
   end if;
