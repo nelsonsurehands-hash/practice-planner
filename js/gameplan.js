@@ -230,7 +230,7 @@ function printScout(){
   if((s.def||[]).length||s.defense){w.h("Their defense");w.p((s.def||[]).join(", "),{bold:true});w.p(s.defense);}
   if(s.special){w.h(isBB()?"Out of bounds and special situations":"Special situations");w.p(s.special);}
   if(lines(s.keys).length){w.h("Keys to beat them");lines(s.keys).forEach((k,i)=>w.p(`${i+1}. ${k}`,{size:11.5}));}
-  doc.save(`scouting-${T().slug(o.name)}.pdf`);
+  saveFile(`scouting-${T().slug(o.name)}.pdf`,doc.output("blob"));
 }
 function printGame(){
   const g=games().find(x=>x.date===gpDate);if(!g)return;const p=planFor(gpDate),R=T().roster,s=SCOUTS[keyOf(g.opponent)],doc=T().pdfDoc();
@@ -248,6 +248,6 @@ function printGame(){
   if(p.subs){w.h("Rotation and subs");w.p(p.subs);}
   if(p.notes){w.h("Reminders");w.p(p.notes);}
   if(resultOf(gpDate)||p.result.notes){w.h("Result");w.p(resultOf(gpDate),{bold:true,size:12});w.p(p.result.notes);}
-  doc.save(`gameplan-${gpDate}-${T().slug(g.opponent)}.pdf`);
+  saveFile(`gameplan-${gpDate}-${T().slug(g.opponent)}.pdf`,doc.output("blob"));
 }
 })();

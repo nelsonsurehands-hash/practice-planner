@@ -337,7 +337,7 @@ function printRecap(date){
   if(c.subs.length){doc.setFontSize(11);doc.text("Substitutions",40,y);y+=14;doc.setFont("helvetica","normal");doc.setFontSize(9);
     c.subs.forEach(e=>{if(y>750){doc.addPage();y=50;}doc.text(`${periodLabel(g,e.p)}   ${eventText(g,e,by)}`,40,y);y+=12;});}
   if(g.notes){y+=8;doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text("Notes",40,y);y+=14;doc.setFont("helvetica","normal");doc.setFontSize(10);doc.splitTextToSize(g.notes,520).forEach(l=>{doc.text(l,40,y);y+=13;});}
-  doc.save(`recap-${date}-${T().slug(gm.opponent)}.pdf`);
+  saveFile(`recap-${date}-${T().slug(gm.opponent)}.pdf`,doc.output("blob"));
 }
 function seasonCSV(){
   const d=seasonData(),by=Object.fromEntries(T().roster.map(p=>[p.id,p])),keys=statset().map(([k])=>k),labels=statset().map(([,l])=>l);

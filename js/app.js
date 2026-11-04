@@ -1458,11 +1458,31 @@ $("#pPdf").addEventListener("click",e=>{
 
 play=blankPlay();setTool("move");renderEditor();renderPlayLib();
 
+function shareTap(file){
+  let t=document.getElementById("shareTap");
+  if(!t){t=document.createElement("div");t.id="shareTap";t.className="share-tap";t.setAttribute("role","dialog");document.body.appendChild(t);}
+  t.innerHTML=`<span><b>Your PDF is ready</b><small>${esc(file.name)}</small></span><button type="button" class="btn primary">Send</button><button type="button" class="icon" aria-label="Close">✕</button>`;
+  t.hidden=false;
+  const [send,close]=t.querySelectorAll("button");
+  send.onclick=async()=>{t.hidden=true;try{await navigator.share({files:[file]});}catch{}};
+  close.onclick=()=>{t.hidden=true;};
+}
 async function saveFile(name,data){
   const blob=data instanceof Blob?data:new Blob([data],{type:"application/json"});
   // Inside a Claude preview, downloads go through Claude's save prompt.
   const dl=window.claude&&window.claude.use?await window.claude.use("downloads").catch(()=>null):null;
   if(dl){try{await dl.save({filename:name,data:blob});return;}catch(e){if(e&&e.code==="declined")return;}}
+  /* Phones: open the share sheet with just the file, so a text message gets the PDF
+     itself (not a "blob:" link and the website). Computers keep downloading. */
+  if(blob.type==="application/pdf"&&matchMedia("(pointer:coarse)").matches&&navigator.canShare){
+    const file=new File([blob],name,{type:"application/pdf"});
+    if(navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file]});return;}
+      catch(e){if(e&&e.name==="AbortError")return;
+        /* The share sheet needs a fresh tap when the PDF took a moment to build. */
+        if(e&&e.name==="NotAllowedError"){shareTap(file);return;}}
+    }
+  }
   const url=URL.createObjectURL(blob),a=document.createElement("a");
   a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
 }

@@ -404,7 +404,7 @@ function printRoster(){
     if(p.parent2||p.phone2){y+=12;doc.setTextColor(90);doc.text(doc.splitTextToSize(p.parent2||"",124)[0],cols[2],y);doc.text(p.phone2||"",cols[3],y);doc.setTextColor(0);}
     y+=6;doc.setDrawColor(210);doc.line(40,y,572,y);doc.setDrawColor(0);y+=13;
   });
-  doc.save(`${slug(team.name)}-roster.pdf`);
+  saveFile(`${slug(team.name)}-roster.pdf`,doc.output("blob"));
 }
 const slug=s=>String(s||"team").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
 
@@ -481,7 +481,7 @@ function printSched(){
     if(t){doc.setFont("helvetica","bold");doc.text(hm(t.depart)||"",cols[4],y);doc.setFont("helvetica","normal");doc.text(hm(t.return)||"",cols[5],y);
       if(t.from){y+=12;doc.setFontSize(8.5);doc.setTextColor(110);doc.text("Leaves from "+t.from,cols[4],y);doc.setTextColor(0);doc.setFontSize(10);}}
     y+=7;doc.setDrawColor(220);doc.line(40,y,572,y);doc.setDrawColor(0);y+=14;});
-  doc.save(`${slug(team.name)}-game-bus-schedule.pdf`);
+  saveFile(`${slug(team.name)}-game-bus-schedule.pdf`,doc.output("blob"));
 }
 $("#tm-sched").addEventListener("click",async e=>{
   const f=e.target.closest("[data-schf]");if(f){schedFilter=f.dataset.schf;try{localStorage.setItem("cpp:schedFilter",schedFilter);}catch{}renderSched();return;}
@@ -614,7 +614,7 @@ function printBus(t){
     doc.setFont("helvetica","normal");doc.setFontSize(11);doc.splitTextToSize(arr.map(pname).join(", "),520).forEach(l=>{doc.text(l,40,y);y+=14;});};
   list("Own ride",own);list("Not going",out);
   y+=10;doc.setFontSize(10);doc.setTextColor(90);doc.text(`Total on the bus: ${riding.length} players${t.adults?` + ${t.adults.split(/,| and /).filter(s=>s.trim()).length} adults`:""}`,40,Math.min(y,760));
-  doc.save(`bus-${busDate}-${slug(g.opponent)}.pdf`);
+  saveFile(`bus-${busDate}-${slug(g.opponent)}.pdf`,doc.output("blob"));
 }
 
 /* ---------- game-day food sign-ups ---------- */
