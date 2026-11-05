@@ -598,13 +598,14 @@ function updatePreview(){
 }
 /* Fill the forms from the saved team. Skipped while there are unsaved edits in any of them,
    so moving between Team, Calendar and Settings doesn't throw away what you typed. */
-let settingsDirty=false;
+let settingsDirty=false,draftFor=null;   // draftFor: the team the form was filled from
 document.addEventListener("input",e=>{if(inForm(e)&&e.target.closest(".st-edit"))settingsDirty=true;},true);
 window.onSettingsTab=function(force){
   if(!team)return;
   checkAdmin();
-  if(settingsDirty&&draft&&!force)return;
-  settingsDirty=false;
+  /* Keep unsaved typing only while it's still the same team. Switching teams always shows that team's own settings. */
+  if(settingsDirty&&draft&&!force&&draftFor===team.id)return;
+  settingsDirty=false;draftFor=team.id;
   draft=JSON.parse(JSON.stringify({...DEFAULT_SETTINGS,...(team.settings||{})}));
   draft.games=draft.games||[];draft.special=draft.special||[];
   $("#sSport").value=draft.sport||"basketball";$("#sSportHelp").hidden=true;
@@ -782,7 +783,8 @@ async function applyAlso(form,st){
   return [...new Set(out)];
 }
 document.querySelectorAll(".st-save").forEach(b=>b.addEventListener("click",async()=>{
-  if(!draft)window.onSettingsTab(true);
+  /* Never save one team's form onto another team. */
+  if(!draft||draftFor!==team.id){window.onSettingsTab(true);$("#sStatus").textContent="This form was for another team. It now shows "+((team.settings||{}).teamLabel||team.name)+". Make your change again and Save.";return;}
   const st=readForm();$("#sStatus").textContent="Saving…";
   const form=b.closest(".st-form");
   try{await saveSettings(st);settingsDirty=false;
