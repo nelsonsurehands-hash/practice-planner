@@ -403,16 +403,29 @@ async function readItems(teamId,kind){
 }
 $("#suBack").addEventListener("click",()=>{show("app");});
 /* ---------- Grade/Level: pick from the usual levels, or Other to type your own ---------- */
-const LEVELS=["7th Grade","8th Grade","Freshman","JV","Varsity"];
+const LEVELS=["6th Grade","7th Grade","8th Grade","Freshman","JV","Varsity"],GENDERS=["Girls","Boys","Coed"];
+/* The saved label is one text ("8th Grade Girls"), built from the level and Boys/Girls. */
+function lvlParts(sel){const box=sel.closest(".lvl-pick");
+  if(!box.querySelector(".lvl-other")){
+    const other=document.createElement("input");other.className="lvl-other";other.placeholder="Type it, e.g. 14U";other.hidden=true;other.setAttribute("aria-label","Grade or level");
+    const g=document.createElement("select");g.className="lvl-g";g.setAttribute("aria-label","Boys or girls");
+    g.innerHTML=`<option value="">Boys or girls…</option>`+GENDERS.map(x=>`<option>${x}</option>`).join("");
+    sel.after(other);box.appendChild(g);}
+  return {box,inp:$("#"+sel.dataset.lvl),other:box.querySelector(".lvl-other"),g:box.querySelector(".lvl-g")};}
 function setLevel(selId,val){
-  const sel=$("#"+selId),inp=$("#"+sel.dataset.lvl);val=String(val||"").trim();
-  const known=LEVELS.find(l=>l.toLowerCase()===val.toLowerCase());
-  sel.innerHTML=`<option value="">Choose…</option>`+LEVELS.map(l=>`<option${l===known?" selected":""}>${l}</option>`).join("")+`<option value="__other"${val&&!known?" selected":""}>Other…</option>`;
-  inp.value=known||val;inp.hidden=!(val&&!known);
+  const sel=$("#"+selId),{inp,other,g}=lvlParts(sel);val=String(val||"").trim();
+  const m=val.match(/^(.*?)\s*\b(girls|boys|coed)$/i),base=(m?m[1]:val).trim(),gen=m?GENDERS.find(x=>x.toLowerCase()===m[2].toLowerCase()):"";
+  const known=LEVELS.find(l=>l.toLowerCase()===base.toLowerCase());
+  sel.innerHTML=`<option value="">Choose…</option>`+LEVELS.map(l=>`<option${l===known?" selected":""}>${l}</option>`).join("")+`<option value="__other"${base&&!known?" selected":""}>Other…</option>`;
+  other.value=base&&!known?base:"";other.hidden=!(base&&!known);g.value=gen||"";
+  inp.hidden=true;inp.value=val;
 }
-document.addEventListener("change",e=>{const sel=e.target.closest("select[data-lvl]");if(!sel)return;const inp=$("#"+sel.dataset.lvl);
-  if(sel.value==="__other"){inp.hidden=false;inp.value="";inp.focus();}else{inp.hidden=true;inp.value=sel.value;}
-  inp.dispatchEvent(new Event("input",{bubbles:true}));});
+function lvlCompose(sel){const {inp,other,g}=lvlParts(sel);const base=sel.value==="__other"?other.value.trim():sel.value;
+  inp.value=[base,g.value].filter(Boolean).join(" ");inp.dispatchEvent(new Event("input",{bubbles:true}));}
+document.addEventListener("change",e=>{const box=e.target.closest(".lvl-pick");if(!box)return;const sel=box.querySelector("select[data-lvl]");
+  if(e.target===sel){const {other}=lvlParts(sel);other.hidden=sel.value!=="__other";if(sel.value==="__other"){other.value="";other.focus();}}
+  lvlCompose(sel);});
+document.addEventListener("input",e=>{if(e.target.classList&&e.target.classList.contains("lvl-other"))lvlCompose(e.target.closest(".lvl-pick").querySelector("select[data-lvl]"));});
 setLevel("suLabelSel","");
 /* ---------- which features a team uses (new team form and Settings → Features) ---------- */
 function progHTML(name,cur){return Object.entries(PROGRAMS).map(([k,p])=>`<label class="prog"><input type="radio" name="${name}" value="${k}"${k===cur?" checked":""}><span><b>${p.label}</b><small>${p.help}</small></span></label>`).join("");}
