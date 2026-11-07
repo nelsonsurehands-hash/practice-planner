@@ -6,7 +6,7 @@
   const app=document.getElementById("app");if(!app)return;
   const I={home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
     plan:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM8.5 12h7M8.5 16h5"/>',
-    plays:'<circle cx="6" cy="17" r="2.2"/><path d="M15 4l5 5M20 4l-5 5"/><path d="M8 15.5C10 10 13 9.5 16 12" stroke-dasharray="2.5 2.5"/>',
+    plays:'<circle cx="5.5" cy="18.5" r="3"/><path d="M15.5 3.5l5 5M20.5 3.5l-5 5"/><path d="M5.5 14.3C5.9 9.6 8.6 7.5 12.2 8.6"/><path d="M9.8 6.4l2.6 2.2-2.1 2.7"/>',
     cal:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
     team:'<circle cx="9" cy="9" r="3.2"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.5 14.3c2.6-.4 4.6 1.2 5 4.2"/>',
     more:'<circle cx="5.5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18.5" cy="12" r="1.6"/>',
