@@ -1718,3 +1718,38 @@ input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and
 .lvl-pick{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .lvl-pick .lvl-other{grid-column:1/-1;grid-row:2}
 .lvl-pick select,.lvl-pick input{width:100%;min-width:0}
+
+/* ---------- Practice cards (Nov 2026 redesign) ----------
+   One card per drill: color edge by drill type, start–end time inside the card,
+   minutes stepper on the right. Tap the card to open notes, the drill's own
+   description and coaching points, who leads it, and move/remove. */
+.script .block.bc{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:4px 8px;align-items:center;padding:9px 10px 9px 4px;margin:0 0 8px;border:1px solid var(--line);border-left:4px solid var(--c,#8a8794);border-radius:14px;background:var(--surface);box-shadow:0 1px 2px rgba(20,14,30,.05)}
+.script .block.bc:not(.can-drag){grid-template-columns:6px minmax(0,1fr) auto}
+.block.bc .drag{grid-row:1;margin:0;min-height:44px}
+.block.bc .bc-main{display:grid;gap:2px;text-align:left;border:0;background:none;padding:2px 0;min-width:0;color:inherit;font:inherit;cursor:pointer;border-radius:8px}
+.block.bc .bc-main:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.block.bc .time{font-family:var(--mono);font-size:12px;color:var(--muted);padding:0;font-variant-numeric:tabular-nums}
+.block.bc.late .time{color:var(--warn);font-weight:600}
+.block.bc .name{font-weight:700;font-size:16.5px;line-height:1.2}
+.block.bc .bc-sub{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px;color:var(--muted);align-items:center}
+.block.bc .bc-sub b{color:var(--c);font-weight:700;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase}
+.block.bc .bc-has{color:var(--ink);opacity:.75}
+.block.bc .mins{display:flex;align-items:center;background:var(--sunk);border-radius:999px;padding:2px;gap:0}
+.block.bc .mins button{width:34px;height:34px;border:0;background:none;border-radius:50%;font-size:18px;color:var(--ink);padding:0}
+.block.bc .mins button:active{background:var(--line)}
+.block.bc .mins input{width:30px;border:0;background:none;text-align:right;font-weight:700;font-size:15.5px;padding:0;-moz-appearance:textfield;min-height:0}
+.block.bc .mins input::-webkit-inner-spin-button,.block.bc .mins input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.block.bc .mins .u{font-size:11px;color:var(--muted);margin:0 2px 0 1px}
+.block.bc .bc-min{font-weight:700;font-size:14px;color:var(--muted);padding-right:4px}
+.block.bc .bc-more{grid-column:2/-1;display:grid;gap:10px;border-top:1px dashed var(--line);padding-top:10px;margin-top:4px}
+.block.bc .bc-more .note{margin:0;font-size:15px;min-height:62px;resize:vertical}
+.block.bc .bc-drill{background:var(--sunk);border-radius:10px;padding:9px 11px;font-size:14px;line-height:1.45;display:grid;gap:6px}
+.block.bc .bc-drill p{margin:0}
+.block.bc .bc-drill b{display:block;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.block.bc .bc-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.block.bc .bc-row .coachSel{width:auto;flex:1 1 150px;min-height:36px;font-size:14px}
+.block.bc .btn.sm{padding:7px 11px;font-size:13.5px;min-height:36px}
+.block.bc .btn.sm:disabled{opacity:.4}
+.block.bc.dragging{border-radius:14px;border-bottom-color:var(--line)}
+.script .block.bc+.block.bc{border-top:1px solid var(--line)}
+@media (max-width:520px){.script .block.bc{grid-template-columns:28px minmax(0,1fr) auto}.block.bc .drag{grid-row:1;width:28px}}

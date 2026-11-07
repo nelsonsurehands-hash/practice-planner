@@ -244,6 +244,11 @@ function loadPlan(date){
   cur=JSON.parse(JSON.stringify(plans[date]||defaultPlan(date)));
   renderPlan();
 }
+/* Practice cards: one color per kind of drill (warm-up, shooting, defense…), used on the card edge and the minutes bar. */
+let OPEN_BLOCK=null;
+const CAT_HUES=[["warm","#14897a"],["stretch","#14897a"],["shoot","#e2672a"],["free throw","#e2672a"],["defen","#b3263a"],["press","#b3263a"],["offen","#6d3bb0"],["play","#6d3bb0"],["condit","#2f62d6"],["transition","#2f62d6"],["break","#8a8794"],["water","#8a8794"],["scrim","#2f8a4a"],["game","#2f8a4a"],["pass","#b07d0c"],["rebound","#a3487e"],["finish","#d14d6b"],["layup","#d14d6b"],["dribbl","#0f7fa8"],["ball hand","#0f7fa8"]];
+const CAT_SPARE=["#14897a","#e2672a","#6d3bb0","#2f62d6","#2f8a4a","#b07d0c","#a3487e","#0f7fa8"];
+function catColor(c){c=String(c||"").toLowerCase();if(!c)return "#8a8794";const m=CAT_HUES.find(([k])=>c.includes(k));if(m)return m[1];let h=0;for(const ch of c)h=(h*31+ch.charCodeAt(0))>>>0;return CAT_SPARE[h%CAT_SPARE.length];}
 function coachField(b){
   if(!PERM.plans)return b.coach?`<div class="led">Led by ${esc(b.coach)}</div>`:"";
   if(STAFF.length<2&&!b.coach)return "";
@@ -260,21 +265,24 @@ function renderPlan(){
   if(!cur.blocks.length){
     list.innerHTML=`<li class="empty">No drills yet. Add drills from the list on the right, or copy a past plan below. Times fill in automatically from ${fmt(s)}.</li>`;
   } else {
+    const ED=PERM.plans&&!READONLY;
     list.innerHTML=cur.blocks.map((b,i)=>{
       const st=t; t+=b.minutes; used+=b.minutes;
-      const late=t>e;
-      return `<li class="block${late?" late":""}${PERM.plans&&!READONLY?" can-drag":""}" data-i="${i}">
-        ${PERM.plans&&!READONLY?`<button type="button" class="drag" data-drag aria-label="Drag ${esc(b.name)} to a new spot" title="Drag to move"><span aria-hidden="true"></span></button>`:""}
-        <div class="time">${fmt(st)}–${fmt(t)}<small>${b.minutes} min</small></div>
-        <div style="min-width:0"><div class="name">${esc(b.name)}${b.category?`<span class="chip">${esc(b.category)}</span>`:""}</div>
-          ${coachField(b)}
-          ${!PERM.plans?(b.notes?`<div class="note-ro">${esc(b.notes)}</div>`:""):`<input class="note" data-act="note" value="${esc(b.notes||"")}" placeholder="Add a note" aria-label="Notes for ${esc(b.name)}">`}</div>
-        <div class="ctrls edit-only">
-          <div class="mins"><button data-act="dec" aria-label="Less time">−</button><input data-act="min" type="number" min="1" max="90" value="${b.minutes}" aria-label="Minutes"><button data-act="inc" aria-label="More time">+</button></div>
-          <button class="icon" data-act="up" aria-label="Move up">↑</button>
-          <button class="icon" data-act="down" aria-label="Move down">↓</button>
-          <button class="icon" data-act="del" aria-label="Remove">✕</button>
-        </div></li>`;
+      const late=t>e, key=b.id||("i"+i), open=OPEN_BLOCK===key, d=b.drillId&&drills.find(x=>x.id===b.drillId);
+      const desc=d&&(d.description||"").trim(), pts=d&&(d.points||"").trim(), has=b.notes||desc||pts;
+      return `<li class="block bc${late?" late":""}${ED?" can-drag":""}${open?" open":""}" data-i="${i}" style="--c:${catColor(b.category)}">
+        ${ED?`<button type="button" class="drag" data-drag aria-label="Drag ${esc(b.name)} to a new spot" title="Drag to move"><span aria-hidden="true"></span></button>`:"<span></span>"}
+        <button type="button" class="bc-main" data-act="open" data-key="${key}" aria-expanded="${open}" aria-label="${esc(b.name)}, ${fmt(st)} to ${fmt(t)}. ${open?"Close":"Open"} notes">
+          <span class="time">${fmt(st)} – ${fmt(t)}${late?" · past end":""}</span>
+          <span class="name">${esc(b.name)}</span>
+          <span class="bc-sub">${b.category?`<b>${esc(b.category)}</b>`:""}${b.coach?`<span>${esc(b.coach)}</span>`:""}${has&&!open?`<span class="bc-has">Notes</span>`:""}</span>
+        </button>
+        ${ED?`<div class="mins"><button type="button" data-act="dec" aria-label="Less time">−</button><input data-act="min" type="number" min="1" max="90" value="${b.minutes}" aria-label="Minutes"><span class="u" aria-hidden="true">m</span><button type="button" data-act="inc" aria-label="More time">+</button></div>`:`<div class="bc-min">${b.minutes} min</div>`}
+        ${open?`<div class="bc-more">
+          ${ED?`<textarea class="note" data-act="note" rows="2" placeholder="Notes for this practice" aria-label="Notes for ${esc(b.name)}">${esc(b.notes||"")}</textarea>`:(b.notes?`<div class="note-ro">${esc(b.notes)}</div>`:"")}
+          ${desc||pts?`<div class="bc-drill">${desc?`<p><b>Drill</b>${esc(desc)}</p>`:""}${pts?`<p><b>Coaching points</b>${esc(pts)}</p>`:""}</div>`:""}
+          <div class="bc-row">${coachField(b)}${ED?`<button type="button" class="btn sm" data-act="up"${i?"":" disabled"}>Move up</button><button type="button" class="btn sm" data-act="down"${i<cur.blocks.length-1?"":" disabled"}>Move down</button>${d?`<button type="button" class="btn sm" data-act="drill">Edit drill</button>`:""}<button type="button" class="btn sm danger" data-act="del">Remove</button>`:""}</div>
+        </div>`:""}</li>`;
     }).join("");
   }
   renderMeter(s,avail,used);
@@ -293,7 +301,7 @@ function renderMeter(s,avail,used){
   let acc=0;
   $("#mTrack").innerHTML=cur.blocks.map(b=>{
     const inT=Math.max(0,Math.min(b.minutes,avail-acc)), outT=b.minutes-inT; acc+=b.minutes;
-    return (inT?`<i style="width:${inT/scale*100}%" title="${esc(b.name)}"></i>`:"")+(outT?`<i class="overflow" style="width:${outT/scale*100}%"></i>`:"");
+    return (inT?`<i style="width:${inT/scale*100}%;background:${catColor(b.category)}" title="${esc(b.name)}"></i>`:"")+(outT?`<i class="overflow" style="width:${outT/scale*100}%"></i>`:"");
   }).join("");
   const ticks=[];for(let k=0;k<=avail;k+=30)ticks.push(k);if(ticks[ticks.length-1]!==avail)ticks.push(avail);
   $("#mTicks").innerHTML=avail?ticks.map(k=>`<span style="left:${k/scale*100}%">${fmt(s+k)}</span>`).join(""):"";
@@ -387,6 +395,8 @@ $("#script").addEventListener("click",e=>{
   const btn=e.target.closest("button[data-act]"); if(!btn)return;
   if(held&&(btn.dataset.act==="inc"||btn.dataset.act==="dec"))return;
   const i=+btn.closest(".block").dataset.i, b=cur.blocks[i], a=btn.dataset.act;
+  if(a==="open"){const k=btn.dataset.key;OPEN_BLOCK=OPEN_BLOCK===k?null:k;renderPlan();if(OPEN_BLOCK){const n=$("#script").querySelector(".block.open .note");if(n&&!n.value)n.focus({preventScroll:true});}return;}
+  if(a==="drill"){const d=drills.find(x=>x.id===b.drillId);if(d&&typeof editDrill==="function"){editDrill(d.id);}return;}
   if(a==="inc"){b.minutes=Math.min(90,b.minutes+1);}
   if(a==="dec")b.minutes=Math.max(1,b.minutes-1);
   if(a==="up"&&i>0)[cur.blocks[i-1],cur.blocks[i]]=[cur.blocks[i],cur.blocks[i-1]];
@@ -402,7 +412,7 @@ $("#script").addEventListener("pointerdown",e=>{
   const li=h.closest(".block"),items=[...$("#script").querySelectorAll(".block")];
   const from=items.indexOf(li);if(from<0)return;
   const rects=items.map(x=>x.getBoundingClientRect()),gap=items.length>1?(rects[Math.min(1,items.length-1)].top-rects[0].top)||rects[from].height:rects[from].height;
-  drag2={li,h,items,rects,from,to:from,y0:e.clientY,s0:window.scrollY,step:rects[from].height,pid:e.pointerId,timer:null,lastY:e.clientY};
+  drag2={li,h,items,rects,from,to:from,y0:e.clientY,s0:window.scrollY,step:rects[from].height+(items.length>1?Math.max(0,rects[1].top-rects[0].bottom):0),pid:e.pointerId,timer:null,lastY:e.clientY};
   try{h.setPointerCapture(e.pointerId);}catch{}
   li.classList.add("dragging");$("#script").classList.add("is-dragging");
   if(navigator.vibrate)try{navigator.vibrate(8);}catch{}
@@ -711,6 +721,9 @@ function renderLib(){
       ${d.editedBy?`<p class="by">Added or edited by ${esc(d.editedBy)}</p>`:""}<div class="actions edit-only"><button class="btn" data-edit="${d.id}">Edit</button><button class="btn" data-copy="drills" data-id="${d.id}">Copy to team</button><button class="btn danger" data-del="${d.id}">Delete</button></div></article>`).join("")}</div>`;
   }).join("");
 }
+/* Open a drill's edit form in the Drill Library (from a practice card). */
+function editDrill(id){const t=$("#tab-lib");if(t)t.click();$("#libSearch").value="";$("#libCat").value="";renderLib();
+  setTimeout(()=>{const b=$(`#library [data-edit="${id}"]`);if(b)b.click();},60);}
 $("#libSearch").addEventListener("input",renderLib);
 $("#libCat").addEventListener("change",renderLib);
 $("#library").addEventListener("click",async e=>{
