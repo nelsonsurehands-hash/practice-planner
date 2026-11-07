@@ -76,6 +76,7 @@ const SPORT_KEYS=Object.keys(SPORTS);
 
 /* Court and field drawings. c = colors {out, floor, line, paint}. */
 function courtSVG(sport,c){
+  if(c.wood)return woodDefs()+courtSVG(sport,{...c,wood:false});
   const ln=w=>`style="fill:none;stroke:${c.line};stroke-width:${w||2}"`;
   let s=`<rect x="-30" y="-45" width="560" height="530" style="fill:${c.out}"/>`;
   switch(sport){
@@ -115,14 +116,31 @@ function courtSVG(sport,c){
     case "other":
       s+=`<rect x="0" y="0" width="500" height="470" style="fill:${c.floor};stroke:${c.line};stroke-width:2.5"/><path d="M0 235H500" ${ln()}/><circle cx="250" cy="235" r="50" ${ln()}/>`;
       break;
-    default: // basketball half court
+    default: // basketball half court (high school: 12 ft lane, 19'9" three)
       s+=`<rect x="0" y="0" width="500" height="470" style="fill:${c.floor};stroke:${c.line};stroke-width:2.5"/>`+
-         `<rect x="170" y="0" width="160" height="190" style="fill:${c.paint};stroke:${c.line};stroke-width:2"/>`+
-         `<path d="M190 190A60 60 0 0 0 310 190" ${ln()}/><path d="M190 190A60 60 0 0 1 310 190" style="fill:none;stroke:${c.line};stroke-width:2;stroke-dasharray:7 6"/>`+
+         `<rect x="190" y="0" width="120" height="190" style="fill:${c.paint};stroke:${c.line};stroke-width:2"/>`+
+         `<path d="M190 190A60 60 0 0 0 310 190" ${ln()}/>`+
          `<path d="M52.5 0V52.5A197.5 197.5 0 0 0 447.5 52.5V0" ${ln()}/>`+
          `<path d="M190 470A60 60 0 0 1 310 470" ${ln()}/>`+
-         `<path d="M160 70h10M330 70h10M160 110h10M330 110h10M160 140h10M330 140h10" ${ln()}/>`+
+         `<path d="M180 100h10M310 100h10M180 130h10M310 130h10M180 160h10M310 160h10" ${ln()}/>`+
+         `<rect x="179" y="68" width="11" height="12" style="fill:${c.line}"/><rect x="310" y="68" width="11" height="12" style="fill:${c.line}"/>`+
          `<line x1="220" y1="40" x2="280" y2="40" style="stroke:${c.line};stroke-width:4"/><circle cx="250" cy="52.5" r="8" ${ln()}/>`;
   }
   return s;
+}
+
+/* Hardwood floor: vertical maple planks with staggered joints (same every time, so thumbnails match). */
+let WOOD_DEFS="";
+function woodDefs(){
+  if(WOOD_DEFS)return WOOD_DEFS;
+  let seed=11;const r=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+  const pw=17,cols=8,TH=360;let b="";
+  for(let k=0;k<cols;k++){const x=k*pw;let y=-r()*200;
+    while(y<TH){const len=90+r()*160,tn=r();
+      b+=`<rect x="${x}" y="${y.toFixed(1)}" width="${pw}" height="${len.toFixed(1)}" fill="hsl(${(32+tn*6).toFixed(1)},${(46+tn*10).toFixed(1)}%,${(63+tn*10).toFixed(1)}%)"/>`+
+         `<rect x="${x}" y="${(y+len-1).toFixed(1)}" width="${pw}" height="1.2" fill="rgba(90,55,20,.28)"/>`;
+      for(let g=0;g<3;g++){const gx=x+2+r()*(pw-4);b+=`<path d="M${gx.toFixed(1)} ${y.toFixed(1)}q${((r()-.5)*4).toFixed(1)} ${(len/2).toFixed(1)} ${((r()-.5)*3).toFixed(1)} ${len.toFixed(1)}" fill="none" stroke="rgba(120,78,34,.14)" stroke-width=".7"/>`;}
+      y+=len;}
+    b+=`<rect x="${x+pw-1}" y="0" width="1" height="${TH}" fill="rgba(90,55,20,.22)"/>`;}
+  return WOOD_DEFS=`<defs><pattern id="cpWood" patternUnits="userSpaceOnUse" x="0" y="0" width="${pw*cols}" height="${TH}"><rect width="${pw*cols}" height="${TH}" fill="#cfa46d"/>${b}</pattern></defs>`;
 }

@@ -768,7 +768,7 @@ function blankPlay(){const f=Object.keys(sp().forms)[0];return {id:null,name:"",
 
 /* geometry */
 /* editor rendering */
-function renderBoard(){$("#board").innerHTML=boardInner(withDefense(frame(),curDefense()),"screen",temp,false,optionGhost())+qaRing();renderOptBanner(fi);renderLooks();renderSeq();updUndo();}
+function renderBoard(){{const w=$("#pLookWrap");if(w){const court=["basketball","volleyball"].includes(SPORT);w.hidden=!court;if(court)$("#pLook").value=courtLook();}}$("#board").innerHTML=boardInner(withDefense(frame(),curDefense()),"screen",temp,false,optionGhost())+qaRing();renderOptBanner(fi);renderLooks();renderSeq();updUndo();}
 /* On the first step of an option, show the step it branches from as faint lines, so the play stays in view. */
 function optionGhost(){
   const f=frame();if(!f.opt)return null;const L=playLines(play.frames),o=optionOf(play.frames,L,fi);
@@ -1151,6 +1151,8 @@ function setDefense(type,chase){
   if(AUTO_DEF(type))pflash(`${(DEF_TYPES.find(x=>x[0]===type)||[])[1]}: the defenders move on their own as the ball moves. Press Play through to watch it.`);
 }
 $("#pDef").addEventListener("change",e=>setDefense(e.target.value));
+/* Court look: Hardwood, Whiteboard or Classic. Saved on this device; redraws the board and the play cards. */
+$("#pLook").addEventListener("change",e=>{setCourtLook(e.target.value);renderBoard();renderPlayLib();});
 $("#pChase").addEventListener("change",e=>setDefense("box1",e.target.value));
 $("#pUndo").addEventListener("click",()=>{if(!hist.length){pflash("Nothing to undo.");return;}
   redoList().push(JSON.stringify({frames:play.frames,fi}));const h=JSON.parse(hist.pop());applyHist(h);});

@@ -64,10 +64,19 @@ function actSVG(a,col){
   }
   return "";
 }
+/* Court looks (saved on this device): Hardwood (default), Whiteboard, or Classic (the app's colors).
+   Hardwood and Whiteboard are for courts; field sports always use Classic. */
+const LOOKS={wood:"Hardwood",board:"Whiteboard",classic:"Classic"};
+function courtLook(){let v="";try{v=localStorage.getItem("cpp:courtLook")||"";}catch(e){}
+  if(!["basketball","volleyball"].includes(typeof SPORT==="string"?SPORT:"basketball"))return "classic";return LOOKS[v]?v:"wood";}
+function setCourtLook(v){try{localStorage.setItem("cpp:courtLook",v);}catch(e){}}
+function lookColors(){const L=courtLook();
+  if(L==="wood")return {wood:true,out:"color-mix(in srgb,var(--team,#5b2a86) 62%,#1a1020)",floor:"url(#cpWood)",line:"#fffdf8",o:"var(--team-ink,#fff)",ofill:"var(--team,#5b2a86)",d:"#1d1720",act:"#1d1720",ball:"#e2672a",paint:"color-mix(in srgb,var(--team,#5b2a86) 86%,transparent)"};
+  if(L==="board")return {out:"#eef1f7",floor:"#ffffff",line:"#172a5e",o:"#172a5e",ofill:"#ffffff",d:"#b3261e",act:"#172a5e",ball:"#e2672a",paint:"#e3e9f4"};
+  return {out:"var(--court-out)",floor:"var(--court)",line:"var(--court-line)",o:"var(--accent)",ofill:"var(--surface)",d:"var(--ink)",act:"var(--ink)",ball:"var(--ball)",paint:"var(--court-paint)"};}
 function boardInner(fr,mode,tmp,fade,ghost){
   const P=mode==="print";
-  const c=P?{out:"#fff",floor:"#fff",line:"#000",o:"#000",ofill:"#fff",d:"#000",act:"#000",ball:"#000",paint:"#fff"}
-           :{out:"var(--court-out)",floor:"var(--court)",line:"var(--court-line)",o:"var(--accent)",ofill:"var(--surface)",d:"var(--ink)",act:"var(--ink)",ball:"var(--ball)",paint:"var(--court-paint)"};
+  const c=P?{out:"#fff",floor:"#fff",line:"#000",o:"#000",ofill:"#fff",d:"#000",act:"#000",ball:"#000",paint:"#fff"}:lookColors();
   let s=courtSVG(SPORT,c);
   if(ghost&&ghost.length)s+=`<g style="opacity:.22">`+ghost.map(a=>actSVG(a,c.act)).join("")+`</g>`;
   const acts=[...fr.actions];if(tmp)acts.push(tmp);
@@ -79,13 +88,14 @@ function boardInner(fr,mode,tmp,fade,ghost){
     else s+=`<text x="${t.x}" y="${t.y+7}" text-anchor="middle" style="fill:${c.d};font:700 20px Arial,Helvetica,sans-serif">X<tspan style="font-size:12px" dy="3">${t.n}</tspan></text>`;
   });
   const b=fr.tokens.find(t=>t.kind==="ball");
-  if(b)s+=`<circle cx="${b.x}" cy="${b.y}" r="7.5" style="fill:${c.ball};stroke:${P?"#000":"var(--ink)"};stroke-width:1.5"/>`;
+  if(b)s+=`<circle cx="${b.x}" cy="${b.y}" r="7.5" style="fill:${c.ball};stroke:${P?"#000":c.floor==="var(--court)"?"var(--ink)":"#1d1720"};stroke-width:1.5"/>`;
   return s;
 }
 /* The step number of an action, in a small square on its line (only when the coach set the order). */
 function beatBadge(a,n,P){
+  const C=P?null:lookColors(),bf=P?"#fff":C.floor==="var(--court)"?"var(--ink)":C.act,bt=P?"#000":C.floor==="var(--court)"?"var(--court)":"#fff";
   const q=a.type==="pass"?{x:(a.x1+a.x2)/2,y:(a.y1+a.y2)/2}:qpt(a,.5),x=q.x.toFixed(1),y=q.y.toFixed(1);
-  return `<g><rect x="${(q.x-8.5).toFixed(1)}" y="${(q.y-8.5).toFixed(1)}" width="17" height="17" rx="4" style="fill:${P?"#fff":"var(--ink)"};stroke:${P?"#000":"var(--court)"};stroke-width:${P?1.4:2}"/><text x="${x}" y="${(q.y+4.2).toFixed(1)}" text-anchor="middle" style="fill:${P?"#000":"var(--court)"};font:800 11.5px Arial,Helvetica,sans-serif">${n}</text></g>`;
+  return `<g><rect x="${(q.x-8.5).toFixed(1)}" y="${(q.y-8.5).toFixed(1)}" width="17" height="17" rx="4" style="fill:${bf};stroke:${bt};stroke-width:${P?1.4:2}"/><text x="${x}" y="${(q.y+4.2).toFixed(1)}" text-anchor="middle" style="fill:${bt};font:800 11.5px Arial,Helvetica,sans-serif">${n}</text></g>`;
 }
 function lblSize(t){const n=String(t.label||t.n).length;return n>=3?10.5:n===2?14:18;}
 function boardSVG(fr,mode,w){fr=withDefense(fr,fr.defense);return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VB.x} ${VB.y} ${VB.w} ${VB.h}"${w?` width="${w}" height="${Math.round(w*VB.h/VB.w)}"`:""}>${boardInner(fr,mode)}</svg>`;}
