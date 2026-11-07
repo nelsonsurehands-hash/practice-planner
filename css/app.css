@@ -1794,3 +1794,27 @@ input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and
   #view-plays .board-card:not(.full)>.play-nav{order:7}
   #view-plays .board-card:not(.full)>*:not(.board-head):not(.pmeta):not(.opt-banner):not(#boardFrame):not(#ptools):not(.hint):not(.labelbox):not(.play-nav){order:8}
 }
+
+/* ---------- Bottom tab bar (phones) ---------- */
+.bnav{display:none}
+@media (max-width:720px){
+  .bnav{display:flex;position:fixed;left:10px;right:10px;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:40;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:22px;padding:5px;box-shadow:0 10px 30px rgba(20,14,30,.16)}
+  .bnav>button{flex:1 1 0;min-width:0;display:grid;justify-items:center;gap:2px;border:0;background:none;padding:6px 2px 5px;border-radius:16px;color:var(--muted);font-size:10.5px;font-weight:600}
+  .bnav>button[hidden]{display:none}
+  .bnav svg{width:23px;height:23px}
+  .bnav>button.on{color:var(--accent);background:var(--accent-soft)}
+  .bnav-more{position:absolute;right:4px;bottom:calc(100% + 8px);background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:6px;display:grid;gap:2px;min-width:190px}
+  .bnav-more[hidden]{display:none}
+  .bnav-more button{display:flex;align-items:center;gap:10px;border:0;background:none;padding:11px 12px;border-radius:10px;font-size:15px;font-weight:600;color:var(--ink);text-align:left}
+  .bnav-more button[hidden]{display:none}
+  .bnav-more button.on{background:var(--accent-soft);color:var(--accent)}
+  .bnav-more svg{width:21px;height:21px}
+  #app{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+  #app .top-right .tabs{display:none}
+  .plan-add{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+  .lv-pal{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+  .join-toast{bottom:calc(96px + env(safe-area-inset-bottom))}
+  .share-tap{bottom:calc(86px + env(safe-area-inset-bottom,0px))}
+  .upd-bar{bottom:calc(env(safe-area-inset-bottom,0px) + 86px)}
+}
+@media print{.bnav{display:none!important}}
