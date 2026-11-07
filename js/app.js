@@ -246,6 +246,7 @@ function loadPlan(date){
 }
 /* Practice cards: one color per kind of drill (warm-up, shooting, defense…), used on the card edge and the minutes bar. */
 let OPEN_BLOCK=null;
+const SHAPE={id:null,drag:null};   // the move being aimed or bent in the play editor
 const CAT_HUES=[["warm","#14897a"],["stretch","#14897a"],["shoot","#e2672a"],["free throw","#e2672a"],["defen","#b3263a"],["press","#b3263a"],["offen","#6d3bb0"],["play","#6d3bb0"],["condit","#2f62d6"],["transition","#2f62d6"],["break","#8a8794"],["water","#8a8794"],["scrim","#2f8a4a"],["game","#2f8a4a"],["pass","#b07d0c"],["rebound","#a3487e"],["finish","#d14d6b"],["layup","#d14d6b"],["dribbl","#0f7fa8"],["ball hand","#0f7fa8"]];
 const CAT_SPARE=["#14897a","#e2672a","#6d3bb0","#2f62d6","#2f8a4a","#b07d0c","#a3487e","#0f7fa8"];
 function catColor(c){c=String(c||"").toLowerCase();if(!c)return "#8a8794";const m=CAT_HUES.find(([k])=>c.includes(k));if(m)return m[1];let h=0;for(const ch of c)h=(h*31+ch.charCodeAt(0))>>>0;return CAT_SPARE[h%CAT_SPARE.length];}
@@ -759,7 +760,7 @@ function renderAllDrills(){renderLib();renderPickCats();renderPick();}
 /* ---------- plays: drawing board + library ---------- */
 function hints(t){
   const n=sp().players, L=sp().tools;
-  return ({move:"Tap a player to pick what they do (cut, screen, pass…), then tap the spot. Drag to move players and the ball.",
+  return ({move:"Tap a player to pick what they do (cut, screen, pass…), then tap the spot. Drag to move players and the ball. Tap a line to aim or bend it.",
     o:`Tap to place the next player (1–${n}).`,d:`Tap to place the next defender (X1–X${n}).`,
     ball:"Tap a player to give them the ball.",
     cut:`Tap a player, then tap where they go. Or drag from a player to draw a curved ${(L.cut||"move").toLowerCase()}.`,pass:`Tap the player to ${(L.pass||"pass").toLowerCase()} to. Keep tapping players to ${(L.pass||"pass").toLowerCase()} again in the same step.`,
@@ -781,7 +782,7 @@ function blankPlay(){const f=Object.keys(sp().forms)[0];return {id:null,name:"",
 
 /* geometry */
 /* editor rendering */
-function renderBoard(){{const w=$("#pLookWrap");if(w){const court=["basketball","volleyball"].includes(SPORT);w.hidden=!court;if(court)$("#pLook").value=courtLook();}}$("#board").innerHTML=boardInner(withDefense(frame(),curDefense()),"screen",temp,false,optionGhost())+qaRing();renderOptBanner(fi);renderLooks();renderSeq();updUndo();}
+function renderBoard(){{const w=$("#pLookWrap");if(w){const court=["basketball","volleyball"].includes(SPORT);w.hidden=!court;if(court)$("#pLook").value=courtLook();}}$("#board").innerHTML=boardInner(withDefense(frame(),curDefense()),"screen",temp,false,optionGhost())+qaRing()+shapeHandles();shapeBar();renderOptBanner(fi);renderLooks();renderSeq();updUndo();}
 /* On the first step of an option, show the step it branches from as faint lines, so the play stays in view. */
 function optionGhost(){
   const f=frame();if(!f.opt)return null;const L=playLines(play.frames),o=optionOf(play.frames,L,fi);
@@ -797,7 +798,7 @@ function renderOptBanner(i){
 function renderSteps(){renderDefPick();
   const L=playLines(play.frames);
   const branches=k=>L.options.filter(o=>o.branch===k).map(o=>o.letter).join("");
-  $("#pSteps").innerHTML=L.main.map((i,k)=>`<button class="step" aria-pressed="${i===fi}" data-step="${i}">Step ${k+1}${branches(k)?`<span class="branch" title="Options branch off here">${branches(k)}</span>`:""}</button>`).join("")+
+  $("#pSteps").innerHTML=L.main.map((i,k)=>{const f=play.frames[i];return `<button class="step st2" aria-pressed="${i===fi}" data-step="${i}" aria-label="Step ${k+1}"><span class="st-th" aria-hidden="true">${boardSVG(f,"screen")}</span><span class="st-t"><b><i>${k+1}</i>Step ${k+1}${branches(k)?`<span class="branch" title="Options branch off here">${branches(k)}</span>`:""}</b><small>${f.caption?esc(f.caption):(f.actions||[]).length?`${f.actions.length} move${f.actions.length>1?"s":""}`:"No moves yet"}</small></span></button>`;}).join("")+
     L.options.map(o=>`<div class="optgroup"><span class="optlabel">${esc(o.title)}<small>after step ${o.branch+1}</small></span>`+
       o.steps.map((i,k)=>`<button class="step opt" aria-pressed="${i===fi}" data-step="${i}">${o.letter}${k+1}</button>`).join("")+`</div>`).join("");
   $("#pDelStep").disabled=L.main.length<2&&!frame().opt;
@@ -819,7 +820,7 @@ function renderEditor(){
   $("#pEditTitle").textContent=play.id?(!PERM.plays||PLAY_LOCK?play.name||"Play":"Edit play"):"New play";
   applyPlayLock();
 }
-function setTool(t){qaClose();tool=t;document.querySelectorAll("#ptools [data-tool]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.tool===t));$("#pHint").textContent=hints(t);$("#labelBox").hidden=true;}
+function setTool(t){qaClose();tool=t;if(SHAPE.id){SHAPE.id=null;if(play)renderBoard();}document.querySelectorAll("#ptools [data-tool]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.tool===t));$("#pHint").textContent=hints(t);$("#labelBox").hidden=true;}
 function pflash(t){$("#pHint").textContent=t;clearTimeout(hintTimer);hintTimer=setTimeout(()=>$("#pHint").textContent=hints(tool),3000);}
 function markDirty(){pdirty=true;$("#pStatus").textContent="Unsaved changes";}
 /* Undo / Redo. Redo keeps what Undo took back, until you change something new or open another play. */
@@ -980,7 +981,12 @@ board.addEventListener("pointerdown",e=>{
   if(QA.menu){qaClose();return;}
   if(QA.type){qaTap(p);return;}
   if(tool==="move"){
-    const t=hitTok(p);if(!t)return;
+    const sa=shapeAct();
+    if(sa){const h=shapeHnd(sa),de=dist(p,h.end),db=dist(p,h.bend);
+      if(Math.min(de,db)<24){pushHist();SHAPE.drag={which:de<=db?"end":"bend",before:nextTokens(fr),moved:false};board.setPointerCapture(e.pointerId);return;}}
+    const t=hitTok(p);
+    if(!t){const a=hitAct(p);if(a&&SHAPEABLE(a)){shapeSel(a);return;}if(sa)shapeSel(null);return;}
+    if(sa)shapeSel(null);
     pushHist();const h=holderOf(fr);
     drag={t,dx:p.x-t.x,dy:p.y-t.y,ball:t.kind!=="ball"&&h&&h.id===t.id?fr.tokens.find(x=>x.kind==="ball"):null,moved:false,before:nextTokens(fr)};
     board.setPointerCapture(e.pointerId);return;
@@ -1020,6 +1026,10 @@ board.addEventListener("pointerdown",e=>{
   board.setPointerCapture(e.pointerId);
 });
 board.addEventListener("pointermove",e=>{
+  if(SHAPE.drag){const a=shapeAct();if(!a)return;const p=svgPt(e);SHAPE.drag.moved=true;
+    if(SHAPE.drag.which==="end"){const keep=shapeHnd(a).bend;a.x2=p.x;a.y2=p.y;a.cx=2*keep.x-(a.x1+a.x2)/2;a.cy=2*keep.y-(a.y1+a.y2)/2;}
+    else{a.cx=2*p.x-(a.x1+a.x2)/2;a.cy=2*p.y-(a.y1+a.y2)/2;}   // the line bends through your finger
+    syncPasses(frame());renderBoard();return;}
   if(drag){const p=svgPt(e),t=drag.t,ox=t.x,oy=t.y;t.x=p.x-drag.dx;t.y=p.y-drag.dy;const dx=t.x-ox,dy=t.y-oy;
     if(drag.ball){drag.ball.x+=dx;drag.ball.y+=dy;}
     frame().actions.forEach(a=>{if(a.from===t.id){a.x1+=dx;a.y1+=dy;a.cx+=dx/2;a.cy+=dy/2;}});syncPasses(frame());
@@ -1029,6 +1039,7 @@ board.addEventListener("pointermove",e=>{
     Object.assign(temp,{x2:p.x,y2:p.y,cx:2*m.x-(s.x+p.x)/2,cy:2*m.y-(s.y+p.y)/2});renderBoard();}
 });
 function endPointer(){
+  if(SHAPE.drag){const d=SHAPE.drag;SHAPE.drag=null;if(d.moved){syncPasses(frame());carryForward(fi,d.before);markDirty();renderBoard();}else{hist.pop();updUndo();}return;}
   if(drag){if(drag.moved){syncPasses(frame());carryForward(fi,drag.before);markDirty();}else{hist.pop();if(redoKept){redo=redoKept;redoKept=null;}updUndo();if(drag.t.kind==="o")qaOpen(drag.t);}drag=null;return;}
   if(!temp)return;
   const t=temp;temp=null;
@@ -1101,9 +1112,31 @@ function qaTap(p){
   editStep(()=>{fr.actions=fr.actions.filter(a=>!(a.from===t.id&&isMove(a)));
     fr.actions.push({id:uid(),type,from:t.id,to:null,x1:s0.x,y1:s0.y,cx:(s0.x+p.x)/2,cy:(s0.y+p.y)/2,x2:p.x,y2:p.y});});
   markDirty();renderBoard();
-  pflash(`${t.label||t.n} ${type==="screen"?"sets a screen":type==="dribble"?"dribbles":"cuts"}. Drag the line to bend it, or tap ${t.label||t.n} again to change it.`);
+  pflash(`${t.label||t.n} ${type==="screen"?"sets a screen":type==="dribble"?"dribbles":"cuts"}. Tap the line to aim or bend it, or tap ${t.label||t.n} again to change it.`);
 }
-board.addEventListener("pointercancel",()=>{drag=null;temp=null;renderBoard();});
+board.addEventListener("pointercancel",()=>{drag=null;temp=null;if(SHAPE.drag)SHAPE.drag=null;renderBoard();});
+
+/* ---------- Aim and bend a move ----------
+   With Move: tap a cut, dribble or screen line. Drag the round handle to change where it goes
+   (its angle and length), drag the diamond to curve it. Straighten takes the curve out. */
+const SHAPEABLE=a=>a&&["cut","dribble","screen"].includes(a.type);
+function shapeAct(){if(!SHAPE.id||!play)return null;return frame().actions.find(x=>x.id===SHAPE.id)||null;}
+function shapeHnd(a){return {end:{x:a.x2,y:a.y2},bend:qpt(a,.5)};}
+function shapeHandles(){const a=shapeAct();if(!a||anim||tool!=="move"||!PERM.plays||PLAY_LOCK)return "";const h=shapeHnd(a),s={x:a.x1,y:a.y1};
+  const st="fill:#fff;stroke:#e2672a;stroke-width:3";
+  return `<g class="shape-h" pointer-events="none"><path d="M${s.x.toFixed(1)} ${s.y.toFixed(1)}L${h.bend.x.toFixed(1)} ${h.bend.y.toFixed(1)}L${h.end.x.toFixed(1)} ${h.end.y.toFixed(1)}" style="fill:none;stroke:#e2672a;stroke-width:1.6;stroke-dasharray:4 5;opacity:.85"/>`+
+    `<rect x="${(h.bend.x-8).toFixed(1)}" y="${(h.bend.y-8).toFixed(1)}" width="16" height="16" transform="rotate(45 ${h.bend.x.toFixed(1)} ${h.bend.y.toFixed(1)})" style="${st}"/>`+
+    `<circle cx="${h.end.x.toFixed(1)}" cy="${h.end.y.toFixed(1)}" r="10" style="${st}"/></g>`;}
+function shapeSel(a){SHAPE.id=a?a.id:null;if(a&&QA.menu)qaClose();renderBoard();}
+function shapeBar(){let b=$("#shapeBar");const a=shapeAct();
+  if(!a||tool!=="move"||anim||!PERM.plays||PLAY_LOCK){if(b)b.remove();return;}
+  if(!b){b=document.createElement("div");b.id="shapeBar";b.className="shape-bar";$("#boardFrame").appendChild(b);
+    b.addEventListener("pointerdown",e=>e.stopPropagation());
+    b.addEventListener("click",e=>{const k=e.target.closest("[data-shape]");if(!k)return;const x=shapeAct();
+      if(k.dataset.shape==="done"||!x){shapeSel(null);return;}
+      pushHist();const before=nextTokens(frame());x.cx=(x.x1+x.x2)/2;x.cy=(x.y1+x.y2)/2;syncPasses(frame());carryForward(fi,before);markDirty();renderBoard();});}
+  const who=frame().tokens.find(t=>t.id===a.from),nm=who?String(who.label||who.n):"";
+  b.innerHTML=`<span><b>${esc(nm)}'s ${esc(a.type)}</b> <i class="sb-dot"></i> aim <i class="sb-dia"></i> bend</span><button type="button" data-shape="straight">Straighten</button><button type="button" data-shape="done">Done</button>`;}
 
 /* toolbar + steps */
 $("#ptools").addEventListener("click",e=>{if(anim)stopAnim();const b=e.target.closest("[data-tool]");if(b)setTool(b.dataset.tool);});
