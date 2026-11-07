@@ -725,13 +725,16 @@ function renderLib(){
 /* Open a drill's edit form in the Drill Library (from a practice card). */
 function editDrill(id){const t=$("#tab-lib");if(t)t.click();$("#libSearch").value="";$("#libCat").value="";renderLib();
   setTimeout(()=>{const b=$(`#library [data-edit="${id}"]`);if(b)b.click();},60);}
+/* Phones list the drills first; the add/edit form sits below and this brings it into view. */
+function showDrillForm(){const f=$("#drillForm");if(matchMedia("(max-width:720px)").matches)f.scrollIntoView({behavior:"smooth",block:"start"});else window.scrollTo({top:0,behavior:"smooth"});setTimeout(()=>$("#dName").focus({preventScroll:true}),350);}
+$("#libAddBtn").addEventListener("click",()=>{resetForm();showDrillForm();});
 $("#libSearch").addEventListener("input",renderLib);
 $("#libCat").addEventListener("change",renderLib);
 $("#library").addEventListener("click",async e=>{
   const ed=e.target.closest("[data-edit]"), del=e.target.closest("[data-del]");
   if(ed){const d=drills.find(x=>x.id===ed.dataset.edit);editing=d.id;
     $("#dName").value=d.name;setCats(catsOf(d));$("#dMin").value=d.minutes;$("#dDesc").value=d.description||"";$("#dPoints").value=d.points||"";
-    $("#formTitle").textContent="Edit drill";$("#dSave").textContent="Save changes";$("#dCancel").hidden=false;$("#dName").focus();window.scrollTo({top:0,behavior:"smooth"});}
+    $("#formTitle").textContent="Edit drill";$("#dSave").textContent="Save changes";$("#dCancel").hidden=false;showDrillForm();}
   if(del){
     if(del.dataset.armed!=="1"){del.dataset.armed="1";del.textContent="Tap to confirm";setTimeout(()=>{del.dataset.armed="";del.textContent="Delete";},3000);return;}
     const id=del.dataset.del; drills=drills.filter(x=>x.id!==id); renderAllDrills();

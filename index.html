@@ -325,6 +325,7 @@
 </section>
 
 <section id="view-plan" class="view" hidden>
+  <div class="subtabs" role="group" aria-label="Practice sections"><button type="button" data-sub="plan" class="on" aria-current="page">Practice plan</button><button type="button" data-sub="lib">Drill library <span class="sub-n" data-subn></span></button></div>
   <div class="plan-grid">
     <div class="sheet">
       <div class="sheet-head">
@@ -452,6 +453,7 @@
 </section>
 
 <section id="view-lib" class="view" hidden>
+  <div class="subtabs" role="group" aria-label="Practice sections"><button type="button" data-sub="plan">Practice plan</button><button type="button" data-sub="lib" class="on" aria-current="page">Drill library <span class="sub-n" data-subn></span></button></div>
   <div class="lib-grid">
     <form class="form edit-only" id="drillForm">
       <h2 id="formTitle">Add a drill</h2>
@@ -466,6 +468,7 @@
       </div>
     </form>
     <div style="min-width:0">
+      <button type="button" class="btn primary lib-addbtn edit-only" id="libAddBtn">+ Add a drill</button>
       <div class="lib-tools">
         <input id="libSearch" placeholder="Search the library">
         <select id="libCat"><option value="">All categories</option></select>

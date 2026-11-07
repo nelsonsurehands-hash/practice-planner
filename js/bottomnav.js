@@ -1,4 +1,5 @@
-/* Phones: a tab bar along the bottom of the screen (Home, Practice, Plays, Calendar, Team, More).
+/* Phones: a tab bar along the bottom of the screen (Home, Practice, Plays, Calendar, Team, Settings).
+   The Drill Library lives inside Practice (Practice plan | Drill library switch at the top of both).
    It only presses the real tabs at the top, so everything they do (feature switches, view-only
    staff, unsaved-play checks) works the same. More holds Drill Library and Settings. */
 (function(){
@@ -12,11 +13,11 @@
     lib:'<path d="M5 4h10l4 4v12H5z"/><path d="M15 4v4h4M8.5 12h7M8.5 16h7"/>',
     settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M4.2 7.5l2 1.2M17.8 15.3l2 1.2M4.2 16.5l2-1.2M17.8 8.7l2-1.2"/>'};
   const ic=k=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${I[k]}</svg>`;
-  const MAIN=[["home","Home"],["plan","Practice"],["plays","Plays"],["cal","Calendar"],["team","Team"]],MORE=[["lib","Drill Library"],["settings","Settings"]];
+  const MAIN=[["home","Home"],["plan","Practice"],["plays","Plays"],["cal","Calendar"],["team","Team"]],MORE=[["settings","Settings"]];
   const nav=document.createElement("nav");nav.className="bnav";nav.setAttribute("aria-label","Sections");
   nav.innerHTML=MAIN.map(([k,l])=>`<button type="button" data-bn="${k}">${ic(k)}<span>${l}</span></button>`).join("")+
-    `<button type="button" data-bn="more" aria-haspopup="true" aria-expanded="false">${ic("more")}<span>More</span></button>`+
-    `<div class="bnav-more" hidden>${MORE.map(([k,l])=>`<button type="button" data-bn="${k}">${ic(k)}<span>${l}</span></button>`).join("")}</div>`;
+    `<button type="button" data-bn="settings">${ic("settings")}<span>Settings</span></button><button type="button" data-bn="more" hidden aria-expanded="false">${ic("more")}<span>More</span></button>`+
+    `<div class="bnav-more" hidden></div>`;
   app.appendChild(nav);
   const more=nav.querySelector(".bnav-more"),mb=nav.querySelector('[data-bn="more"]');
   const real=k=>document.getElementById("tab-"+k);
@@ -29,11 +30,21 @@
     let on=null;
     [...MAIN,...MORE].forEach(([k])=>{const t=real(k),b=nav.querySelector(`[data-bn="${k}"]`);if(!b)return;
       const shown=!!t&&!t.hidden&&getComputedStyle(t).display!=="none";b.hidden=!shown;
-      const sel=t&&t.getAttribute("aria-selected")==="true";if(sel)on=k;b.classList.toggle("on",!!sel);if(sel)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");});
-    mb.classList.toggle("on",MORE.some(([k])=>k===on));
-    mb.hidden=MORE.every(([k])=>{const b=nav.querySelector(`[data-bn="${k}"]`);return b.hidden;});
+      const sel=t&&(t.getAttribute("aria-selected")==="true"||(k==="plan"&&real("lib")&&real("lib").getAttribute("aria-selected")==="true"));if(sel)on=k;b.classList.toggle("on",!!sel);if(sel)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");});
+    mb.hidden=true;
   }
   const tabs=document.querySelector(".tabs");
   if(tabs)new MutationObserver(sync).observe(tabs,{subtree:true,attributes:true,attributeFilter:["aria-selected","hidden","style","class"]});
+  sync();
+})();
+
+/* Practice plan | Drill library switch at the top of both pages. */
+(function(){
+  const go=k=>{const t=document.getElementById("tab-"+k);if(t)t.click();};
+  document.addEventListener("click",e=>{const b=e.target.closest("[data-sub]");if(!b)return;go(b.dataset.sub);});
+  const sync=()=>{const lib=document.getElementById("tab-lib"),ok=lib&&!lib.hidden&&getComputedStyle(lib).display!=="none",n=document.getElementById("drillCount");
+    document.querySelectorAll(".subtabs").forEach(s=>{s.hidden=!ok;});
+    document.querySelectorAll("[data-subn]").forEach(x=>{x.textContent=n?n.textContent.replace(/[()]/g,""):"";});};
+  const tabs=document.querySelector(".tabs");if(tabs)new MutationObserver(sync).observe(tabs,{subtree:true,attributes:true,childList:true,characterData:true});
   sync();
 })();

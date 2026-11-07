@@ -1818,3 +1818,17 @@ input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and
   .upd-bar{bottom:calc(env(safe-area-inset-bottom,0px) + 86px)}
 }
 @media print{.bnav{display:none!important}}
+
+/* Practice plan | Drill library switch */
+.subtabs{display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:12px;margin:0 0 14px;max-width:420px}
+.subtabs[hidden]{display:none}
+.subtabs button{flex:1;border:0;background:none;padding:9px 10px;border-radius:9px;font-weight:600;font-size:14.5px;color:var(--muted)}
+.subtabs button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.subtabs .sub-n{font-weight:500;color:var(--muted);font-size:12.5px}
+.lib-addbtn{display:none}
+@media (max-width:720px){
+  #view-lib .lib-grid{display:flex;flex-direction:column}
+  #view-lib .lib-grid>#drillForm{order:2;scroll-margin-top:12px}
+  #view-lib .lib-grid>div{order:1;width:100%}
+  .lib-addbtn{display:block;width:100%;margin:0 0 10px;padding:12px}
+}
