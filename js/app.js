@@ -1459,6 +1459,20 @@ $("#plList").addEventListener("click",async e=>{
 });
 
 /* printing */
+/* One frame per moment of a step (for 1a, 1b… in the PDF): players already moved by earlier
+   moments stand where they ended up; each frame shows only that moment's moves. */
+function beatFrames(f){
+  const L=seqList(f),max=L.length?L[L.length-1].beat:0,looks=(f.actions||[]).filter(a=>a.type==="look");
+  if(max<2)return [{f,lines:[]}];
+  const plain=t=>String(t).replace(/<[^>]+>/g,"");let toks=clone(f.tokens);const out=[];
+  for(let b=1;b<=max;b++){
+    const acts=L.filter(x=>x.beat===b).map(x=>{const a={...x.a};delete a.beat;return a;});
+    const fr={...f,tokens:clone(toks),actions:b===max?acts.concat(looks):acts};
+    out.push({f:fr,lines:acts.map(a=>plain(seqText(f,a)))});
+    toks=nextTokens({tokens:toks,actions:acts});
+  }
+  return out;
+}
 function svgToPng(svg,w){return new Promise((res,rej)=>{const img=new Image();img.onload=()=>{const c=document.createElement("canvas");c.width=w;c.height=Math.round(w*VB.h/VB.w);const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);res(c.toDataURL("image/png"));};img.onerror=()=>rej(new Error("diagram"));img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);});}
 async function addPlayPages(doc,p,fresh){
   const W=612,H=792,M=40,R=W-M,IW=300,IH=IW*VB.h/VB.w;
@@ -1482,6 +1496,33 @@ async function addPlayPages(doc,p,fresh){
       y+=6;doc.setFillColor(0);doc.rect(M,y,R-M,22,"F");doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(12);
       doc.text(o.title.toUpperCase(),M+8,y+15);doc.setFont("helvetica","normal");doc.setFontSize(9.5);doc.text(`Branches off after step ${o.branch+1}`,R-8,y+15,{align:"right"});
       doc.setTextColor(0);y+=32;lastOpt=o;
+    }
+    /* A step whose moves happen in order (1, then 2…) prints as 1a, 1b…: one small diagram per
+       moment, each showing only what happens then, with the steps listed underneath. */
+    const parts=beatFrames(f);
+    if(parts.length>1){
+      const base=o?`${o.letter}${o.steps.indexOf(i)+1}`:String(PL.main.indexOf(i)+1),GW=(R-M-14)/2,GH=GW*VB.h/VB.w;
+      if(y+GH+60>H-M){doc.addPage();y=M;}
+      doc.setFont("helvetica","bold");doc.setFontSize(13);doc.text(o?`OPTION ${o.letter} · STEP ${o.steps.indexOf(i)+1}`:n.short.toUpperCase(),M,y+4);
+      if(f.caption){doc.setFont("helvetica","normal");doc.setFontSize(9.5);const c=doc.splitTextToSize(f.caption,R-M-110);doc.text(c,M+100,y+4);y+=Math.max(0,c.length-1)*11;}
+      y+=14;
+      for(let r=0;r<parts.length;r+=2){
+        const row=parts.slice(r,r+2);
+        if(y+GH>H-M){doc.addPage();y=M;}
+        for(let k=0;k<row.length;k++){const q=row[k],x=M+k*(GW+14);
+          const img=await svgToPng(boardSVG({...q.f,defense:curDefense()},"print",700),700);
+          doc.addImage(img,"PNG",x,y,GW,GH);doc.setLineWidth(o?2.5:.75);doc.rect(x,y,GW,GH);
+          const tag=base+String.fromCharCode(97+r+k);doc.setFillColor(0);doc.roundedRect(x+6,y+6,doc.getTextWidth(tag)+14,17,3,3,"F");
+          doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(10.5);doc.text(tag,x+13,y+18.5);doc.setTextColor(0);}
+        y+=GH+12;
+        let hh=0;
+        for(let k=0;k<row.length;k++){const q=row[k],x=M+k*(GW+14);let yy=y;doc.setFont("helvetica","normal");doc.setFontSize(9.5);
+          q.lines.forEach(t=>{const w=doc.splitTextToSize("• "+t,GW-4);if(yy+w.length*11>H-M+4)return;doc.text(w,x+2,yy);yy+=w.length*11+2;});
+          hh=Math.max(hh,yy-y);}
+        y+=hh+10;
+      }
+      y+=6;doc.setLineWidth(.4);doc.line(M,y-8,R,y-8);
+      continue;
     }
     if(y+IH>H-M){doc.addPage();y=M;}
     const img=await svgToPng(boardSVG({...f,defense:curDefense()},"print",900),900);
