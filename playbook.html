@@ -37,7 +37,10 @@ body{max-width:760px}
 .pb-board{border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .pb-board svg{display:block;width:100%;height:auto}
 .pb-board.opt{box-shadow:0 0 0 3px var(--accent2)}
-.pb-ctrl{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
+.pb-ctrl{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"prev run next" "def def def";gap:8px;align-items:center}
+#pbPrev{grid-area:prev}#pbRun{grid-area:run}#pbNext{grid-area:next}
+#pbDefWrap{grid-area:def;display:flex;align-items:center;gap:8px;justify-content:center}#pbDefWrap[hidden]{display:none}#pbDefWrap select{flex:1;max-width:260px}
+.pb-ctrl .btn{white-space:nowrap}
 .pb-ctrl .btn{padding:10px 14px;font-size:15px}
 .pb-cap{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:16px;line-height:1.45;min-height:3.2em}
 .pb-cap b{font-family:var(--display);font-size:18px;text-transform:uppercase;color:var(--accent);margin-right:8px}

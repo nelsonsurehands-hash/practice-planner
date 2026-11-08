@@ -131,7 +131,15 @@ function courtSVG(sport,c){
 
 /* Hardwood floor: vertical maple planks with staggered joints (same every time, so thumbnails match). */
 let WOOD_DEFS="";
+/* The pattern lives once in a hidden SVG on the page: a pattern inside a play card that's hidden
+   (display:none) would leave every other court blank in Chrome. */
 function woodDefs(){
+  if(typeof document!=="undefined"&&document.body){
+    if(!document.getElementById("cpWoodDefs")){const d=document.createElement("div");d.innerHTML=`<svg id="cpWoodDefs" width="0" height="0" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">${woodPattern()}</svg>`;document.body.appendChild(d.firstChild);}
+    return "";}
+  return woodPattern();
+}
+function woodPattern(){
   if(WOOD_DEFS)return WOOD_DEFS;
   let seed=11;const r=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
   const pw=17,cols=8,TH=360;let b="";
