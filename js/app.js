@@ -771,8 +771,8 @@ function hints(t){
   return ({move:"Tap a player to pick what they do (cut, screen, pass…), then tap the spot. Drag to move players and the ball. Tap a line to aim or bend it.",
     o:`Tap to place the next player (1–${n}).`,d:`Tap to place the next defender (X1–X${n}).`,
     ball:"Tap a player to give them the ball.",
-    cut:`Tap a player, then tap where they go. Or drag from a player to draw a curved ${(L.cut||"move").toLowerCase()}.`,pass:`Tap the player to ${(L.pass||"pass").toLowerCase()} to. Keep tapping players to ${(L.pass||"pass").toLowerCase()} again in the same step.`,
-    dribble:`Tap the player with the ball, then tap where they go. Or drag to draw a ${(L.dribble||"dribble").toLowerCase()}.`,screen:`Tap a player, then tap where they set the ${(L.screen||"screen").toLowerCase()}. Or drag from the player.`,
+    cut:`Drag from a player to draw a curved ${(L.cut||"move").toLowerCase()}. Tap any player for their menu.`,pass:`Tap the player to ${(L.pass||"pass").toLowerCase()} to. Keep tapping players to ${(L.pass||"pass").toLowerCase()} again in the same step.`,
+    dribble:`Drag from the player with the ball to draw a ${(L.dribble||"dribble").toLowerCase()}. Tap any player for their menu.`,screen:`Drag from a player to where they set the ${(L.screen||"screen").toLowerCase()}. Tap any player for their menu.`,
     label:"Tap a player to give them a label, like PG, QB or 1B.",
     look:"Tap teammates in order: 1st look, 2nd look, 3rd look. Looks are passes the ball carrier can make; they don't move the ball.",
     erase:"Tap a player, the ball or a line to remove it."})[t]||"";
@@ -1055,7 +1055,9 @@ function endPointer(){
   const t=temp;temp=null;
   const s=t.pts[0],e=t.pts[t.pts.length-1];
   if(t.pts.length<3||dist(s,e)<20){if(t.type==="pass"){tapPass(e);return;}
-    const who=t.from&&frame().tokens.find(x=>x.id===t.from&&x.kind==="o");if(who&&t.type!=="look"){qaStart(who,t.type);return;}
+    /* Tapping a player (no drag) with Cut, Dribble or Screen picked: switch back to Move and open that
+       player's menu, so any player can be given any action without going back to the toolbar. */
+    const who=t.from&&frame().tokens.find(x=>x.id===t.from&&x.kind==="o");if(who&&t.type!=="look"){setTool("move");qaOpen(who);return;}
     renderBoard();pflash(hints(tool));return;}
   let to=null,end={x:e.x,y:e.y};
   if(t.type==="pass"){

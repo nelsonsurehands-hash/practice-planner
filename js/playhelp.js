@@ -35,7 +35,7 @@ function build(){
     step(6,"Move",`Drag any player, defender or the ${ball} to a new spot. Lines attached to a player move with them. ${tryIt("move","Move")}`),
     step(7,"Court look","<b>Court</b> (next to Speed) switches between Hardwood, Whiteboard and Classic. It's saved on this device and changes the play cards and the player playbook too.")
   ]);
-  const draw=section("draw","Draw what happens",`Pick a tool, then use the hint line under the toolbar: it tells you what to tap or drag next.`,[
+  const draw=section("draw","Draw what happens",`Fastest way: tap a player and pick what they do from their menu (${esc(L.cut)}, ${L.screen?esc(L.screen)+", ":""}${esc(L.pass)}…), then tap the spot. This works with any of the drawing tools picked, so you never have to go back to Move first. Or pick a tool and drag from a player to draw the line yourself.`,[
     step(1,esc(L.cut),`Drag from a player to where they run. ${tryIt("cut",L.cut)}`),
     L.dribble?step(2,esc(L.dribble),`Drag from the player with the ${ball} to where they dribble. The ${ball} goes with them. ${tryIt("dribble",L.dribble)}`):"",
     L.screen?step(3,esc(L.screen),`Drag from a player to the spot where they set the ${L.screen.toLowerCase()}. The line ends in a flat bar. ${tryIt("screen",L.screen)}`):"",
