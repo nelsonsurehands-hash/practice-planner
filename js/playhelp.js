@@ -32,7 +32,8 @@ function build(){
     defend?step(3,"+ Defender / Add defense",`Pick a <b>Defense</b> (next to Speed): man-to-man, 2-3, 3-2 or box-and-1, and the defenders place themselves and move with the ball when you play it through. Or choose <b>Place my own</b> and use <b>+ Defender</b> to put X1, X2… where you want.`):step(3,"+ Defender",`Tap the court to place defenders. ${tryIt("d","+ Defender")}`),
     step(4,"Ball",`Tap a player to give them the ${ball}. ${tryIt("ball","Ball")}`),
     step(5,"Label",`Tap a player to give them a short label like PG, 5 or QB (up to 3 letters). ${tryIt("label","Label")}`),
-    step(6,"Move",`Drag any player, defender or the ${ball} to a new spot. Lines attached to a player move with them. ${tryIt("move","Move")}`)
+    step(6,"Move",`Drag any player, defender or the ${ball} to a new spot. Lines attached to a player move with them. ${tryIt("move","Move")}`),
+    step(7,"Court look","<b>Court</b> (next to Speed) switches between Hardwood, Whiteboard and Classic. It's saved on this device and changes the play cards and the player playbook too.")
   ]);
   const draw=section("draw","Draw what happens",`Pick a tool, then use the hint line under the toolbar: it tells you what to tap or drag next.`,[
     step(1,esc(L.cut),`Drag from a player to where they run. ${tryIt("cut",L.cut)}`),
@@ -40,14 +41,15 @@ function build(){
     L.screen?step(3,esc(L.screen),`Drag from a player to the spot where they set the ${L.screen.toLowerCase()}. The line ends in a flat bar. ${tryIt("screen",L.screen)}`):"",
     step(4,esc(L.pass),`Tap the player who should get the ${ball}. The ${ball} travels to where that player will be after their move, so it lands right as they arrive. Keep tapping players to chain more ${L.pass.toLowerCase()}es in the same step, in order. Tap an empty spot to ${L.pass.toLowerCase()} to a spot. ${tryIt("pass",L.pass)}`),
     L.shot?step(5,"Shot",`Tap <b>Shot</b> (under the court) and whoever has the ${ball} at the end of the step shoots: off the catch, or after their move. Tap Shot again to remove it.`):"",
-    step(6,"Erase",`Tap a player, the ${ball} or a single line to remove it. ${tryIt("erase","Erase")}`),
-    step(7,"Undo and Clear lines","<b>Undo</b> takes back your last change, as many times as you need. <b>Clear lines</b> (tap twice) wipes every line on the current step but keeps the players where they are.")
+    step(6,"Aim and bend a move",`With <b>Move</b>, tap a ${esc(L.cut.toLowerCase())}${L.dribble?`, ${esc(L.dribble.toLowerCase())}`:""}${L.screen?` or ${esc(L.screen.toLowerCase())}`:""} line. Drag the round handle to change where it goes and its angle, or the diamond to curve it. <b>Straighten</b> takes the curve out, <b>Done</b> finishes. Later steps follow the new end spot. ${tryIt("move","Move")}`),
+    step(7,"Erase",`Tap a player, the ${ball} or a single line to remove it. ${tryIt("erase","Erase")}`),
+    step(8,"Undo and Clear lines","<b>Undo</b> takes back your last change, as many times as you need. <b>Clear lines</b> (tap twice) wipes every line on the current step but keeps the players where they are.")
   ].filter(Boolean));
   const steps=section("steps","Build the play step by step","A play is a series of steps, like frames on a whiteboard. All the movement in one step happens at the same time; the next step starts when it ends.",[
     step(1,"+ Next step","Adds a step after the one you're on. Players start where their lines ended, and the ball is with whoever caught it."),
     step(2,"Duplicate step","Copies the current step, players and lines, right after it. Handy for a play that repeats on the other side."),
     step(3,"Delete step","Removes the step you're on."),
-    step(4,"Jump between steps","Tap the step numbers to go back and edit any step. Changes to player spots carry forward to the steps after it."),
+    step(4,"Jump between steps","Each step is a card with a small picture of it and its caption. Swipe the cards and tap one to go back and edit that step. Changes to player spots carry forward to the steps after it."),
     step(5,"Describe each step",`Type in <b>What happens in this step</b> (for example "1 passes to 2, 5 down screens for 3"). It shows as a caption when the play runs and in the PDF.`),
     step(6,"Play notes","Use <b>Play notes</b> for when to call it, the reads and counters.")
   ]);
@@ -73,7 +75,7 @@ function build(){
     step(1,"Save play","Saves it to your team's play library. Your staff sees it right away. If you tap New play or open another play with unsaved changes, the app asks before throwing them away."),
     step(2,"Open, copy or delete","Your plays are in the <b>Play Library</b> (on a phone, tap <b>All plays</b>). Tap <b>Open</b> to see one: saved plays open in view mode so nothing changes by accident. Tap <b>✏️ Edit play</b> to change it and <b>✓ Done</b> to lock it again. <b>Copy</b> sends a play to another team you coach."),
     step(3,"New play","Starts a blank play."),
-    step(4,"Printable PDF","Prints every step and option, with captions and notes, for a binder or the bench."),
+    step(4,"Printable PDF","Prints every step and option, with captions and notes, for a binder or the bench. A step whose moves happen in order (1, then 2…) prints as 1a, 1b, 1c: one diagram for each moment, with what happens listed under it."),
     step(5,"Share with players","Makes a link players open on their phones to step through and watch your plays. No account needed."),
     step(6,"Use it in practice","In the Practice tab, add the play to a practice plan from the drill picker.")
   ]);

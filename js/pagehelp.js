@@ -10,20 +10,23 @@ const GUIDES={
     ["Next game","The opponent, time, home or away, and buttons for the gameplan and the bus list."],
     ["Season record","Wins and losses, home and away, and your streak. Scores come from the live tracker or the score you type into a game's Gameplan."],
     ["This week","The next 7 days. Tap Full calendar to see the whole season."]
-  ]),
+  ],["On a phone, the tabs are along the bottom: Home, Practice, Plays, Calendar, Team and Settings. The Drill library is inside Practice."]),
   plan:H("Practice plans","Build a timed plan for any practice day, then print it or run it from your phone.",[
     ["Pick the day","Choose a practice from the date list at the top. Times come from the calendar; change them here for just this plan."],
-    ["Add drills","Tap a drill from your library (right side, or below on a phone) to add it. Set the minutes for each one."],
-    ["Watch the clock","The meter shows how many minutes are booked out of the practice. Red means you're over."],
-    ["Reorder and assign","Drag blocks to change the order. With more than one coach, pick who leads each block."],
+    ["Add drills","Search drills at the bottom (or tap a quick add), or tap a drill in the list on the right on a computer. + New makes a drill that isn't in your library yet."],
+    ["Drill cards","Each drill is a card with its start and end time inside and a color edge for its type (warm-up, shooting, defense…). Use − and + to change the minutes."],
+    ["Open a card","Tap a card for this practice's notes, the drill's description and coaching points from your library, and who leads it. Edit drill opens it in the Drill library."],
+    ["Remove a drill","Tap the trash can, then tap Remove? to confirm."],
+    ["Watch the clock","The meter shows how many minutes are booked out of the practice, in the same colors as the cards. Red means you're over."],
+    ["Reorder","Hold the dots on the left of a card and drag it to a new spot, or use Move up and Move down inside the card."],
     ["Copy a plan","Use Copy from another day to start from a practice you've already planned."],
     ["Print or share","Print the plan for the gym wall, or open it on your phone during practice."]
-  ],["Plans save as you go: there's no save button to remember."]),
+  ],["Plans save as you go: there's no save button to remember.","Practice plan | Drill library at the top switches between your plan and your drills."]),
   lib:H("Drill library","Every drill your staff uses, sorted by category.",[
-    ["Add a drill","Type a name, pick one or more categories, set the minutes, and add how it runs and what to coach. Tap Save drill."],
-    ["Find one","Search by name or filter by category."],
+    ["Find one","Search by name or filter by category. Every drill shows how it runs, the coaching points and how often you've used it."],
+    ["Add a drill","Type a name, pick one or more categories, set the minutes, and add how it runs and what to coach. On a phone, tap + Add a drill at the top to jump to the form."],
     ["Edit or copy","Edit changes it everywhere it's used. Copy to team sends it to one of your other teams."],
-    ["Use it in a plan","Open the Practice tab and tap the drill to add it to a practice."]
+    ["Use it in a plan","Tap Practice plan at the top and search or tap the drill to add it to a practice."]
   ]),
   cal:H("Calendar","The whole season: practices, games, days off, bus times and meetings.",[
     ["Month or full season","Use ‹ › (or swipe) to move between months, or Full season to see every month at once. Today is filled in bright color."],
@@ -66,12 +69,14 @@ const GUIDES={
   ]),
   "team:stats":H("Stats & live tracker","Track a game as it happens, then see box scores and season stats.",[
     ["Live tracker","Tap ● Live tracker to open the game in progress, today's game or the next one. Pick your starters."],
+    ["Quick game","No game on the schedule? Tap + Quick game for a scrimmage, pickup or open gym. Name it if you like, and check Count these stats in season stats if it should count."],
     ["Add a stat","Tap a stat, then the player (or the player, then the stat). Undo fixes a mistake."],
     ["Subs","Drag a player from the bench onto the floor, or tap to swap. Playing time counts quarters played."],
     ["Other team","Add their points with +1, +2, +3."],
     ["Final","End each quarter, then Final saves the result to the gameplan and your record."],
-    ["Season","Season shows averages for every player; tap a name for their game-by-game log."]
-  ]),
+    ["Season","Season shows averages for every player; tap a name for their game-by-game log."],
+    ["Find a game later","Games lists every scheduled game, plus a Quick games section, each with Recap and Resume."]
+  ],["On a phone, the bottom tab bar hides during a live game. Tap Exit in the tracker to leave."]),
   "team:sched":H("Game & bus schedule","Every game in one place, with the bus and pre-game food times.",[
     ["Bus times","Set when the bus leaves and gets back for each away game. They update the bus list and the calendar."],
     ["Food times","Set when pre-game food needs to arrive and see who's bringing it. Use bus time copies the departure."],
@@ -132,9 +137,9 @@ const H2=k=>typeof hasFeature!=="function"||hasFeature(k);
 const STOPS=()=>[
   {icon:"🏠",t:"Home",b:"Each time you open the app: today's practice, the next game, your record and this week.",go:()=>setTab("home")},
   H2("plans")&&{icon:"📋",t:"Practice plans",b:"Build a timed practice from your drill library in minutes, then print it or run it from your phone.",go:()=>setTab("plan")},
-  H2("plays")&&{icon:"🏀",t:"Plays",b:"Draw plays step by step and watch them run. Pick a defense (man, 2-3, 3-2, box-and-1) and it moves with the ball. Share plays with players by link.",go:()=>setTab("plays")},
+  H2("plays")&&{icon:"🏀",t:"Plays",b:"Draw plays step by step on hardwood or a whiteboard, aim and bend any move, and watch them run. Pick a defense (man, 2-3, 3-2, box-and-1) and it moves with the ball. Share plays with players by link.",go:()=>setTab("plays")},
   {icon:"📅",t:"Calendar",b:"Your whole season. Tap a day to change it, and send parents one link that's always current.",go:()=>setTab("cal")},
-  H2("stats")&&{icon:"📊",t:"Live stats",b:"Tap a stat and a player during the game. Box scores, quarters played and season stats add up for you.",go:()=>window.goTeam&&goTeam("stats")},
+  H2("stats")&&{icon:"📊",t:"Live stats",b:"Tap a stat and a player during the game, or start a quick game for a scrimmage. Box scores, quarters played and season stats add up for you.",go:()=>window.goTeam&&goTeam("stats")},
   (H2("bus")||H2("food"))&&{icon:"🚌",t:"Parent Admin",b:"Bus lists with check-in, a game-day food sign-up parents use without an account, and the parent calendar link.",go:()=>window.goTeam&&goTeam(H2("bus")?"bus":"food")},
   {icon:"👥",t:"Your staff",b:"Invite assistant coaches with a code and decide what each one can change. Find it under Team → Staff.",go:()=>window.goTeam&&goTeam("staff")},
   {icon:"📷",t:"Add from a photo",b:"Snap a roster, a schedule or a whiteboard play and the app fills it in for you to check.",go:null}
