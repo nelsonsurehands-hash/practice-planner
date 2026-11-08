@@ -9,6 +9,13 @@ let view="season", openDate=null, playerId=null, live=null, saveTimer=null, tick
 const can=()=>typeof PERM!=="undefined"&&PERM.plans;
 const SPORT=()=>(SETTINGS.sport||"basketball");
 const games=()=>(SETTINGS.games||[]).filter(g=>g.date).sort((a,b)=>a.date<b.date?-1:1);
+/* Quick games: track stats without a game on the schedule (scrimmages, pickup, open gym).
+   Saved like any game, with an id of "q" + the day + a short tag, e.g. q2026-11-07-k3x9. */
+const isQuick=id=>/^q\d{4}-\d\d-\d\d-/.test(String(id||""));
+const dayOf=id=>isQuick(id)?String(id).slice(1,11):id;
+const quickGames=()=>Object.entries(GAMES).filter(([k,g])=>isQuick(k)&&g&&(g.events||[]).length).map(([k,g])=>({date:k,opponent:g.opponent||"",home:true,quick:true,season:!!g.season})).sort((a,b)=>a.date<b.date?1:-1);
+const metaOf=id=>isQuick(id)?{date:id,opponent:(GAMES[id]||{}).opponent||"",home:true,quick:true}:(games().find(x=>x.date===id)||null);
+const quickTitle=g=>g.opponent||"Quick game";
 const lineupSize=()=>({basketball:5,volleyball:6,soccer:11,football:11,baseball:9})[SPORT()]||Math.min(sp().players||5,11);
 const mmss=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");};
 const pct=(m,a)=>a?Math.round(100*m/a)+"%":"–";
@@ -83,13 +90,16 @@ function stopTick(){clearInterval(tick);tick=null;}
 function setupForm(g,saved){
   const R=T().roster,plan=(T().plans||{})[g.date]||{},pre=(plan.starters||[]).filter(Boolean);
   const isBB=SPORT()==="basketball";
-  return `<div class="tm-card"><h3 class="tm-h">Track ${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")} <small>${esc(T().longDay(g.date))}</small></h3>
+  return `<div class="tm-card"><h3 class="tm-h">${g.quick?"Quick game":`Track ${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")}`} <small>${esc(T().longDay(dayOf(g.date)))}</small></h3>
+    ${g.quick?`<p class="help" style="margin-top:0">For scrimmages, pickup and open gym: no game on the schedule needed.</p>`:""}
     ${R.length?`<form id="lvSetup" class="lv-setup">
       <div class="bus-grid">
+        ${g.quick?`<label class="f">Name or opponent (optional)<input name="opp" maxlength="40" placeholder="e.g. Scrimmage, Blue vs White, Lincoln JV"></label>`:""}
         <label class="f">Game is played in<select name="periods"><option value="4"${isBB?" selected":""}>4 quarters</option><option value="2"${isBB?"":" selected"}>2 halves</option><option value="3">3 periods</option></select></label>
       </div>
       <fieldset class="catpick"><legend>Starters (${lineupSize()})</legend><div class="lv-starters">${R.map(p=>`<label><input type="checkbox" name="st" value="${esc(p.id)}"${pre.includes(p.id)?" checked":""}> ${esc(pname(p))}</label>`).join("")}</div></fieldset>
       ${pre.length?`<p class="help" style="margin:0">Starters are filled in from this game's gameplan.</p>`:""}
+      ${g.quick?`<label class="lv-season"><input type="checkbox" name="season"> Count these stats in season stats</label>`:""}
       <div class="actions" style="margin:0"><button class="btn primary" type="submit">Start tracking</button><button class="btn" type="button" data-st="back">Back</button></div><div class="msg" id="lvMsg"></div></form>`:
       `<p class="help">Add your players on the <button type="button" class="linkbtn" data-goteam="roster">Roster</button> page first, then come back to track the game.</p>`}</div>`;
 }
@@ -209,14 +219,14 @@ $("#tm-stats").addEventListener("submit",e=>{
     const left=(+m[1])*60+(+(m[2]||0));live.elapsed=Math.max(0,Math.min(live.len,live.len-left));if(live.running)live.startedAt=Date.now();persist(true);renderLive();return;}
   if(e.target.id==="lvSetup"){e.preventDefault();const f=e.target,st=[...f.querySelectorAll("[name=st]:checked")].map(x=>x.value);
     if(st.length>lineupSize()){msg($("#lvMsg"),`Pick up to ${lineupSize()} starters.`,"err");return;}
-    const g=games().find(x=>x.date===openDate);
-    live={date:openDate,opponent:g.opponent||"",home:g.home!==false,sport:SPORT(),periods:+f.periods.value,len:480,period:1,elapsed:0,running:false,startedAt:null,lineup:st,events:[],final:false,startedOn:Date.now()};
+    const q=isQuick(openDate),g=q?{opponent:(f.opp&&f.opp.value.trim())||"",home:true}:games().find(x=>x.date===openDate);
+    live={date:openDate,...(q?{quick:true,season:!!(f.season&&f.season.checked)}:{}),opponent:g.opponent||"",home:g.home!==false,sport:SPORT(),periods:+f.periods.value,len:480,period:1,elapsed:0,running:false,startedAt:null,lineup:st,events:[],final:false,startedOn:Date.now()};
     persist(true);startTick();renderLive();}
 });
 function flash(t){const el=document.createElement("div");el.className="lv-flash";el.textContent="✓ "+t;document.body.appendChild(el);setTimeout(()=>el.remove(),900);}
 /* The final score goes into the game's gameplan, where it shows on the schedule and scouting report. */
 async function saveResult(date){
-  const g=GAMES[date];if(!g)return;const c=compute(g);
+  const g=GAMES[date];if(!g||isQuick(date))return;const c=compute(g);
   const plan=JSON.parse(JSON.stringify((T().plans||{})[date]||{}));plan.result={...(plan.result||{}),us:String(c.us),them:String(c.them)};
   try{await store.collection("gameplans").doc(date).set({...plan,updatedAt:Date.now()});}catch{}
 }
@@ -243,7 +253,7 @@ function eventText(g,e,by){
   return "";
 }
 function renderRecap(date){
-  const g=GAMES[date],gm=games().find(x=>x.date===date)||{date,opponent:(g||{}).opponent};
+  const g=GAMES[date],gm=metaOf(date)||{date,opponent:(g||{}).opponent};
   const box=$("#tm-stats");
   if(!g){box.innerHTML=`<div class="tm-card"><p class="help">This game hasn't been tracked.</p><button class="btn" data-st="games">‹ Games</button></div>`;return;}
   const c=compute(g),rows=boxRows(g,c),C=cols(),tot=totalsRow(rows),by=Object.fromEntries(T().roster.map(p=>[p.id,p]));
@@ -253,7 +263,7 @@ function renderRecap(date){
   const res=c.us>c.them?"W":c.us<c.them?"L":"T";
   box.innerHTML=`<div class="tm-card st-recap">
     <div class="st-head"><button type="button" class="btn" data-st="games">‹ Games</button>${can()?`<button type="button" class="btn" data-st="resume" data-date="${date}">${g.final?"Edit stats":"Back to live"}</button>`:""}<button type="button" class="btn primary" data-st="pdf" data-date="${date}">Print recap</button></div>
-    <h3 class="tm-h">${gm.home===false?"at":"vs"} ${esc(gm.opponent||"Game")} <small>${esc(T().longDay(date))}${g.final?"":" · in progress"}</small></h3>
+    <h3 class="tm-h">${gm.quick?esc(quickTitle(gm)):`${gm.home===false?"at":"vs"} ${esc(gm.opponent||"Game")}`} <small>${esc(T().longDay(dayOf(date)))}${gm.quick?" · quick game":""}${g.final?"":" · in progress"}</small></h3>
     <div class="st-final"><b class="r-${res}">${g.final?res+" ":""}${c.us}–${c.them}</b></div>
     <div class="st-tablewrap"><table class="st-table st-q"><thead><tr><th></th>${per.map(p=>`<th>${g.periods===2?(p===1?"1H":"2H"):PERIOD_NAME(g)+p}</th>`).join("")}<th>T</th></tr></thead>
       <tbody><tr><th>${esc((team.settings||{}).mascot||"Us")}</th>${per.map(p=>`<td>${c.per[p]||0}</td>`).join("")}<td><b>${c.us}</b></td></tr>
@@ -274,7 +284,7 @@ function renderRecap(date){
 
 /* ---------- season overview and each player's game log ---------- */
 function seasonData(){
-  const tracked=games().filter(g=>GAMES[g.date]&&(GAMES[g.date].events||[]).length);
+  const tracked=games().filter(g=>GAMES[g.date]&&(GAMES[g.date].events||[]).length).concat(quickGames().filter(g=>g.season));
   const P={};let w=0,l=0,pf=0,pa=0;
   tracked.forEach(gm=>{const g=GAMES[gm.date],c=compute(g);if(g.final){if(c.us>c.them)w++;else if(c.us<c.them)l++;}pf+=c.us;pa+=c.them;
     Object.values(c.players).forEach(r=>{const t=P[r.pid]=P[r.pid]||{pid:r.pid,gp:0,min:0,q:0,pts:0,s:{},log:[]};
@@ -308,7 +318,7 @@ function renderPlayer(pid){
       <div class="st-lead"><small>Quarters played</small><b>${avg(t.q,t.gp)}</b><span>per game</span></div>${bb?`<div class="st-lead"><small>Rebounds</small><b>${avg((t.s.oreb||0)+(t.s.dreb||0),t.gp)}</b><span>per game</span></div>`:""}</div>
       <h4 class="gp-h">Game by game</h4>
       <div class="st-tablewrap"><table class="st-table"><thead><tr><th class="nm">Game</th>${C.map(([h])=>`<th>${h}</th>`).join("")}</tr></thead>
-      <tbody>${t.log.map(x=>`<tr><th class="nm"><button type="button" class="linkbtn" data-st="open" data-date="${x.date}">${esc(T().longDay(x.date))} ${x.home?"vs":"at"} ${esc(x.opp||"")}</button></th>${C.map(([,f])=>`<td>${f(x.r)}</td>`).join("")}</tr>`).join("")}
+      <tbody>${t.log.map(x=>`<tr><th class="nm"><button type="button" class="linkbtn" data-st="open" data-date="${x.date}">${esc(T().longDay(dayOf(x.date)))} ${isQuick(x.date)&&!x.opp?"Quick game":`${x.home?"vs":"at"} ${esc(x.opp||"")}`}</button></th>${C.map(([,f])=>`<td>${f(x.r)}</td>`).join("")}</tr>`).join("")}
       <tr class="tot"><th class="nm">Season</th>${C.map(([h,f])=>`<td>${h==="QTR"?t.q:f(t)}</td>`).join("")}</tr></tbody></table></div>`:
       `<p class="help">No stats for this player yet.</p>`}</div>`;
 }
@@ -318,14 +328,20 @@ function renderGames(){
     ${gs.length?`<ul class="st-games">${gs.map(g=>{const s=GAMES[g.date],c=s&&(s.events||[]).length?compute(s):null;
       return `<li><div><b>${esc(T().longDay(g.date))}</b> ${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")}<small>${c?`${s.final?(c.us>c.them?"W":c.us<c.them?"L":"T")+" ":"Live · "}${c.us}–${c.them}`:g.date<today?"Not tracked":""}</small></div>
         <span class="st-gbtn">${c?`<button type="button" class="btn" data-st="open" data-date="${g.date}">Recap</button>`:""}${can()&&(!s||!s.final)?`<button type="button" class="btn ${c?"":"primary"}" data-st="track" data-date="${g.date}">${c?"Resume":"Track"}</button>`:""}</span></li>`;}).join("")}</ul>`:
-      `<p class="help">Add games in the Calendar tab first.</p>`}</div>`;
+      `<p class="help">No games on the schedule. Add games in the Calendar tab, or track a quick game.</p>`}</div>`+quickList();
 }
+function quickList(){const q=quickGames();
+  return `<div class="tm-card"><h3 class="tm-h">Quick games <small>scrimmages, pickup, open gym</small></h3>
+    ${q.length?`<ul class="st-games">${q.map(g=>{const s=GAMES[g.date],c=compute(s);
+      return `<li><div><b>${esc(T().longDay(dayOf(g.date)))}</b> ${esc(quickTitle(g))}<small>${s.final?"":"Live · "}${c.us}–${c.them}${g.season?" · counts in season":""}</small></div>
+        <span class="st-gbtn"><button type="button" class="btn" data-st="open" data-date="${g.date}">Recap</button>${can()&&!s.final?`<button type="button" class="btn" data-st="track" data-date="${g.date}">Resume</button>`:""}</span></li>`;}).join("")}</ul>`:
+      `<p class="help" style="margin:0">Tap <b>+ Quick game</b> to track stats without a scheduled game.</p>`}</div>`;}
 
 /* ---------- printing and spreadsheet ---------- */
 function printRecap(date){
-  const g=GAMES[date],gm=games().find(x=>x.date===date)||{};if(!g)return;
+  const g=GAMES[date],gm=metaOf(date)||{};if(!g)return;
   const c=compute(g),rows=boxRows(g,c),C=cols(),tot=totalsRow(rows),by=Object.fromEntries(T().roster.map(p=>[p.id,p])),doc=T().pdfDoc();
-  let y=T().pdfHead(doc,`${gm.home===false?"at":"vs"} ${gm.opponent||"Game"}: ${c.us}–${c.them}`,[team.name,(team.settings||{}).teamLabel,T().longDay(date)].filter(Boolean).join(" · "));
+  let y=T().pdfHead(doc,`${gm.quick?quickTitle(gm):`${gm.home===false?"at":"vs"} ${gm.opponent||"Game"}`}: ${c.us}–${c.them}`,[team.name,(team.settings||{}).teamLabel,T().longDay(dayOf(date))].filter(Boolean).join(" · "));
   const per=Array.from({length:Math.max(g.periods,g.period)},(_,i)=>i+1);
   doc.setFontSize(10);doc.setFont("helvetica","bold");per.forEach((p,i)=>doc.text(g.periods===2?(p===1?"1H":"2H"):PERIOD_NAME(g)+p,170+i*40,y));doc.text("T",170+per.length*40,y);y+=14;
   [[(team.settings||{}).mascot||"Us",c.per,c.us],[gm.opponent||"Them",c.opp,c.them]].forEach(([n,m,t])=>{doc.setFont("helvetica","normal");doc.text(String(n).slice(0,26),40,y);per.forEach((p,i)=>doc.text(String(m[p]||0),170+i*40,y));doc.setFont("helvetica","bold");doc.text(String(t),170+per.length*40,y);y+=14;});
@@ -351,7 +367,8 @@ function seasonCSV(){
 /* The game the Live button should open: one already in progress, then today's game, then the next one coming up. */
 function liveTarget(){
   const gs=games(),today=todayISO();
-  return gs.find(g=>{const s=GAMES[g.date];return s&&!s.final&&(s.events||[]).length;})
+  const q=quickGames().find(g=>!GAMES[g.date].final);
+  return gs.find(g=>{const s=GAMES[g.date];return s&&!s.final&&(s.events||[]).length;})||q
     ||gs.find(g=>g.date===today&&!(GAMES[g.date]||{}).final)
     ||gs.filter(g=>g.date>today&&!(GAMES[g.date]||{}).final).sort((a,b)=>a.date<b.date?-1:1)[0]||null;
 }
@@ -360,16 +377,17 @@ function render(){
   if(T().date){openDate=T().date;T().date=null;view=GAMES[openDate]&&(GAMES[openDate].events||[]).length?"recap":"setup";}
   if(live){renderLive();return;}
   const db=T().needsDb()==="gamestats"?T().dbHelp:"";
-  const nav=`<div class="st-nav seg" role="group" aria-label="Stats views"><button type="button" data-st="season" aria-pressed="${view==="season"||view==="player"}">Season</button><button type="button" data-st="games" aria-pressed="${view==="games"||view==="recap"}">Games</button>${can()?`<button type="button" class="st-livebtn" data-st="golive" aria-pressed="${view==="setup"}"><span class="st-dot"></span>Live tracker</button>`:""}</div>`;
+  const nav=`<div class="st-nav seg" role="group" aria-label="Stats views"><button type="button" data-st="season" aria-pressed="${view==="season"||view==="player"}">Season</button><button type="button" data-st="games" aria-pressed="${view==="games"||view==="recap"}">Games</button>${can()?`<button type="button" class="st-livebtn" data-st="golive" aria-pressed="${view==="setup"}"><span class="st-dot"></span>Live tracker</button><button type="button" class="btn st-quickbtn" data-st="quick">+ Quick game</button>`:""}</div>`;
   $("#tm-stats").innerHTML=db+nav+`<div id="stBody"></div>`;
   const body=$("#stBody"),swap=f=>{const tmp=$("#tm-stats");const keep=tmp.innerHTML;f();const inner=tmp.innerHTML;tmp.innerHTML=db+nav+`<div id="stBody">${inner}</div>`;};
-  if(view==="setup"){const g=games().find(x=>x.date===openDate);if(!g){view="games";return render();}body.innerHTML=setupForm(g);return;}
+  if(view==="setup"){const g=isQuick(openDate)?{date:openDate,opponent:"",home:true,quick:true}:games().find(x=>x.date===openDate);if(!g){view="games";return render();}body.innerHTML=setupForm(g);return;}
   if(view==="recap")swap(()=>renderRecap(openDate));
   else if(view==="player")swap(()=>renderPlayer(playerId));
   else if(view==="games")swap(renderGames);
   else swap(renderSeason);
 }
 T().panes.stats=render;
+function startQuick(){openDate="q"+todayISO()+"-"+Math.random().toString(36).slice(2,6);view="setup";render();}
 $("#tm-stats").addEventListener("click",e=>{
   const b=e.target.closest("[data-st]");if(!b||live)return;
   const a=b.dataset.st;
@@ -379,7 +397,7 @@ $("#tm-stats").addEventListener("click",e=>{
   if(a==="open"){openDate=b.dataset.date;view="recap";render();}
   if(a==="player"&&b.dataset.pid){playerId=b.dataset.pid;view="player";render();}
   if(a==="golive"){const g=liveTarget();
-    if(!g){view="games";render();const h=$("#tm-stats .tm-h");if(h)h.insertAdjacentHTML("afterend",`<p class="help st-nolive">No game today or coming up. Pick a game below to track it.</p>`);return;}
+    if(!g){startQuick();return;}
     b.dataset.date=g.date;}
   if(a==="track"||a==="resume"||a==="golive"){
     const d=b.dataset.date,saved=GAMES[d];openDate=d;
@@ -388,6 +406,7 @@ $("#tm-stats").addEventListener("click",e=>{
     if(best&&(best.events||[]).length){live=JSON.parse(JSON.stringify(best));if(a==="resume"&&live.final)live.final=false;pick=null;subIn=null;armed=null;startTick();renderLive();}
     else{view="setup";render();}
   }
+  if(a==="quick"){startQuick();return;}
   if(a==="pdf")printRecap(b.dataset.date);
   if(a==="csv")seasonCSV();
   if(a==="delev"&&can()){const g=GAMES[b.dataset.date];if(!g)return;if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Remove?";b.classList.add("armed");return;}

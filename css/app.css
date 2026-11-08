@@ -1844,3 +1844,8 @@ input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and
 .block.bc .bc-del.armed{position:relative;z-index:2;width:auto;padding:0 10px;border-radius:999px;background:var(--warn);color:#fff;grid-column:3/5;justify-self:end;font-weight:700;font-size:13px;display:flex;gap:5px;align-items:center}
 .block.bc .bc-del.armed .bc-sure{display:inline}
 .block.bc .bc-del.armed svg{width:16px;height:16px}
+.st-nav .st-quickbtn{font-weight:700;margin-left:4px}
+.lv-season{display:flex;align-items:center;gap:8px;font-size:14.5px}
+.lv-season input{width:18px;height:18px}
+/* During a live game the bottom bar steps aside so the stat buttons have the room (Exit is in the tracker). */
+@media (max-width:720px){body.live-mode .bnav{display:none}body.live-mode .lv-pal{bottom:0}body.live-mode #app{padding-bottom:0}}
