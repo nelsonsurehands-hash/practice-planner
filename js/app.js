@@ -250,11 +250,6 @@ const SHAPE={id:null,drag:null};   // the move being aimed or bent in the play e
 const CAT_HUES=[["warm","#14897a"],["stretch","#14897a"],["shoot","#e2672a"],["free throw","#e2672a"],["defen","#b3263a"],["press","#b3263a"],["offen","#6d3bb0"],["play","#6d3bb0"],["condit","#2f62d6"],["transition","#2f62d6"],["break","#8a8794"],["water","#8a8794"],["scrim","#2f8a4a"],["game","#2f8a4a"],["pass","#b07d0c"],["rebound","#a3487e"],["finish","#d14d6b"],["layup","#d14d6b"],["dribbl","#0f7fa8"],["ball hand","#0f7fa8"]];
 const CAT_SPARE=["#14897a","#e2672a","#6d3bb0","#2f62d6","#2f8a4a","#b07d0c","#a3487e","#0f7fa8"];
 function catColor(c){c=String(c||"").toLowerCase();if(!c)return "#8a8794";const m=CAT_HUES.find(([k])=>c.includes(k));if(m)return m[1];let h=0;for(const ch of c)h=(h*31+ch.charCodeAt(0))>>>0;return CAT_SPARE[h%CAT_SPARE.length];}
-/* Removed a drill by mistake? A small bar offers Undo for a few seconds. */
-function undoRemove(b,i){let u=document.getElementById("undoBar");if(!u){u=document.createElement("div");u.id="undoBar";u.className="undo-bar";u.setAttribute("role","status");document.body.appendChild(u);}
-  const plan=cur;u.innerHTML=`<span>Removed <b>${esc(b.name)}</b></span><button type="button">Undo</button>`;u.hidden=false;
-  clearTimeout(u._t);u._t=setTimeout(()=>{u.hidden=true;},5000);
-  u.querySelector("button").onclick=()=>{u.hidden=true;if(cur!==plan)return;cur.blocks.splice(Math.min(i,cur.blocks.length),0,b);changed();};}
 function coachField(b){
   if(!PERM.plans)return b.coach?`<div class="led">Led by ${esc(b.coach)}</div>`:"";
   if(STAFF.length<2&&!b.coach)return "";
@@ -283,7 +278,7 @@ function renderPlan(){
           <span class="name">${esc(b.name)}</span>
           <span class="bc-sub">${b.category?`<b>${esc(b.category)}</b>`:""}${b.coach?`<span>${esc(b.coach)}</span>`:""}${has&&!open?`<span class="bc-has">Notes</span>`:""}</span>
         </button>
-        ${ED?`<div class="mins"><button type="button" data-act="dec" aria-label="Less time">−</button><input data-act="min" type="number" min="1" max="90" value="${b.minutes}" aria-label="Minutes"><span class="u" aria-hidden="true">m</span><button type="button" data-act="inc" aria-label="More time">+</button></div><button type="button" class="bc-del" data-act="del" aria-label="Remove ${esc(b.name)}" title="Remove"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>`:`<div class="bc-min">${b.minutes} min</div>`}
+        ${ED?`<div class="mins"><button type="button" data-act="dec" aria-label="Less time">−</button><input data-act="min" type="number" min="1" max="90" value="${b.minutes}" aria-label="Minutes"><span class="u" aria-hidden="true">m</span><button type="button" data-act="inc" aria-label="More time">+</button></div><button type="button" class="bc-del" data-act="del" aria-label="Remove ${esc(b.name)}" title="Remove"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span class="bc-sure">Remove?</span></button>`:`<div class="bc-min">${b.minutes} min</div>`}
         ${open?`<div class="bc-more">
           ${ED?`<textarea class="note" data-act="note" rows="2" placeholder="Notes for this practice" aria-label="Notes for ${esc(b.name)}">${esc(b.notes||"")}</textarea>`:(b.notes?`<div class="note-ro">${esc(b.notes)}</div>`:"")}
           ${desc||pts?`<div class="bc-drill">${desc?`<p><b>Drill</b>${esc(desc)}</p>`:""}${pts?`<p><b>Coaching points</b>${esc(pts)}</p>`:""}</div>`:""}
@@ -407,7 +402,12 @@ $("#script").addEventListener("click",e=>{
   if(a==="dec")b.minutes=Math.max(1,b.minutes-1);
   if(a==="up"&&i>0)[cur.blocks[i-1],cur.blocks[i]]=[cur.blocks[i],cur.blocks[i-1]];
   if(a==="down"&&i<cur.blocks.length-1)[cur.blocks[i+1],cur.blocks[i]]=[cur.blocks[i],cur.blocks[i+1]];
-  if(a==="del"){const [gone]=cur.blocks.splice(i,1);undoRemove(gone,i);}
+  if(a==="del"){
+    /* First tap arms the trash can ("Remove?"), a second tap within 3 seconds removes the drill. */
+    if(btn.dataset.armed!=="1"){$("#script").querySelectorAll('.bc-del[data-armed="1"]').forEach(x=>{x.dataset.armed="";x.classList.remove("armed");});
+      btn.dataset.armed="1";btn.classList.add("armed");btn.setAttribute("aria-label",`Tap again to remove ${b.name}`);
+      clearTimeout(btn._t);btn._t=setTimeout(()=>{if(btn.isConnected){btn.dataset.armed="";btn.classList.remove("armed");btn.setAttribute("aria-label",`Remove ${b.name}`);}},3000);return;}
+    cur.blocks.splice(i,1);}
   changed();
 });
 /* Drag and drop: hold the grip on the left of a drill and slide it to its new spot. */
