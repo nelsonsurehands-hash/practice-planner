@@ -1080,44 +1080,70 @@ function shareLinkFor(id){return location.origin+"/p/"+encodeURIComponent(id);}
 function randomId(){const A="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789",b=new Uint8Array(10);crypto.getRandomValues(b);return [...b].map(x=>A[x%A.length]).join("");}
 /* Inside the Claude preview there is no web address players could open. */
 const IN_PREVIEW=!!(window.claude&&window.claude.use);
+/* Playlists: each player link is a named set of plays. Edit a playlist any time (add or take out
+   plays, rename it) and the same link shows the new list. "All plays" playlists include new plays too. */
+let SHARE_LINKS=[],SHARE_EDIT=null;
+const sharePlaysAll=()=>plays.filter(p=>!p.draft);
 async function renderShareLinks(){
   const box=$("#shareExisting");
   if(!HOSTED){box.innerHTML="";return;}
   const {data,error}=await sb.from("playbooks").select("id,title,play_ids,active,views,created_at").eq("team_id",team.id).order("created_at",{ascending:false});
-  if(error||!data||!data.length){box.innerHTML="";return;}
-  box.innerHTML=`<h3 style="font-size:16px;text-transform:uppercase;color:var(--muted);margin:6px 0">Your player links</h3><ul class="links">`+data.map(l=>`<li class="${l.active?"":"off"}"><span><b>${esc(l.title)}</b><small>${l.play_ids?l.play_ids.length+" plays":"All plays"} · opened ${l.views} time${l.views===1?"":"s"}${l.active?"":" · turned off"}</small></span>
-    <span class="actions" style="margin:0">${l.active?`<button class="btn" type="button" data-linkcopy="${esc(l.id)}">Copy</button><button class="btn danger" type="button" data-linkoff="${esc(l.id)}">Turn off</button>`:`<button class="btn" type="button" data-linkon="${esc(l.id)}">Turn on</button>`}</span></li>`).join("")+`</ul>`;
+  SHARE_LINKS=error||!data?[]:data;
+  if(!SHARE_LINKS.length){box.innerHTML="";return;}
+  const have=new Set(sharePlaysAll().map(p=>p.id));
+  box.innerHTML=`<h3 class="share-h">Your playlists</h3><ul class="links">`+SHARE_LINKS.map(l=>{const n=l.play_ids?l.play_ids.filter(id=>have.has(id)).length:null;
+    return `<li class="${l.active?"":"off"}${SHARE_EDIT===l.id?" editing":""}"><span><b>${esc(l.title)}</b><small>${n===null?"All plays":n+" play"+(n===1?"":"s")} · opened ${l.views} time${l.views===1?"":"s"}${l.active?"":" · turned off"}</small></span>
+    <span class="actions" style="margin:0"><button class="btn" type="button" data-linkedit="${esc(l.id)}">Edit plays</button>${l.active?`<button class="btn" type="button" data-linkcopy="${esc(l.id)}">Copy link</button><button class="btn danger" type="button" data-linkoff="${esc(l.id)}">Turn off</button>`:`<button class="btn" type="button" data-linkon="${esc(l.id)}">Turn on</button><button class="btn danger" type="button" data-linkdel="${esc(l.id)}">Delete</button>`}</span></li>`;}).join("")+`</ul>`;
 }
-$("#shareBook").addEventListener("click",()=>{
+function shareCount(){const n=document.querySelectorAll("#sharePlays input:checked").length;$("#shareCount").textContent=n?`· ${n} picked`:"";}
+function shareForm(link){
+  SHARE_EDIT=link?link.id:null;
+  const ids=link?(link.play_ids||sharePlaysAll().map(p=>p.id)):[];
+  $("#shareFormH").textContent=link?`Edit “${link.title}”`:(SHARE_LINKS.length?"New playlist":"Make a playlist");
+  $("#shareName").value=link?link.title:"";
+  $("#sharePlays").innerHTML=sharePlaysAll().sort((a,b)=>(a.type||"").localeCompare(b.type||"")||a.name.localeCompare(b.name))
+    .map(p=>`<label><input type="checkbox" value="${esc(p.id)}"${ids.includes(p.id)?" checked":""}> <span>${esc(p.name)} <small>${esc(p.type||"")}</small></span></label>`).join("");
+  $("#shareMake").textContent=link?"Save playlist":IN_PREVIEW&&!HOSTED?"Preview player view":"Create player link";
+  $("#shareCancelEdit").hidden=!link;$("#shareResult").hidden=true;msg($("#shareMsg"),"");shareCount();
+  document.querySelectorAll("#shareExisting li").forEach(li=>li.classList.toggle("editing",!!link&&!!li.querySelector(`[data-linkedit="${CSS.escape(link.id)}"]`)));
+}
+$("#shareBook").addEventListener("click",async()=>{
   if(!plays.length){pflash("Save a play first, then share it.");return;}
-  $("#shareName").value=`${SETTINGS.mascot||team.name} Playbook`;
-  $("#sharePlays").innerHTML=plays.filter(p=>!p.draft).sort((a,b)=>(a.type||"").localeCompare(b.type||"")||a.name.localeCompare(b.name))
-    .map(p=>`<label><input type="checkbox" value="${esc(p.id)}" checked> <span>${esc(p.name)} <small>${esc(p.type||"")}</small></span></label>`).join("");
-  $("#shareMake").textContent=IN_PREVIEW&&!HOSTED?"Preview player view":"Create player link";
   $("#shareHelp").textContent=IN_PREVIEW&&!HOSTED?
-    "You're in the Claude preview, which has no web address your players could open, so it can't make player links. Tap Preview player view to see exactly what players will get. Real, short player links work once the app is hosted (Netlify) and connected to Supabase.":
+    "You're in the Claude preview, which has no web address your players could open, so it can't make player links. Tap Preview player view to see exactly what players will get.":
     HOSTED?
-    "Players open the link on any phone with no account. They see only these plays, never your practice plans, drills or staff. Changes you make to these plays show up for them automatically, and you can turn a link off anytime.":
-    "Players open the link on any phone with no account, and see only these plays. Demo mode has no server, so the plays are packed into the link itself. That makes the link long, and edits you make later won't show. Connect Supabase (see the README) for short links that stay up to date.";
-  $("#shareResult").hidden=true;msg($("#shareMsg"),"");$("#shareMake").disabled=false;
-  $("#shareSend").hidden=!navigator.share;
-  renderShareLinks();
+    "Make a playlist of just the plays you want, and send its link. Players open it on any phone with no account and see only those plays. Edit a playlist any time and the same link updates.":
+    "Players open the link on any phone with no account, and see only these plays. Demo mode has no server, so the plays are packed into the link itself. That makes the link long, and edits you make later won't show.";
+  $("#shareSend").hidden=!navigator.share;$("#shareMake").disabled=false;
+  SHARE_LINKS=[];shareForm(null);
   $("#shareDlg").showModal();
+  await renderShareLinks();if(!SHARE_EDIT)shareForm(null);
 });
-$("#shareAll").addEventListener("click",()=>document.querySelectorAll("#sharePlays input").forEach(x=>x.checked=true));
-$("#shareNone").addEventListener("click",()=>document.querySelectorAll("#sharePlays input").forEach(x=>x.checked=false));
+$("#sharePlays").addEventListener("change",shareCount);
+$("#shareAll").addEventListener("click",()=>{document.querySelectorAll("#sharePlays input").forEach(x=>x.checked=true);shareCount();});
+$("#shareNone").addEventListener("click",()=>{document.querySelectorAll("#sharePlays input").forEach(x=>x.checked=false);shareCount();});
+$("#shareCancelEdit").addEventListener("click",()=>shareForm(null));
 $("#shareMake").addEventListener("click",async()=>{
   const ids=[...document.querySelectorAll("#sharePlays input:checked")].map(x=>x.value);
   if(!ids.length){msg($("#shareMsg"),"Pick at least one play.","err");return;}
   const title=$("#shareName").value.trim()||"Playbook";
+  const all=ids.length===sharePlaysAll().length;
+  if(SHARE_EDIT){
+    msg($("#shareMsg"),"Saving…");
+    const {error}=await sb.from("playbooks").update({title,play_ids:all?null:ids}).eq("id",SHARE_EDIT);
+    if(error){msg($("#shareMsg"),"Couldn't save: "+error.message,"err");return;}
+    const id=SHARE_EDIT;await renderShareLinks();shareForm(null);
+    $("#shareLink").value=shareLinkFor(id);$("#shareOpen").href=shareLinkFor(id);$("#shareResult").hidden=false;
+    msg($("#shareMsg"),`Saved “${title}”. Players with the link see the new list the next time they open it.`,"ok");return;
+  }
   msg($("#shareMsg"),"Creating link…");
   let link;
   try{
     if(HOSTED){
-      const id=randomId(),all=ids.length===plays.filter(p=>!p.draft).length;
+      const id=randomId();
       const {error}=await sb.from("playbooks").insert({id,team_id:team.id,title,play_ids:all?null:ids});
       if(error)throw error;
-      link=shareLinkFor(id);renderShareLinks();
+      link=shareLinkFor(id);await renderShareLinks();
     }else{
       const chosen=plays.filter(p=>ids.includes(p.id)),payload=playbookPayload(title,team,chosen);
       if(IN_PREVIEW){
@@ -1128,7 +1154,7 @@ $("#shareMake").addEventListener("click",async()=>{
     }
   }catch(err){msg($("#shareMsg"),"Couldn't create the link: "+(err.message||"check your connection"),"err");return;}
   $("#shareLink").value=link;$("#shareOpen").href=link;$("#shareResult").hidden=false;
-  msg($("#shareMsg"),HOSTED?"Link ready. Send it to your players.":`Link ready, but long (${link.length.toLocaleString()} characters) because demo mode has no server. Email works best.`,"ok");
+  msg($("#shareMsg"),HOSTED?`Playlist “${title}” is ready. Send the link to your players.`:`Link ready, but long (${link.length.toLocaleString()} characters) because demo mode has no server. Email works best.`,"ok");
 });
 $("#shareCopy").addEventListener("click",async e=>{
   const v=$("#shareLink").value;
@@ -1137,6 +1163,10 @@ $("#shareCopy").addEventListener("click",async e=>{
 });
 $("#shareSend").addEventListener("click",()=>{navigator.share({title:$("#shareName").value||"Playbook",text:"Our team plays:",url:$("#shareLink").value}).catch(()=>{});});
 $("#shareExisting").addEventListener("click",async e=>{
+  const ed=e.target.closest("[data-linkedit]");if(ed){const l=SHARE_LINKS.find(x=>x.id===ed.dataset.linkedit);if(l){shareForm(l);$("#shareFormH").scrollIntoView({behavior:"smooth",block:"start"});}return;}
+  const del=e.target.closest("[data-linkdel]");
+  if(del){if(del.dataset.armed!=="1"){del.dataset.armed="1";del.textContent="Tap again to delete";return;}
+    const {error}=await sb.from("playbooks").delete().eq("id",del.dataset.linkdel);if(error)msg($("#shareMsg"),error.message,"err");else{if(SHARE_EDIT===del.dataset.linkdel)shareForm(null);renderShareLinks();}return;}
   const c=e.target.closest("[data-linkcopy]"),off=e.target.closest("[data-linkoff]"),on=e.target.closest("[data-linkon]");
   if(c){try{await navigator.clipboard.writeText(shareLinkFor(c.dataset.linkcopy));c.textContent="Copied";}catch{c.textContent="Copy failed";}return;}
   if(off&&off.dataset.armed!=="1"){off.dataset.armed="1";off.textContent="Tap again: players lose access";return;}

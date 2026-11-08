@@ -726,18 +726,19 @@
   <form method="dialog" class="dlg" id="shareForm">
     <h2 id="shareTitle">Share plays with players</h2>
     <p class="help" id="shareHelp"></p>
-    <label class="f">Playbook name<input id="shareName" data-tc placeholder="e.g. Ravens Offense"></label>
-    <fieldset class="catpick"><legend>Plays to include</legend>
+    <div id="shareExisting"></div>
+    <h3 class="share-h" id="shareFormH">New playlist</h3>
+    <label class="f">Playlist name<input id="shareName" data-tc placeholder="e.g. Man offense, Inbounds, Varsity sets"></label>
+    <fieldset class="catpick"><legend>Plays in this playlist <span id="shareCount" class="share-count"></span></legend>
       <div class="actions" style="margin:0 0 6px"><button class="btn" type="button" id="shareAll" style="padding:3px 9px;font-size:12.5px">All</button><button class="btn" type="button" id="shareNone" style="padding:3px 9px;font-size:12.5px">None</button></div>
       <div class="share-plays" id="sharePlays"></div>
     </fieldset>
-    <button class="btn primary" type="button" id="shareMake">Create player link</button>
+    <div class="actions" style="margin:0"><button class="btn primary" type="button" id="shareMake">Create player link</button><button class="btn" type="button" id="shareCancelEdit" hidden>Cancel</button></div>
     <div id="shareResult" hidden>
       <label class="f">Player link<input id="shareLink" readonly></label>
       <div class="actions" style="margin:6px 0 0"><button class="btn primary" type="button" id="shareCopy">Copy link</button><button class="btn" type="button" id="shareSend" hidden>Send…</button><a class="btn" id="shareOpen" target="_blank" rel="noopener">Open</a></div>
     </div>
     <div class="msg" id="shareMsg"></div>
-    <div id="shareExisting"></div>
     <div class="actions" style="margin-top:0"><button class="btn" value="close" id="shareClose">Close</button></div>
   </form>
 </dialog>

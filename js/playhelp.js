@@ -76,7 +76,7 @@ function build(){
     step(2,"Open, copy or delete","Your plays are in the <b>Play Library</b> (on a phone, tap <b>All plays</b>). Tap <b>Open</b> to see one: saved plays open in view mode so nothing changes by accident. Tap <b>✏️ Edit play</b> to change it and <b>✓ Done</b> to lock it again. <b>Copy</b> sends a play to another team you coach."),
     step(3,"New play","Starts a blank play."),
     step(4,"Printable PDF","Prints every step and option, with captions and notes, for a binder or the bench. A step whose moves happen in order (1, then 2…) prints as 1a, 1b, 1c: one diagram for each moment, with what happens listed under it."),
-    step(5,"Share with players","Makes a link players open on their phones to step through and watch your plays. No account needed."),
+    step(5,"Share with players","Make a <b>playlist</b>: name it, tick just the plays you want, and send its link. Players open it on their phones with no account. Tap <b>Edit plays</b> on a playlist any time to add or take out plays; the same link updates. Turn a link off to stop it."),
     step(6,"Use it in practice","In the Practice tab, add the play to a practice plan from the drill picker.")
   ]);
   dlg.innerHTML=`<div class="dlg hg">
