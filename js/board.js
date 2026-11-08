@@ -81,7 +81,7 @@ function boardInner(fr,mode,tmp,fade,ghost){
   if(ghost&&ghost.length)s+=`<g style="opacity:.22">`+ghost.map(a=>actSVG(a,c.act)).join("")+`</g>`;
   const acts=[...fr.actions];if(tmp)acts.push(tmp);
   s+=`<g style="opacity:${fade?0.3:1}">`+acts.map(a=>actSVG(a,c.act)).join("")+`</g>`;
-  if(!fade&&hasOrder(fr)){const L=seqList(fr);if(L.length&&L[L.length-1].beat>1)s+=`<g class="beats">`+L.map(x=>beatBadge(x.a,x.beat,P)).join("")+`</g>`;}
+  if(!fade&&hasOrder(fr)){const L=seqList(fr);if(L.length&&L[L.length-1].beat>1)s+=`<g class="beats">`+L.filter(x=>x.a.type!=="look").map(x=>beatBadge(x.a,x.beat,P)).join("")+`</g>`;}
   {let n=0;const looks=acts.filter(a=>a.type==="look");if(looks.length)s+=`<g class="looks${fade?" faded":""}">`+looks.map(a=>lookSVG(a,++n,P)).join("")+`</g>`;}
   fr.tokens.filter(t=>t.kind!=="ball").forEach(t=>{
     if(t.kind==="o")s+=`<g><circle cx="${t.x}" cy="${t.y}" r="15" style="fill:${c.ofill};stroke:${c.o};stroke-width:3"/><text x="${t.x}" y="${t.y+6.5}" text-anchor="middle" style="fill:${c.o};font:700 ${lblSize(t)}px Arial,Helvetica,sans-serif">${esc(t.label||t.n)}</text></g>`;
@@ -124,7 +124,7 @@ function nextTokens(f){
    a.beat = 1, 2, 3…: actions with the same number happen at the same time; a higher number waits
    until the lower ones finish. A step with no numbers uses automatic timing (screens first, then cuts
    and passes together). autoBeats shows that automatic order as numbers, so a coach can start from it. */
-const seqActs=f=>(f.actions||[]).filter(a=>a.type!=="look");
+const seqActs=f=>(f.actions||[]);   // looks are in the order too: when the ball handler reads them
 const hasOrder=f=>seqActs(f).some(a=>a.beat);
 function packBeats(B){const u=[...new Set(B.filter(b=>b>0))].sort((x,y)=>x-y);return B.map(b=>b>0?u.indexOf(b)+1:0);}
 function autoBeats(f){
@@ -138,13 +138,14 @@ function autoBeats(f){
     cur++;});
   if(shot>=0)B[shot]=cur;
   A.forEach((a,i)=>{if(!B[i]&&a.type!=="look")B[i]=base;});
+  {let mx=Math.max(0,...B);A.forEach((a,i)=>{if(a.type==="look")B[i]=++mx;});}   // looks: read one after another once the action is done
   return packBeats(B);
 }
-/* Beat of every action (0 for looks). New actions added after the order was set go last. */
+/* Beat of every action, looks included. New actions added after the order was set go last. */
 function beatsOf(f){
   const A=f.actions||[];if(!hasOrder(f))return autoBeats(f);
-  let mx=Math.max(0,...A.map(a=>a.type!=="look"&&a.beat||0));
-  return packBeats(A.map(a=>a.type==="look"?0:(a.beat||++mx)));
+  let mx=Math.max(0,...A.map(a=>a.beat||0));
+  return packBeats(A.map(a=>a.beat||++mx));
 }
 /* The step's actions in the order they happen: [{a, i (index in actions), beat}] */
 function seqList(f){const B=beatsOf(f);return (f.actions||[]).map((a,i)=>({a,i,beat:B[i]})).filter(x=>x.beat).sort((x,y)=>x.beat-y.beat||x.i-y.i);}
@@ -244,7 +245,7 @@ function buildTransition(frames,i){
     return carry(c,u);
   };
   return {i,f,g,paths,ballAt,ballMove:ballAt,passCurve:null,moves:moves||!!(b0&&k),
-    moveDur:ord?DUR.move*Math.max(1,0.45+0.55*nB):DUR.move*Math.max(1,0.5+0.5*k)*(S?1.35:1),last,added:g.filter(t=>!f.tokens.some(x=>x.id===t.id))};
+    moveDur:ord?DUR.move*Math.max(1,0.45+0.55*nB):DUR.move*Math.max(1,0.5+0.5*k)*(S?1.35:1)+700*f.actions.filter(a=>a.type==="look").length,last,added:g.filter(t=>!f.tokens.some(x=>x.id===t.id))};
 }
 function animTokens(tr,phase,u){
   const out=[];
@@ -264,6 +265,14 @@ function animTokens(tr,phase,u){
   return out;
 }
 
+/* How many looks are lit at this moment of a play-through. Looks light in their place in the
+   Order of actions (with automatic timing: one after another as the movement finishes). */
+function lookLit(tr,phase,u){
+  const f=tr.f,A=f.actions||[],looks=A.filter(a=>a.type==="look"),n=looks.length;if(!n)return undefined;
+  if(phase==="hold")return 0;if(phase!=="move")return n;
+  if(hasOrder(f)){const B=beatsOf(f),nB=Math.max(1,...B);return looks.filter(l=>(B[A.indexOf(l)]-1)/nB<=u+1e-6).length;}
+  const s=.5;return u<s?0:Math.min(n,1+Math.floor((u-s)/(1-s)*n));
+}
 const DUR={hold:2200,move:3000,pass:1600,end:1800};   // ms per phase (doubled Oct 18: play-through was too fast)
 
 /* Pack a playbook into a link (used when there's no server, e.g. demo mode).

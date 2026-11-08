@@ -896,15 +896,17 @@ document.addEventListener("input",e=>{const id=e.target.dataset&&e.target.datase
 document.addEventListener("click",e=>{const b=e.target.closest("[data-lookdel]");if(!b||!play)return;pushHist();editStep(()=>{frame().actions=frame().actions.filter(x=>x.id!==b.dataset.lookdel);});markDirty();renderBoard();renderLooks();});
 /* Order of actions: the step's cuts, screens, dribbles, passes and shot in the order they happen.
    "Then" waits for the action above to finish; "Same time" runs with it. */
-const SEQ_VERB={cut:"cuts",dribble:"dribbles",screen:"sets a screen",shot:"shoots"};
+const SEQ_VERB={cut:"cuts",dribble:"dribbles",screen:"sets a screen",shot:"shoots",look:"looks"};
 function seqText(fr,a){
   const nm=id=>{const t=fr.tokens.find(x=>x.id===id);return t?String(t.label||t.n):"?";};
   if(a.type==="pass")return `<b>${esc(nm(a.from))}</b> passes to ${a.to?`<b>${esc(nm(a.to))}</b>`:"a spot"}`;
+  if(a.type==="look"){const n=fr.actions.filter(x=>x.type==="look").indexOf(a)+1;return `Look ${n}: <b>${esc(nm(a.from))}</b> reads <b>${esc(nm(a.to))}</b>${a.name?` (${esc(a.name)})`:""}`;}
   return `<b>${esc(nm(a.from))}</b> ${SEQ_VERB[a.type]||a.type}`;
 }
 const SEQ_ICON={cut:'<path d="M3 11L19 3" /><path d="M14 2.5l5 .5-2.4 4.4"/>',dribble:'<path d="M3 11l2.5-3 2.5 2.5 2.5-3 2.5 2.5 2.5-3 2.5 2"/>',
   screen:'<path d="M3 8H17"/><path d="M17 3V13" style="stroke-width:2.6"/>',pass:'<path d="M3 11L19 3" style="stroke-dasharray:3 3"/><path d="M14 2.5l5 .5-2.4 4.4"/>',
-  shot:'<path d="M3 12Q10 -2 19 6" style="stroke-dasharray:.1 3.4;stroke-width:2.4"/><circle cx="19" cy="7" r="2.4"/>'};
+  shot:'<path d="M3 12Q10 -2 19 6" style="stroke-dasharray:.1 3.4;stroke-width:2.4"/><circle cx="19" cy="7" r="2.4"/>',
+  look:'<path d="M3 9H13" style="stroke-dasharray:2.5 2.5"/><circle cx="17" cy="9" r="3.6"/>'};
 function renderSeq(){
   const box=$("#pSeq");if(!box||!play)return;const fr=frame(),L=seqList(fr);
   {const o=$("#fsOrder");if(o)o.hidden=L.length<2;}
@@ -927,7 +929,7 @@ function renderSeq(){
 function setSeq(list,same){
   const fr=frame();let b=0;
   list.forEach((x,j)=>{if(!j||!same[j])b++;x.a.beat=b;});
-  fr.actions=list.map(x=>x.a).concat(fr.actions.filter(a=>a.type==="look"));
+  const inList=new Set(list.map(x=>x.a));fr.actions=list.map(x=>x.a).concat(fr.actions.filter(a=>!inList.has(a)));
   markDirty();renderBoard();
 }
 document.addEventListener("click",e=>{
@@ -935,7 +937,7 @@ document.addEventListener("click",e=>{
   const t=e.target.closest("[data-seqlink],[data-sequp],[data-seqdn],[data-seqreset]");if(!t||!play||!t.closest("#pSeq"))return;
   if(!PERM.plays||PLAY_LOCK)return;
   const fr=frame(),L=seqList(fr),same=L.map((x,j)=>j>0&&x.beat===L[j-1].beat);
-  if(t.dataset.seqreset!==undefined){pushHist();fr.actions.forEach(a=>delete a.beat);markDirty();renderBoard();pflash("Back to automatic timing: screens first, then cuts and passes together.");return;}
+  if(t.dataset.seqreset!==undefined){pushHist();fr.actions.forEach(a=>delete a.beat);markDirty();renderBoard();pflash("Back to automatic timing: screens first, then cuts and passes together, then the looks.");return;}
   if(t.dataset.seqlink){const j=+t.dataset.seqlink;pushHist();same[j]=!same[j];setSeq(L,same);return;}
   const j=+(t.dataset.sequp||t.dataset.seqdn),k=t.dataset.sequp!==undefined?j-1:j+1;
   if(k<0||k>=L.length)return;
@@ -1305,7 +1307,7 @@ function tick(now){
   const dtv=(now-anim.last)*spd;anim.t+=dtv;anim.last=now;
   const tr=anim.tr;
   const nLooks=(tr.f.actions||[]).filter(a=>a.type==="look").length;
-  const dur=anim.phase==="move"?(tr.moves?(tr.moveDur||DUR.move):0):anim.phase==="pass"?(tr.passCurve?DUR.pass:0):anim.phase==="end"?DUR.end:DUR.hold+(nLooks>2?700*(nLooks-2):0);
+  const dur=anim.phase==="move"?(tr.moves||nLooks?(tr.moveDur||DUR.move):0):anim.phase==="pass"?(tr.passCurve?DUR.pass:0):anim.phase==="end"?DUR.end:DUR.hold;
   if(anim.t>=dur){
     anim.t=0;
     if(anim.phase==="hold")anim.phase="move";
@@ -1323,7 +1325,7 @@ function tick(now){
   }
   const u=dur?anim.t/dur:1;
   const ph=anim.phase==="end"?"pass":anim.phase;
-  {const nl=(tr.f.actions||[]).filter(a=>a.type==="look").length;LOOK_LIT=nl&&anim.phase==="hold"?Math.min(nl,Math.floor(u*(nl+1))):undefined;}
+  LOOK_LIT=lookLit(tr,anim.phase==="end"?"pass":anim.phase,u);
   $("#board").innerHTML=boardInner({tokens:animDefense(anim,animTokens(tr,ph,anim.phase==="end"?1:u),dtv,curDefense()),actions:anim.phase==="end"?[]:tr.f.actions},"screen",null,anim.phase!=="hold");
   requestAnimationFrame(tick);
 }
@@ -1475,7 +1477,7 @@ function beatFrames(f){
   const plain=t=>String(t).replace(/<[^>]+>/g,"");let toks=clone(f.tokens);const out=[];
   for(let b=1;b<=max;b++){
     const acts=L.filter(x=>x.beat===b).map(x=>{const a={...x.a};delete a.beat;return a;});
-    const fr={...f,tokens:clone(toks),actions:b===max?acts.concat(looks):acts};
+    const fr={...f,tokens:clone(toks),actions:acts};
     out.push({f:fr,lines:acts.map(a=>plain(seqText(f,a)))});
     toks=nextTokens({tokens:toks,actions:acts});
   }

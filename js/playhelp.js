@@ -42,8 +42,9 @@ function build(){
     step(4,esc(L.pass),`Tap the player who should get the ${ball}. The ${ball} travels to where that player will be after their move, so it lands right as they arrive. Keep tapping players to chain more ${L.pass.toLowerCase()}es in the same step, in order. Tap an empty spot to ${L.pass.toLowerCase()} to a spot. ${tryIt("pass",L.pass)}`),
     L.shot?step(5,"Shot",`Tap <b>Shot</b> (under the court) and whoever has the ${ball} at the end of the step shoots: off the catch, or after their move. Tap Shot again to remove it.`):"",
     step(6,"Aim and bend a move",`With <b>Move</b>, tap a ${esc(L.cut.toLowerCase())}${L.dribble?`, ${esc(L.dribble.toLowerCase())}`:""}${L.screen?` or ${esc(L.screen.toLowerCase())}`:""} line. Drag the round handle to change where it goes and its angle, or the diamond to curve it. <b>Straighten</b> takes the curve out, <b>Done</b> finishes. Later steps follow the new end spot. ${tryIt("move","Move")}`),
-    step(7,"Erase",`Tap a player, the ${ball} or a single line to remove it. ${tryIt("erase","Erase")}`),
-    step(8,"Undo and Clear lines","<b>Undo</b> takes back your last change, as many times as you need. <b>Clear lines</b> (tap twice) wipes every line on the current step but keeps the players where they are.")
+    step(7,"Looks",`With <b>Look</b>, tap the teammates the player with the ${ball} reads, in order: 1st look, 2nd look… They show as numbered dotted arrows (the ${ball} doesn't move). Name each one below the court if you like (Roller, Skip, Backdoor). ${tryIt("look","Look")}`),
+    step(8,"Erase",`Tap a player, the ${ball} or a single line to remove it. ${tryIt("erase","Erase")}`),
+    step(9,"Undo and Clear lines","<b>Undo</b> takes back your last change, as many times as you need. <b>Clear lines</b> (tap twice) wipes every line on the current step but keeps the players where they are.")
   ].filter(Boolean));
   const steps=section("steps","Build the play step by step","A play is a series of steps, like frames on a whiteboard. All the movement in one step happens at the same time; the next step starts when it ends.",[
     step(1,"+ Next step","Adds a step after the one you're on. Players start where their lines ended, and the ball is with whoever caught it."),
@@ -51,7 +52,8 @@ function build(){
     step(3,"Delete step","Removes the step you're on."),
     step(4,"Jump between steps","Each step is a card with a small picture of it and its caption. Swipe the cards and tap one to go back and edit that step. Changes to player spots carry forward to the steps after it."),
     step(5,"Describe each step",`Type in <b>What happens in this step</b> (for example "1 passes to 2, 5 down screens for 3"). It shows as a caption when the play runs and in the PDF.`),
-    step(6,"Play notes","Use <b>Play notes</b> for when to call it, the reads and counters.")
+    step(6,"Order of actions","Under the court, <b>Order of actions</b> lists everything in the step in the order it happens: screens, cuts, dribbles, passes, the shot and your looks. Tap <b>Then</b> or <b>Same time</b>, or use the arrows, to change it. Looks light up in that order when the play runs, so you can show the read coming off a screen. <b>Reset to automatic</b> goes back to screens first, then cuts and passes, then the looks."),
+    step(7,"Play notes","Use <b>Play notes</b> for when to call it, the reads and counters.")
   ]);
   const options=section("options","Add options (reads and counters)","An option is a different ending that branches off the play at a certain step, like a backdoor if the wing is denied. The main play stays exactly as it is.",[
     step(1,"Go to the branch step","Tap the step where the read happens."),

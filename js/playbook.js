@@ -133,7 +133,7 @@ function tick(now){
   if(!anim||anim.paused)return;
   const dtv=now-anim.last;anim.t+=dtv;anim.last=now;
   const tr=anim.tr,frames=anim.frames;
-  const dur=anim.phase==="move"?(tr.moves?(tr.moveDur||DUR.move):0):anim.phase==="pass"?(tr.passCurve?DUR.pass:0):anim.phase==="end"?DUR.end:DUR.hold;
+  const dur=anim.phase==="move"?(tr.moves||(tr.f.actions||[]).some(a=>a.type==="look")?(tr.moveDur||DUR.move):0):anim.phase==="pass"?(tr.passCurve?DUR.pass:0):anim.phase==="end"?DUR.end:DUR.hold;
   if(anim.t>=dur){
     anim.t=0;
     if(anim.phase==="hold")anim.phase="move";
@@ -143,11 +143,12 @@ function tick(now){
       else{anim.i++;step=anim.seq[anim.i];anim.tr=buildTransition(frames,anim.i);anim.phase="hold";renderStep();}
     }else{
       $("#pbBoard").innerHTML=boardInner({tokens:animDefense(anim,animTokens(tr,"pass",1),400,pbDefense()),actions:[]},"screen");
-      anim.done=true;anim.paused=true;$("#pbRun").textContent="↻ Watch again";return;
+      LOOK_LIT=undefined;anim.done=true;anim.paused=true;$("#pbRun").textContent="↻ Watch again";return;
     }
     requestAnimationFrame(tick);return;
   }
   const u=dur?anim.t/dur:1;
+  LOOK_LIT=lookLit(tr,anim.phase==="end"?"pass":anim.phase,u);
   $("#pbBoard").innerHTML=boardInner({tokens:animDefense(anim,animTokens(tr,anim.phase,u),dtv,pbDefense()),actions:tr.f.actions},"screen",null,anim.phase!=="hold");
   requestAnimationFrame(tick);
 }
