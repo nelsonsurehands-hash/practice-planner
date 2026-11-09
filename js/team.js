@@ -643,6 +643,8 @@ const FoodAPI=HOSTED?{
   async remove(id){const v=this.read();v.entries=v.entries.filter(e=>e.id!==id);this.write(v);}
 };
 const foodGames=b=>(SETTINGS.games||[]).filter(g=>g.date&&(b.games==="all"||(b.games==="home")===(g.home!==false))).sort((a,c)=>a.date<c.date?-1:1);
+/* A game moved to a new date: sign-ups and food times moved with it, so load them again. */
+document.addEventListener("cpp:gamesmoved",e=>{if(e.detail&&team&&e.detail.team===team.id&&food)loadFood();foodAll=null;});
 async function loadFood(){
   try{food=await FoodAPI.load();food.err="";}catch(e){food={board:null,entries:[],err:isDbMissing(e)?"db":e.message||"Couldn't load the sign-up sheet."};}
   if(pane==="food")renderFood();

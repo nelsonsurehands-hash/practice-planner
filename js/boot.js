@@ -756,7 +756,30 @@ function limitSettings(t,st){
   if(!p.team&&st.library!==undefined)out.library=st.library;
   return out;
 }
+/* A game that moved: gone from its old date and showing up on a new one, same opponent. */
+function gameMoves(oldG,newG){
+  const key=g=>String((g&&g.opponent)||"").trim().toLowerCase(),od=new Set((oldG||[]).map(g=>g.date)),nd=new Set((newG||[]).map(g=>g.date));
+  const added=(newG||[]).filter(g=>g.date&&!od.has(g.date)),out=[];
+  (oldG||[]).filter(g=>g.date&&!nd.has(g.date)&&key(g)).forEach(g=>{const i=added.findIndex(a=>key(a)===key(g));if(i>=0){out.push([g.date,added[i].date]);added.splice(i,1);}});
+  return out;
+}
+/* Carry food sign-ups, food times, the gameplan, stats and the bus list to the game's new date. */
+async function moveGameData(tid,moves){
+  if(!moves.length)return;
+  for(const [from,to] of moves){
+    try{
+      if(HOSTED){const {error}=await sb.rpc("move_game_date",{p_team:tid,p_from:from,p_to:to});if(error)console.warn("move_game_date",error.message);}
+      else{const k=`cpp:food:${tid}`,v=JSON.parse(localStorage.getItem(k)||"null");
+        if(v){(v.entries||[]).forEach(e=>{if((e.game_date||"").slice(0,10)===from)e.game_date=to;});
+          if(v.board){const b=v.board;if((b.skip||[]).includes(from))b.skip=[...b.skip.filter(x=>x!==from&&x!==to),to];
+            const g=b.dropoff&&b.dropoff.games;if(g&&g[from]!==undefined){g[to]=g[from];delete g[from];}}
+          localStorage.setItem(k,JSON.stringify(v));}}
+    }catch(e){console.warn(e);}
+  }
+  document.dispatchEvent(new CustomEvent("cpp:gamesmoved",{detail:{team:tid,moves}}));
+}
 async function saveTeamSettings(t,st){
+  const before=((t&&t.settings)||{}).games;
   st=limitSettings(t,st);
   st.games=(st.games||[]).filter(g=>g.date).sort((a,b)=>a.date<b.date?-1:1);
   st.special=(st.special||[]).filter(x=>x.date).sort((a,b)=>a.date<b.date?-1:1);
@@ -764,8 +787,10 @@ async function saveTeamSettings(t,st){
   if(HOSTED){const {error}=await sb.from("teams").update({settings:st}).eq("id",t.id);if(error)throw error;}
   else writeDemoTeams(readDemoTeams().map(x=>x.id===t.id?{...x,settings:st}:x));
   t.settings=st;teams=teams.map(x=>x.id===t.id?t:x);
+  await moveGameData(t.id,gameMoves(before,st.games));
 }
 async function saveSettings(st){
+  const before=((team&&team.settings)||{}).games;
   st=limitSettings(team,st);
   st.games=(st.games||[]).filter(g=>g.date).sort((a,b)=>a.date<b.date?-1:1);
   st.special=(st.special||[]).filter(x=>x.date).sort((a,b)=>a.date<b.date?-1:1);
@@ -777,7 +802,7 @@ async function saveSettings(st){
   const sportChanged=(team.settings||{}).sport!==st.sport;
   team.name=name;team.settings=st;teams=teams.map(t=>t.id===team.id?team:t);saveSplash();
   applySettings(st);renderSwitcher();
-
+  await moveGameData(team.id,gameMoves(before,st.games));
   if(sportChanged){play=blankPlay();fi=0;hist=[];pdirty=false;renderEditor();renderPlayLib();renderAllDrills();}
 }
 /* "Also use on": copy practice times / arrival to your other teams when you save (checked when they match now). */
