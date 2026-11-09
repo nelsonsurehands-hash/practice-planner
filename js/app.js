@@ -271,12 +271,13 @@ function renderPlan(){
       const st=t; t+=b.minutes; used+=b.minutes;
       const late=t>e, key=b.id||("i"+i), open=OPEN_BLOCK===key, d=b.drillId&&drills.find(x=>x.id===b.drillId);
       const desc=d&&(d.description||"").trim(), pts=d&&(d.points||"").trim(), has=b.notes||desc||pts;
-      return `<li class="block bc${late?" late":""}${ED?" can-drag":""}${open?" open":""}" data-i="${i}" style="--c:${catColor(b.category)}">
+      return `<li class="block bc${late?" late":""}${ED?" can-drag":""}${open?" open":""}" data-i="${i}">
         ${ED?`<button type="button" class="drag" data-drag aria-label="Drag ${esc(b.name)} to a new spot" title="Drag to move"><span aria-hidden="true"></span></button>`:"<span></span>"}
         <button type="button" class="bc-main" data-act="open" data-key="${key}" aria-expanded="${open}" aria-label="${esc(b.name)}, ${fmt(st)} to ${fmt(t)}. ${open?"Close":"Open"} notes">
-          <span class="time">${fmt(st)} – ${fmt(t)}${late?" · past end":""}</span>
-          <span class="name">${esc(b.name)}</span>
-          <span class="bc-sub">${b.category?`<b>${esc(b.category)}</b>`:""}${b.coach?`<span>${esc(b.coach)}</span>`:""}${has&&!open?`<span class="bc-has">Notes</span>`:""}</span>
+          <span class="bc-k" aria-hidden="true">${i+1}</span>
+          <span class="bc-txt"><span class="name">${esc(b.name)}</span>
+          <span class="bc-sub"><span class="time">${fmt(st)}–${fmt(t)}${late?" · past end":""}</span>${b.coach?`<span>${esc(b.coach)}</span>`:""}</span>
+          ${!open&&b.notes?`<span class="bc-note">${esc(b.notes)}</span>`:!open&&ED?`<span class="bc-addnote">+ Add note</span>`:""}</span>
         </button>
         ${ED?`<div class="mins"><button type="button" data-act="dec" aria-label="Less time">−</button><input data-act="min" type="number" min="1" max="90" value="${b.minutes}" aria-label="Minutes"><span class="u" aria-hidden="true">m</span><button type="button" data-act="inc" aria-label="More time">+</button></div><button type="button" class="bc-del" data-act="del" aria-label="Remove ${esc(b.name)}" title="Remove"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span class="bc-sure">Remove?</span></button>`:`<div class="bc-min">${b.minutes} min</div>`}
         ${open?`<div class="bc-more">
@@ -302,7 +303,7 @@ function renderMeter(s,avail,used){
   let acc=0;
   $("#mTrack").innerHTML=cur.blocks.map(b=>{
     const inT=Math.max(0,Math.min(b.minutes,avail-acc)), outT=b.minutes-inT; acc+=b.minutes;
-    return (inT?`<i style="width:${inT/scale*100}%;background:${catColor(b.category)}" title="${esc(b.name)}"></i>`:"")+(outT?`<i class="overflow" style="width:${outT/scale*100}%"></i>`:"");
+    return (inT?`<i style="width:${inT/scale*100}%" title="${esc(b.name)}"></i>`:"")+(outT?`<i class="overflow" style="width:${outT/scale*100}%"></i>`:"");
   }).join("");
   const ticks=[];for(let k=0;k<=avail;k+=30)ticks.push(k);if(ticks[ticks.length-1]!==avail)ticks.push(avail);
   $("#mTicks").innerHTML=avail?ticks.map(k=>`<span style="left:${k/scale*100}%">${fmt(s+k)}</span>`).join(""):"";

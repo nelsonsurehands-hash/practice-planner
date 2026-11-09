@@ -14,10 +14,10 @@ const GUIDES={
   plan:H("Practice plans","Build a timed plan for any practice day, then print it or run it from your phone.",[
     ["Pick the day","Choose a practice from the date list at the top. Times come from the calendar; change them here for just this plan."],
     ["Add drills","Search drills at the bottom (or tap a quick add), or tap a drill in the list on the right on a computer. + New makes a drill that isn't in your library yet."],
-    ["Drill cards","Each drill is a card with its start and end time inside and a color edge for its type (warm-up, shooting, defense…). Use − and + to change the minutes."],
-    ["Open a card","Tap a card for this practice's notes, the drill's description and coaching points from your library, and who leads it. Edit drill opens it in the Drill library."],
+    ["Drill cards","Each drill is a numbered card with its start and end time and a line for a short note. Use − and + to change the minutes."],
+    ["Notes","Tap + Add note (or the card) to type a note for this practice. It shows right on the card. Open the card to also see the drill's description and coaching points, who leads it, and Edit drill."],
     ["Remove a drill","Tap the trash can, then tap Remove? to confirm."],
-    ["Watch the clock","The meter shows how many minutes are booked out of the practice, in the same colors as the cards. Red means you're over."],
+    ["Watch the clock","The meter shows how many minutes are booked out of the practice. Red means you're over."],
     ["Reorder","Hold the dots on the left of a card and drag it to a new spot, or use Move up and Move down inside the card."],
     ["Copy a plan","Use Copy from another day to start from a practice you've already planned."],
     ["Print or share","Print the plan for the gym wall, or open it on your phone during practice."]
