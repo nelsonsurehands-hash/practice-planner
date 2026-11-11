@@ -41,6 +41,11 @@ body{max-width:760px}
 #pbPrev{grid-area:prev}#pbRun{grid-area:run}#pbNext{grid-area:next}
 #pbDefWrap{grid-area:def;display:flex;align-items:center;gap:8px;justify-content:center}#pbDefWrap[hidden]{display:none}#pbDefWrap select{flex:1;max-width:260px}
 .pb-ctrl .btn{white-space:nowrap}
+.pb-copy{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;justify-content:space-between;border:2px solid var(--accent);border-radius:12px;padding:12px 14px;background:var(--accent-soft)}
+.pb-copy[hidden]{display:none}
+.pb-copy div{display:grid;gap:2px;flex:1 1 220px;min-width:0}
+.pb-copy span{font-size:14px;color:var(--muted)}
+.pb-copy .btn{text-decoration:none}
 .pb-ctrl .btn{padding:10px 14px;font-size:15px}
 .pb-cap{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:16px;line-height:1.45;min-height:3.2em}
 .pb-cap b{font-family:var(--display);font-size:18px;text-transform:uppercase;color:var(--accent);margin-right:8px}
@@ -90,6 +95,7 @@ body{max-width:760px}
     <div class="pb-cap" id="pbCap" aria-live="polite"></div>
     <div class="pb-notes" id="pbNotes"></div>
     <div class="pb-legend" id="pbLegend"></div>
+    <div class="pb-copy" id="pbCopy" hidden><div><b>Like this play?</b><span>Copy it into your own playbook, then change it, run it and print it. The Extra Coach is free for coaches.</span></div><a class="btn primary" id="pbCopyBtn" href="/">Copy to my playbook</a></div>
     <div class="pb-next"><button class="btn" id="pbPrevPlay">‹ Previous play</button><button class="btn" id="pbNextPlay">Next play ›</button></div>
   </section>
   <p class="pb-foot">Shared by your coaches. This page is view-only.</p>

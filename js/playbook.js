@@ -26,6 +26,7 @@ async function load(){
 function fail(text){show("#pbLoading",false);$("#pbError").textContent=text;show("#pbError",true);}
 
 function start(){
+  if(new URLSearchParams(location.search).has("coach")){const f=document.querySelector(".pb-foot");if(f)f.textContent="Shared by a coach. Tap Copy to my playbook to make it yours.";}
   const t=BOOK.team||{};
   SPORT=SPORTS[t.sport]?t.sport:"basketball";
   document.documentElement.style.setProperty("--team",t.color||"#5b2a86");
@@ -68,6 +69,9 @@ function openPlay(i){
   $("#pbName").textContent=p.name;$("#pbPlayType").textContent=p.type||"";
   $("#pbNotes").textContent=p.notes||"";
   $("#pbPrevPlay").disabled=i===0;$("#pbNextPlay").disabled=i===BOOK.plays.length-1;
+  /* Sent coach to coach (?coach=1): offer to copy the play into the viewer's own playbook. */
+  {const pbId=new URLSearchParams(location.search).get("pb")||(location.pathname.match(/\/p\/([A-Za-z0-9]+)\/?$/)||[])[1]||"",coach=new URLSearchParams(location.search).has("coach");
+   $("#pbCopy").hidden=!(coach&&pbId&&p.id);if(coach&&pbId&&p.id)$("#pbCopyBtn").href=`/?ref=play&copyplay=${encodeURIComponent(pbId)}.${encodeURIComponent(p.id)}`;}
   show("#pbListView",false);show("#pbPlayView",true);window.scrollTo(0,0);
   renderStep();
 }

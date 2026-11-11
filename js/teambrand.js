@@ -32,3 +32,18 @@ window.teamFullName=function(t){t=t||{};const base=t.school&&t.mascot?`${t.schoo
     document.body.prepend(b);document.body.classList.add("has-back");};
   if(document.body)add();else document.addEventListener("DOMContentLoaded",add);
 })();
+/* Parent and player pages: one quiet line for the coaches who see them (another parent who also
+   coaches, a player's club coach…). The link carries the page type, so Settings → App usage shows
+   which page brought each new coach. */
+(function(){
+  const add=()=>{
+    const foot=document.querySelector("footer.made-with");if(!foot||document.getElementById("coachCta"))return;
+    if(new URLSearchParams(location.search).has("coach"))return;   // coach-to-coach play links have their own Copy button
+    const a=foot.querySelector("a"),ref=((a&&a.getAttribute("href"))||"").match(/ref=([a-z0-9]+)/),src=ref?ref[1]:"page";
+    const box=document.createElement("aside");box.id="coachCta";box.className="coach-cta";
+    const line={playbook:"Draw plays like these, plan practices, and share them with your players.",food:"Run food sign-ups like this one, plan practices and draw plays.",parent:"Share a calendar like this one, plan practices and draw plays."}[src]||"Plan practices, draw plays and share your schedule.";
+    box.innerHTML=`<div><b>Coach a team too?</b><span>${line} Free for coaches.</span></div><a class="btn" href="/?ref=${src}">Try The Extra Coach</a>`;
+    foot.parentNode.insertBefore(box,foot);
+  };
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",add);else add();
+})();

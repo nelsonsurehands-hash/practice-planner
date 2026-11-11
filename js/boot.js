@@ -227,7 +227,7 @@ async function renderUsage(){
     <div class="us-bars" role="img" aria-label="Coaches active each day for the last 30 days">${days.map(d=>{const x=by[d];const n=x?x.coaches:0;return `<span title="${d}: ${n} coach${n===1?"":"es"}, ${x?x.opens:0} opens" style="height:${Math.max(3,Math.round(n/mx*100))}%"${n?"":' class="z"'}></span>`;}).join("")}</div>
     ${r.features?`<h4 class="us-h">Most used features <small>last 30 days</small></h4>
     ${r.features.length?`<div class="us-feats">${(()=>{const fm=Math.max(1,...r.features.map(f=>f.uses));return r.features.slice(0,25).map(f=>`<div class="us-feat"><span>${esc(featName(f.feature))}</span><i style="width:${Math.max(2,Math.round(f.uses/fm*100))}%"></i><b>${f.uses}</b><small>${f.coaches} coach${f.coaches===1?"":"es"}</small></div>`).join("");})()}</div>`:`<p class="help">No feature use counted yet. It starts adding up as coaches use the app.</p>`}`:""}
-    ${r.sources&&r.sources.length?`<h4 class="us-h">Where new coaches came from</h4><div class="us-feats">${r.sources.map(x=>`<div class="us-feat"><span>${esc({parent:"Parent calendar page",food:"Food sign-up page",playbook:"Player playbook page"}[x.source]||x.source)}</span><b>${x.n}</b></div>`).join("")}</div>`:""}
+    ${r.sources&&r.sources.length?`<h4 class="us-h">Where new coaches came from</h4><div class="us-feats">${r.sources.map(x=>`<div class="us-feat"><span>${esc({parent:"Parent calendar page",food:"Food sign-up page",playbook:"Player playbook page",play:"Play sent to a coach"}[x.source]||x.source)}</span><b>${x.n}</b></div>`).join("")}</div>`:""}
     <h4 class="us-h">Coaches <small>most recent first</small></h4>
     <div class="us-wrap"><table class="us-table"><thead><tr><th>Coach</th><th>Teams</th><th>Last used</th><th>Days used<br><small>30 days</small></th><th>Opens<br><small>30 days</small></th><th>Invited</th><th>Joined</th></tr></thead><tbody>
     ${(r.users||[]).map(u=>`<tr><td><b>${esc(u.name||(u.email||"").split("@")[0])}</b><small>${esc(u.email||"")}</small></td><td>${esc((u.teams||[]).join(", ")||"—")}</td><td>${esc(usageAgo(u.last_seen||u.last_sign_in))}</td><td>${u.days_30}</td><td>${u.opens_30}</td><td>${u.invited||0}</td><td>${u.joined?esc(new Date(u.joined).toLocaleDateString("en-US",{month:"short",day:"numeric"})):"—"}</td></tr>`).join("")}</tbody></table></div>
@@ -1200,6 +1200,59 @@ $("#shareExisting").addEventListener("click",async e=>{
   if(error)msg($("#shareMsg"),error.message,"err");else renderShareLinks();
 });
 $("#shareClose").addEventListener("click",e=>{e.preventDefault();$("#shareDlg").close();});
+
+/* ---------- send one play to another coach ----------
+   A one-play link with ?coach=1: the coach who opens it watches it run and can tap Copy to my
+   playbook, which signs them up (or in) and opens the play in their own editor. One link per play. */
+const coachDlg=document.createElement("dialog");coachDlg.id="coachDlg";coachDlg.setAttribute("aria-labelledby","coachTitle");document.body.appendChild(coachDlg);
+coachDlg.addEventListener("click",e=>{if(e.target===coachDlg||e.target.closest("[data-cd=close]"))coachDlg.close();});
+$("#pCoachShare").addEventListener("click",async()=>{
+  if(!play||!play.id||pdirty){pflash("Save the play first, then send it to a coach.");return;}
+  const p=plays.find(x=>x.id===play.id);if(!p)return;
+  coachDlg.innerHTML=`<div class="dlg"><h2 id="coachTitle">Send “${esc(p.name)}” to a coach</h2>
+    <p class="help" style="margin-top:0">They watch it run on any phone, and can copy it into their own playbook with one tap (free account). Only this play is shared, never your plans, roster or other plays.</p>
+    <div class="msg" id="cdMsg">Making the link…</div><div id="cdOut"></div>
+    <div class="actions" style="margin:10px 0 0"><button class="btn" type="button" data-cd="close">Close</button></div></div>`;
+  coachDlg.showModal();
+  if(!HOSTED){msg($("#cdMsg"),"Coach links need the hosted app (they don't work in demo mode).","err");return;}
+  try{
+    const {data}=await sb.from("playbooks").select("id,title,play_ids,active").eq("team_id",team.id);
+    let l=(data||[]).find(x=>x.active&&x.play_ids&&x.play_ids.length===1&&x.play_ids[0]===p.id&&/\(for coaches\)$/.test(x.title||""));
+    if(!l){l={id:randomId(),title:`${p.name} (for coaches)`};const {error}=await sb.from("playbooks").insert({id:l.id,team_id:team.id,title:l.title,play_ids:[p.id]});if(error)throw error;}
+    const url=shareLinkFor(l.id)+"?coach=1";
+    msg($("#cdMsg"),"");
+    $("#cdOut").innerHTML=`<label class="f">Link for coaches<input id="cdLink" readonly value="${esc(url)}"></label>
+      <div class="actions" style="margin:6px 0 0"><button class="btn primary" type="button" id="cdCopy">Copy link</button>${navigator.share?`<button class="btn" type="button" id="cdSend">Send…</button>`:""}<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Open</a></div>
+      <p class="help" style="margin:8px 0 0">Good places: a coaching group text, a Facebook coaches group, or a clinic you're at. Turn it off any time under Share with players.</p>`;
+    $("#cdCopy").addEventListener("click",async e=>{try{await navigator.clipboard.writeText(url);e.target.textContent="Copied";}catch{$("#cdLink").select();e.target.textContent="Press and hold to copy";}});
+    const sd=$("#cdSend");if(sd)sd.addEventListener("click",()=>navigator.share({title:p.name,text:`Here's our ${p.name} play. Watch it run, and copy it to your playbook if you want it:`,url}).catch(()=>{}));
+    if(window.track)track("plays:coachshare");
+  }catch(err){msg($("#cdMsg"),"Couldn't make the link: "+(err.message||"check your connection"),"err");}
+});
+
+/* ---------- copy a play another coach sent (?copyplay=<link>.<play>) ----------
+   Kept on this device until a team is open (sign-up and email confirmation can reload the page),
+   then the play opens in the editor as a new, unsaved play for this coach to save. */
+try{const q=new URLSearchParams(location.search),cp=q.get("copyplay");
+  if(cp&&/^[A-Za-z0-9]+\.[A-Za-z0-9_-]+$/.test(cp)){localStorage.setItem("cpp:copyplay",JSON.stringify({cp,at:Date.now()}));q.delete("copyplay");history.replaceState(null,"",location.pathname+(q.toString()?"?"+q:"")+location.hash);}}catch{}
+(function(){const iv=setInterval(async()=>{
+  let job=null;try{job=JSON.parse(localStorage.getItem("cpp:copyplay")||"null");}catch{}
+  if(!job||Date.now()-job.at>7*864e5){clearInterval(iv);try{localStorage.removeItem("cpp:copyplay");}catch{}return;}
+  if(!HOSTED||!sb||typeof team==="undefined"||!team||$("#app").hidden)return;
+  clearInterval(iv);try{localStorage.removeItem("cpp:copyplay");}catch{}
+  const [bid,pid]=job.cp.split(".");
+  if(typeof PERM!=="undefined"&&!PERM.plays){setTab("plays");pflash("You have view-only access to this team's plays. Switch to a team you coach to copy the play.");return;}
+  try{const {data,error}=await sb.rpc("get_playbook",{p_id:bid});if(error||!data)throw error||new Error("off");
+    const src=(data.plays||[]).find(x=>x.id===pid);if(!src)throw new Error("gone");
+    setTab("plays");
+    play={id:null,name:src.name||"",type:src.type||sp().playTypes[0],notes:src.notes||"",frames:src.frames||[]};fi=0;hist=[];pdirty=true;PLAY_LOCK=false;renderEditor();renderPlayLib();
+    const from=[data.team&&data.team.school,data.team&&data.team.mascot].filter(Boolean).join(" ")||(data.team&&data.team.name)||"another coach";
+    const sport=(data.team&&data.team.sport)||"basketball";
+    pflash(sport!==(SETTINGS.sport||"basketball")?`Copied “${src.name}” from ${from}. It was drawn for ${sport}, so check it before you save.`:`Copied “${src.name}” from ${from}. Change anything you want, then tap Save play to keep it.`);
+    $("#pStatus").textContent="Copied · not saved yet";clearTimeout(hintTimer);hintTimer=setTimeout(()=>$("#pHint").textContent=hints(tool),12000);
+    if(window.track)track("plays:copied");
+  }catch(e){if(typeof pflash==="function"){setTab("plays");pflash("That shared play couldn't be opened. The link may have been turned off.");}}
+},1500);setTimeout(()=>clearInterval(iv),15*60*1000);})();
 
 /* ---------- backups ---------- */
 /* ---------- export and import ----------

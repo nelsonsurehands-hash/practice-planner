@@ -1892,3 +1892,10 @@ input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and
 .script>.bc-ins:first-child{margin-top:14px}
 .pa-where{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:13px;color:var(--ink);background:var(--accent-soft);border-radius:10px;padding:7px 10px}
 .pa-where .linkbtn{font-size:13px}
+/* Parent and player pages: "Coach a team too?" line above the footer */
+.coach-cta{max-width:640px;margin:28px auto 0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--surface)}
+.coach-cta div{display:grid;gap:2px;flex:1 1 220px;min-width:0}
+.coach-cta b{font-size:15px}
+.coach-cta span{font-size:13.5px;color:var(--muted)}
+.coach-cta .btn{text-decoration:none;white-space:nowrap}
+.coach-cta+.made-with{margin-top:18px}
