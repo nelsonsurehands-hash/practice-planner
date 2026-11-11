@@ -240,7 +240,7 @@ function buildDateSelect(){
 }
 
 /* ---------- plan rendering ---------- */
-function loadPlan(date){
+function loadPlan(date){INSERT_AT=null;
   cur=JSON.parse(JSON.stringify(plans[date]||defaultPlan(date)));
   renderPlan();
 }
@@ -283,10 +283,12 @@ function renderPlan(){
         ${open?`<div class="bc-more">
           ${ED?`<textarea class="note" data-act="note" rows="2" placeholder="Notes for this practice" aria-label="Notes for ${esc(b.name)}">${esc(b.notes||"")}</textarea>`:(b.notes?`<div class="note-ro">${esc(b.notes)}</div>`:"")}
           ${desc||pts?`<div class="bc-drill">${desc?`<p><b>Drill</b>${esc(desc)}</p>`:""}${pts?`<p><b>Coaching points</b>${esc(pts)}</p>`:""}</div>`:""}
-          <div class="bc-row">${coachField(b)}${ED?`<button type="button" class="btn sm" data-act="up"${i?"":" disabled"}>Move up</button><button type="button" class="btn sm" data-act="down"${i<cur.blocks.length-1?"":" disabled"}>Move down</button>${d?`<button type="button" class="btn sm" data-act="drill">Edit drill</button>`:""}`:""}</div>
-        </div>`:""}</li>`;
+          <div class="bc-row">${coachField(b)}${ED?`<button type="button" class="btn sm" data-act="up"${i?"":" disabled"}>Move up</button><button type="button" class="btn sm" data-act="down"${i<cur.blocks.length-1?"":" disabled"}>Move down</button><button type="button" class="btn sm" data-act="below">+ Add drill below</button>${d?`<button type="button" class="btn sm" data-act="drill">Edit drill</button>`:""}`:""}</div>
+        </div>`:""}</li>`+(ED?insRow(i+1,i===cur.blocks.length-1):"");
     }).join("");
+    if(ED)list.innerHTML=insRow(0,false)+list.innerHTML;
   }
+  renderInsertTag();
   renderMeter(s,avail,used);
   renderCopyFrom();renderDupTo();
   renderPick();
@@ -375,10 +377,21 @@ function handleWriteErr(e){
 }
 function showNotice(t){const n=$("#notice");n.textContent=t;n.hidden=false;}
 
+/* Where the next drill goes: null = the end, or a position in the plan (set by "+" between cards). */
+let INSERT_AT=null,LAST_ADD=-1;
+const insRow=(i,last)=>last?"":`<li class="bc-ins${INSERT_AT===i?" on":""}"><button type="button" data-ins="${i}" aria-label="Add a drill here">+</button></li>`;
+function renderInsertTag(){const box=$("#planAdd");if(!box)return;let t=$("#paWhere");
+  if(INSERT_AT===null||INSERT_AT>=cur.blocks.length){if(t)t.remove();if(INSERT_AT!==null&&INSERT_AT>=cur.blocks.length)INSERT_AT=null;return;}
+  if(!t){t=document.createElement("div");t.id="paWhere";t.className="pa-where";box.prepend(t);}
+  const before=cur.blocks[INSERT_AT];
+  t.innerHTML=`<span>Adding ${INSERT_AT===0?"at the <b>start</b>":`after <b>${INSERT_AT}. ${esc(cur.blocks[INSERT_AT-1].name)}</b>`}</span><button type="button" class="linkbtn" data-ins="end">Add to the end</button>`;}
 function addBlock(b){
-  const {left}=totals();
-  cur.blocks.push({id:uid(),notes:"",...b});changed();
+  const at=INSERT_AT===null?cur.blocks.length:Math.max(0,Math.min(INSERT_AT,cur.blocks.length));
+  cur.blocks.splice(at,0,{id:uid(),notes:"",...b});LAST_ADD=at;
+  if(INSERT_AT!==null)INSERT_AT=at+1;   // the next one goes right after it
+  changed();
 }
+function setInsert(i){INSERT_AT=i;renderPlan();const s=$("#paSearch");if(s&&i!==null){s.focus({preventScroll:true});$("#planAdd").scrollIntoView({block:"nearest"});}}
 
 /* Press and hold + or − to keep changing the minutes. */
 let holdT=null,holdI=null,held=false;
@@ -393,10 +406,13 @@ $("#script").addEventListener("pointerdown",e=>{
 });
 ["pointerup","pointercancel","pointerleave"].forEach(ev=>$("#script").addEventListener(ev,e=>{if(holdT||holdI)stopHold();},true));
 $("#script").addEventListener("contextmenu",e=>{if(e.target.closest(".mins"))e.preventDefault();});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-ins]");if(!b||!b.closest("#script,#planAdd"))return;
+  const v=b.dataset.ins;if(v==="end"){setInsert(null);return;}const i=+v;setInsert(INSERT_AT===i?null:i);});
 $("#script").addEventListener("click",e=>{
   const btn=e.target.closest("button[data-act]"); if(!btn)return;
   if(held&&(btn.dataset.act==="inc"||btn.dataset.act==="dec"))return;
   const i=+btn.closest(".block").dataset.i, b=cur.blocks[i], a=btn.dataset.act;
+  if(a==="below"){OPEN_BLOCK=null;setInsert(i+1);return;}
   if(a==="open"){const k=btn.dataset.key;OPEN_BLOCK=OPEN_BLOCK===k?null:k;renderPlan();if(OPEN_BLOCK){const n=$("#script").querySelector(".block.open .note");if(n&&!n.value)n.focus({preventScroll:true});}return;}
   if(a==="drill"){const d=drills.find(x=>x.id===b.drillId);if(d&&typeof editDrill==="function"){editDrill(d.id);}return;}
   if(a==="inc"){b.minutes=Math.min(90,b.minutes+1);}
@@ -479,7 +495,7 @@ $("#ndForm").addEventListener("submit",async e=>{
   addBlock({drillId,name,category:cs[0]||"",minutes,notes:$("#ndNote").value.trim()});
   $("#newDrillDlg").close();
   flash(keep?`${name} added to practice and the drill library.`:`${name} added to practice.`,true);
-  const last=$("#script").querySelector(".block:last-child");if(last){last.classList.add("just-moved");setTimeout(()=>last.classList.remove("just-moved"),900);}
+  const last=$("#script").querySelectorAll(".block")[LAST_ADD]||$("#script").querySelector(".block:last-child");if(last){last.classList.add("just-moved");setTimeout(()=>last.classList.remove("just-moved"),900);}
 });
 $("#script").addEventListener("change",e=>{
   const el=e.target; const li=el.closest(".block"); if(!li)return;
@@ -540,7 +556,7 @@ function renderPa(){
   box.hidden=false;
 }
 function paAdd(d){addBlock({drillId:d.id,name:d.name,category:catLabel(d),minutes:d.minutes||10});$("#paSearch").value="";renderPa();
-  const last=$("#script").querySelector(".block:last-child");if(last){last.classList.add("just-moved");setTimeout(()=>last.classList.remove("just-moved"),800);}}
+  const last=$("#script").querySelectorAll(".block")[LAST_ADD]||$("#script").querySelector(".block:last-child");if(last){last.classList.add("just-moved");setTimeout(()=>last.classList.remove("just-moved"),800);}}
 $("#paSearch").addEventListener("input",()=>{paSel=0;renderPa();});
 $("#paSearch").addEventListener("keydown",e=>{const list=paMatches($("#paSearch").value);
   if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();paSel=(paSel+(e.key==="ArrowDown"?1:-1)+list.length)%Math.max(1,list.length);renderPa();}

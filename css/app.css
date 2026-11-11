@@ -1879,3 +1879,16 @@ input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and
   .block.bc .bc-del{width:28px}
   .block.bc .name{font-size:15.5px}
 }
+
+/* Insert a drill in a spot: a small + between practice cards */
+.script .bc-ins{list-style:none;height:0;position:relative;margin:0;padding:0;border:0;z-index:2}
+.script .bc-ins button{position:absolute;left:50%;top:-4px;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:17px;line-height:1;padding:0;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.script .bc-ins:first-child button{top:-2px}
+.script .bc-ins button:hover,.script .bc-ins button:focus-visible{color:var(--accent);border-color:var(--accent)}
+.script .bc-ins.on button{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.script .bc-ins.on::before{content:"";position:absolute;left:8px;right:8px;top:-5px;height:2px;border-radius:1px;background:var(--accent)}
+.script:first-child .bc-ins:first-child{margin-top:12px}
+.script.is-dragging .bc-ins{visibility:hidden}
+.script>.bc-ins:first-child{margin-top:14px}
+.pa-where{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:13px;color:var(--ink);background:var(--accent-soft);border-radius:10px;padding:7px 10px}
+.pa-where .linkbtn{font-size:13px}

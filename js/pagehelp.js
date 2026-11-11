@@ -16,6 +16,7 @@ const GUIDES={
     ["Add drills","Search drills at the bottom (or tap a quick add), or tap a drill in the list on the right on a computer. + New makes a drill that isn't in your library yet."],
     ["Drill cards","Each drill is a numbered card with its start and end time and a line for a short note. Use − and + to change the minutes."],
     ["Notes","Tap + Add note (or the card) to type a note for this practice. It shows right on the card. Open the card to also see the drill's description and coaching points, who leads it, and Edit drill."],
+    ["Add in a spot","Tap the + between two drills (or + Add drill below inside a card), then search or tap a quick add. Drills go in that spot, one after another, until you tap Add to the end."],
     ["Remove a drill","Tap the trash can, then tap Remove? to confirm."],
     ["Watch the clock","The meter shows how many minutes are booked out of the practice. Red means you're over."],
     ["Reorder","Hold the dots on the left of a card and drag it to a new spot, or use Move up and Move down inside the card."],
