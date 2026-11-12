@@ -82,6 +82,7 @@ const GUIDES={
     ["Bus times","Set when the bus leaves and gets back for each away game. They update the bus list and the calendar."],
     ["Food times","Set when pre-game food needs to arrive and see who's bringing it. Use bus time copies the departure."],
     ["Missing times","A red note at the top counts away games without a bus time."],
+    ["Final scores","On a game that's been played, tap + Final score, type both scores and Save. No stat tracking needed. It updates your record on Home and the game's Gameplan. Tap Edit score to fix it."],
     ["Share","Print schedule makes a one-page PDF. Copy as text is ready to paste into a text to parents or the driver."]
   ]),
   "team:bus":H("Bus list","Who's riding to each away game, and checking them on and off the bus.",[
