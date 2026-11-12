@@ -969,9 +969,8 @@ function catchers(fr){return fr.actions.filter(a=>a.type==="pass"&&a.to).map(a=>
 /* A shot leaves from where the shooter is at the end of the step and arcs to the basket or goal. */
 function shotStart(fr,id){const d=destOf(fr,id),t=fr.tokens.find(x=>x.id===id),b=fr.tokens.find(x=>x.kind==="ball"),h=holderOf(fr);
   if(!d||!t)return null;return b&&h&&h.id===id&&!catchers(fr).includes(id)?{x:d.x+(b.x-t.x),y:d.y+(b.y-t.y)}:{x:d.x+13,y:d.y-13};}
-function shotArc(s){const T=sp().target,len=Math.hypot(T.x-s.x,T.y-s.y),lift=Math.max(22,len*.32);
-  const mx=(s.x+T.x)/2,my=(s.y+T.y)/2,nx=(T.y-s.y)/(len||1),ny=-(T.x-s.x)/(len||1),side=ny<0?1:-1;
-  return {x1:s.x,y1:s.y,cx:mx+nx*lift*side,cy:my+ny*lift*side,x2:T.x,y2:T.y};}
+/* A shot goes straight from the shooter to the basket (or goal). */
+function shotArc(s){const T=sp().target;return {x1:s.x,y1:s.y,cx:(s.x+T.x)/2,cy:(s.y+T.y)/2,x2:T.x,y2:T.y};}
 /* After a change in step i, carry the new end positions into the following steps,
    but only for players and the ball that were just sitting where the old step left them. */
 function carryForward(i,before){
@@ -1515,7 +1514,7 @@ async function addPlayPages(doc,p,fresh){
   y+=10;doc.setLineWidth(2);doc.line(M,y,R,y);y+=16;
   if(p.notes){doc.setFontSize(10);const n=doc.splitTextToSize(p.notes,R-M);doc.text(n,M,y);y+=n.length*12+4;}
   doc.setFontSize(8.5);doc.setFont("helvetica","italic");
-  const L=sp().tools;doc.text([`Solid arrow = ${L.cut.toLowerCase()}`,`Dashed arrow = ${L.pass.toLowerCase()}`,L.dribble&&`Zigzag = ${L.dribble.toLowerCase()}`,L.screen&&`Line with bar = ${L.screen.toLowerCase()}`,L.shot&&`Dotted arc = ${L.shot.toLowerCase()}`].filter(Boolean).join("     "),M,y);y+=14;
+  const L=sp().tools;doc.text([`Solid arrow = ${L.cut.toLowerCase()}`,`Dashed arrow = ${L.pass.toLowerCase()}`,L.dribble&&`Zigzag = ${L.dribble.toLowerCase()}`,L.screen&&`Line with bar = ${L.screen.toLowerCase()}`,L.shot&&`Dotted line = ${L.shot.toLowerCase()}`].filter(Boolean).join("     "),M,y);y+=14;
   /* Main steps first, then each option under its own heading, boxed with a heavier border. */
   const PL=playLines(p.frames);let lastOpt=null;
   for(const i of displayOrder(PL)){
