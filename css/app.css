@@ -1052,7 +1052,8 @@ body.pb-full{overflow:hidden}
 .sch-warn{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 12px;font-size:14px;font-weight:600;margin:0 0 10px}
 .sch-row{display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--cal-game,#8f2d3a);border-radius:12px;padding:12px 14px;margin:0 0 10px}
 .sch-row.home{border-left-color:var(--accent)}
-.sch-row.past{opacity:.62}
+.sch-row.past{opacity:1}
+.sch-row.past .sch-date,.sch-row.past .sch-top,.sch-row.past .sch-meta,.sch-row.past .sch-bus,.sch-row.past .sch-food,.sch-row.past .sch-links{opacity:.62}
 .sch-row.today{box-shadow:0 0 0 2px var(--accent)}
 .sch-date{text-align:center;background:var(--sunk);border-radius:8px;padding:5px 0 6px;line-height:1;align-self:start}
 .sch-date small{display:block;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted)}
@@ -1899,3 +1900,10 @@ input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and
 .coach-cta span{font-size:13.5px;color:var(--muted)}
 .coach-cta .btn{text-decoration:none;white-space:nowrap}
 .coach-cta+.made-with{margin-top:18px}
+/* Final score on the Game & bus schedule */
+.sch-score{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:8px}
+.sch-score .btn{padding:7px 12px;font-size:14px}
+.sch-scoref{align-items:flex-end}
+.sch-scoref .f{width:92px;margin:0}
+.sch-scoref .f input{font-size:17px;font-weight:700;text-align:center}
+.sch-scoref .sch-dash{font-weight:700;padding-bottom:10px}

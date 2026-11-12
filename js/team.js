@@ -428,6 +428,18 @@ function foodBlock(g,dis){
       ${ent.length?ent.map(e=>`<span class="ok">✓ ${esc(e.name)}${e.item?` · ${esc(e.item)}`:""}</span>`).join(""):`<span class="sch-need">No one signed up yet</span>`}
       ${ent.length&&ent.length<cap?`<span>${cap-ent.length} spot${cap-ent.length===1?"":"s"} open</span>`:""}</div></div>`;
 }
+/* Final score right on the schedule (no stat tracking needed). Saved on the game's gameplan,
+   the same place the live tracker puts it, so Home's record and the Gameplan both show it. */
+let scoreOpen=null;
+const canScore=()=>typeof PERM!=="undefined"&&PERM.plans;
+function scoreBox(g,res){
+  const r=((TM.plans||{})[g.date]||{}).result||{};
+  if(res&&scoreOpen!==g.date)return `<div class="sch-score"><span>Final <b class="sch-res ${res[0]}">${res}</b></span><button type="button" class="linkbtn" data-schscore="${g.date}">Edit score</button></div>`;
+  if(scoreOpen!==g.date)return `<div class="sch-score"><button type="button" class="btn" data-schscore="${g.date}">+ Final score</button></div>`;
+  return `<form class="sch-score sch-scoref" data-schsave="${g.date}"><label class="f">${esc(((team.settings||{}).mascot)||"Us")}<input name="us" type="number" min="0" max="250" inputmode="numeric" value="${esc(r.us??"")}" required></label><span class="sch-dash">–</span>
+    <label class="f">${esc(g.opponent||"Them")}<input name="them" type="number" min="0" max="250" inputmode="numeric" value="${esc(r.them??"")}" required></label>
+    <button type="submit" class="btn primary">Save</button><button type="button" class="btn" data-schscore="">Cancel</button></form>`;
+}
 function renderSched(){
   const box=$("#tm-sched"),today=todayISO(),ed=can(),dis=ed?"":" disabled",all=allGames();
   if(!food&&hasFeature("food")){loadFood();}
@@ -452,7 +464,8 @@ function renderSched(){
       <div class="sch-main"><div class="sch-top"><span class="sch-pill">${isAway?"Away":"Home"}</span><b class="sch-opp">${isAway?"at":"vs"} ${esc(g.opponent||"Game")}</b>${res?`<span class="sch-res ${res[0]}">${res}</span>`:""}</div>
         <div class="sch-meta">${g.time?`Game ${hm(g.time)}`:"Game time TBD"}${g.date===today?" · <b>Today</b>":""}</div>
         ${bus}${fb}
-        <div class="sch-links"><button type="button" class="linkbtn" data-schgp="${g.date}">Gameplan</button>${g.date>=today||res?"":`<button type="button" class="linkbtn" data-schgp="${g.date}">Add the score</button>`}</div></div></article>`;};
+        ${g.date<=today&&canScore()?scoreBox(g,res):""}
+        <div class="sch-links"><button type="button" class="linkbtn" data-schgp="${g.date}">Gameplan</button></div></div></article>`;};
   box.innerHTML=(needsDb==="trips"?DB_HELP:"")+`<div class="tm-card sch-head"><h3 class="tm-h">Schedule <small>${all.length} games · ${away.length} away</small></h3>
     <p class="help" style="margin-top:0">Every game in one place: the bus for away games and when the pre-game food needs to be there. Times you set here update the Bus list, the food sign-up parents see, and the calendar.</p>
     ${missing?`<p class="sch-warn">${missing} upcoming away game${missing===1?" doesn't":"s don't"} have a bus time yet.</p>`:""}
@@ -483,10 +496,17 @@ function printSched(){
     y+=7;doc.setDrawColor(220);doc.line(40,y,572,y);doc.setDrawColor(0);y+=14;});
   saveFile(`${slug(team.name)}-game-bus-schedule.pdf`,doc.output("blob"));
 }
+$("#tm-sched").addEventListener("submit",async e=>{
+  const f=e.target.closest("[data-schsave]");if(!f)return;e.preventDefault();if(!canScore())return;
+  const date=f.dataset.schsave,us=f.us.value.trim(),them=f.them.value.trim();if(us===""||them==="")return;
+  const plan=JSON.parse(JSON.stringify((TM.plans||{})[date]||{}));plan.result={...(plan.result||{}),us:String(+us),them:String(+them)};plan.updatedAt=Date.now();
+  if(await put("gameplans",date,plan)){if(TM.plans)TM.plans[date]=plan;scoreOpen=null;renderSched();const m=$("#schMsg");if(m)msg(m,`Score saved for ${longDay(date)}: ${resultTxt(date)}. Your record on Home is updated.`,"ok");}
+});
 $("#tm-sched").addEventListener("click",async e=>{
   const f=e.target.closest("[data-schf]");if(f){schedFilter=f.dataset.schf;try{localStorage.setItem("cpp:schedFilter",schedFilter);}catch{}renderSched();return;}
   const b=e.target.closest("[data-schbus]");if(b){busDate=b.dataset.schbus;showPane("bus");scrollTo(0,0);return;}
   const fbus=e.target.closest("[data-schfbus]");if(fbus&&can()){setDrop(fbus.dataset.schfbus,fbus.dataset.time,"sched");return;}
+  const sc=e.target.closest("[data-schscore]");if(sc){scoreOpen=sc.dataset.schscore||null;renderSched();if(scoreOpen){const i=$(`[data-schsave="${scoreOpen}"] input[name=us]`);if(i)i.focus();}return;}
   const gp=e.target.closest("[data-schgp]");if(gp){window.goTeam("game",{date:gp.dataset.schgp});scrollTo(0,0);return;}
   const a=e.target.closest("[data-schact]");if(!a)return;
   if(a.dataset.schact==="pdf")printSched();
