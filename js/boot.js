@@ -203,7 +203,7 @@ let isAdmin=null;
 async function checkAdmin(){
   if(!HOSTED||!user){isAdmin=false;return;}
   if(isAdmin===null){const {data,error}=await sb.rpc("is_app_admin");isAdmin=!error&&!!data;}
-  $("#acc-usage").hidden=!isAdmin;
+  $("#acc-usage").hidden=!isAdmin;{const n=$("#navUsage");if(n)n.hidden=!isAdmin;}
 }
 const usageAgo=iso=>{if(!iso)return "never";const m=Math.round((Date.now()-new Date(iso))/60000);
   if(m<2)return "just now";if(m<60)return m+" min ago";const h=Math.round(m/60);if(h<24)return h+" hr ago";const d=Math.round(h/24);return d===1?"yesterday":d<31?d+" days ago":new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});};
@@ -213,7 +213,7 @@ const FEAT_NAMES={"tab:home":"Home","tab:plan":"Practice plan","tab:plays":"Play
   "cal:export":"Export calendar","cal:setup":"Season setup","cal:multiday":"Apply time to more days","parentlink:open":"Parent link opened","parentlink:send":"Parent link sent",
   "food:send":"Food sign-up link sent","stats:live":"Live stat tracker","stats:tracking":"Stats tapped in a game","stats:season":"Season stats","bus:print":"Bus list printed",
   "bus:copy":"Bus list copied","bus:checkin":"Bus check-in","schedule:print":"Schedule printed","schedule:copy":"Schedule copied","export":"Backup exported","help":"How-to (?) opened",
-  "drill:save":"Drill saved","team:create":"Team created","team:join":"Joined a team","staff:schoolcode":"School staff code","invite:open":"Invite a coach opened"};
+  "drill:save":"Drill saved","play:new":"New play saved","event:game":"Game added","event:mine":"Personal event added","plays:coachshare":"Play sent to a coach","plays:copied":"Shared play copied","team:create":"Team created","team:join":"Joined a team","staff:schoolcode":"School staff code","invite:open":"Invite a coach opened"};
 const featName=k=>FEAT_NAMES[k]||(k.startsWith("team:")?"Team → "+k.slice(5):k.startsWith("defense:")?"Auto defense: "+k.slice(8):k.startsWith("home:")?"Home tile: "+k.slice(5):k.startsWith("photo:")?"Photo import: "+k.slice(6):k.startsWith("cal:export:")?"Calendar export: "+k.slice(11):k);
 async function renderUsage(){
   const box=$("#usageBody");box.innerHTML=`<p class="help">Loading…</p>`;
@@ -228,13 +228,41 @@ async function renderUsage(){
     ${r.features?`<h4 class="us-h">Most used features <small>last 30 days</small></h4>
     ${r.features.length?`<div class="us-feats">${(()=>{const fm=Math.max(1,...r.features.map(f=>f.uses));return r.features.slice(0,25).map(f=>`<div class="us-feat"><span>${esc(featName(f.feature))}</span><i style="width:${Math.max(2,Math.round(f.uses/fm*100))}%"></i><b>${f.uses}</b><small>${f.coaches} coach${f.coaches===1?"":"es"}</small></div>`).join("");})()}</div>`:`<p class="help">No feature use counted yet. It starts adding up as coaches use the app.</p>`}`:""}
     ${r.sources&&r.sources.length?`<h4 class="us-h">Where new coaches came from</h4><div class="us-feats">${r.sources.map(x=>`<div class="us-feat"><span>${esc({parent:"Parent calendar page",food:"Food sign-up page",playbook:"Player playbook page",play:"Play sent to a coach"}[x.source]||x.source)}</span><b>${x.n}</b></div>`).join("")}</div>`:""}
+    <div id="usageMore"><p class="help">Loading plays, schedules and photo imports…</p></div>
     <h4 class="us-h">Coaches <small>most recent first</small></h4>
-    <div class="us-wrap"><table class="us-table"><thead><tr><th>Coach</th><th>Teams</th><th>Last used</th><th>Days used<br><small>30 days</small></th><th>Opens<br><small>30 days</small></th><th>Invited</th><th>Joined</th></tr></thead><tbody>
-    ${(r.users||[]).map(u=>`<tr><td><b>${esc(u.name||(u.email||"").split("@")[0])}</b><small>${esc(u.email||"")}</small></td><td>${esc((u.teams||[]).join(", ")||"—")}</td><td>${esc(usageAgo(u.last_seen||u.last_sign_in))}</td><td>${u.days_30}</td><td>${u.opens_30}</td><td>${u.invited||0}</td><td>${u.joined?esc(new Date(u.joined).toLocaleDateString("en-US",{month:"short",day:"numeric"})):"—"}</td></tr>`).join("")}</tbody></table></div>
+    <div class="us-wrap"><table class="us-table"><thead><tr><th>Coach</th><th>Teams</th><th>Last used</th><th>Days used<br><small>30 days</small></th><th>Opens<br><small>30 days</small></th><th>Using it for</th><th>Invited</th><th>Joined</th></tr></thead><tbody>
+    ${(r.users||[]).map(u=>`<tr><td><b>${esc(u.name||(u.email||"").split("@")[0])}</b><small>${esc(u.email||"")}</small></td><td>${esc((u.teams||[]).join(", ")||"—")}</td><td>${esc(usageAgo(u.last_seen||u.last_sign_in))}</td><td>${u.days_30}</td><td>${u.opens_30}</td><td data-span>…</td><td>${u.invited||0}</td><td>${u.joined?esc(new Date(u.joined).toLocaleDateString("en-US",{month:"short",day:"numeric"})):"—"}</td></tr>`).join("")}</tbody></table></div>
     <p class="help">An "open" is each time a coach starts the app or comes back to it after 30 minutes away. Counting started when this was turned on, so earlier use isn't included.</p>
     <div class="actions" style="margin:0"><button class="btn" type="button" id="usageRefresh">Refresh</button></div>`;
+  renderUsageMore();
 }
 document.addEventListener("click",e=>{if(e.target.id==="usageRefresh")renderUsage();});
+/* Plays built, games and events scheduled, photo imports, and whether coaches keep coming back. */
+async function renderUsageMore(){
+  const box=$("#usageMore");if(!box)return;
+  const {data:m,error}=await sb.rpc("usage_more");
+  if(error){box.innerHTML=`<p class="msg err">${/function|schema cache|does not exist/i.test(error.message)?"These numbers need one database step: run supabase/usage-more.sql in Supabase → SQL Editor.":esc(error.message)}</p>`;return;}
+  const tile=(n,l)=>`<div class="us-tile"><b>${n??0}</b><small>${l}</small></div>`;
+  const pct=(k,b)=>b?Math.round(100*k/b)+"%":"–";
+  const wk=m.by_week||[],wm=Math.max(1,...wk.map(x=>x.coaches)),pm=Math.max(1,...wk.map(x=>x.new_plays));
+  const wlab=d=>{const x=new Date(String(d).slice(0,10)+"T12:00");return (x.getMonth()+1)+"/"+x.getDate();};
+  const KIND={roster:"Rosters",schedule:"Schedules",play:"Plays",plays:"Plays",practice:"Practice plans",plan:"Practice plans"};
+  box.innerHTML=`<h4 class="us-h">Do coaches keep using it?</h4>
+    <div class="us-tiles">${tile(pct(m.w1_kept,m.w1_base),`still using it after a week <span>${m.w1_kept} of ${m.w1_base}</span>`)}${tile(pct(m.m1_kept,m.m1_base),`still using it after 30 days <span>${m.m1_kept} of ${m.m1_base}</span>`)}${tile(m.avg_days_used,"days used, per coach (average)")}${tile(m.avg_span,"days from first to last use (average)")}</div>
+    <h4 class="us-h">Coaches using it each week <small>last 12 weeks</small></h4>
+    <div class="us-weeks" role="img" aria-label="Coaches active each week for the last 12 weeks">${wk.map(x=>`<div><span style="height:${Math.max(3,Math.round(x.coaches/wm*100))}%" title="Week of ${wlab(x.week)}: ${x.coaches} coaches"></span><b>${x.coaches}</b><small>${wlab(x.week)}</small></div>`).join("")}</div>
+    <h4 class="us-h">Built in the app</h4>
+    <div class="us-tiles">${tile(m.plays_total,"plays saved")}${tile(m.plays_new_30,"new plays, last 30 days")}${tile(m.plays_edited_30,"plays edited, last 30 days")}${tile(m.teams_with_plays,"teams with plays")}${tile(m.drills_total,"drills")}${tile(m.plans_total,"practice plans")}</div>
+    ${wk.some(x=>x.new_plays)?`<h4 class="us-h">New plays each week</h4><div class="us-weeks alt">${wk.map(x=>`<div><span style="height:${Math.max(3,Math.round(x.new_plays/pm*100))}%"></span><b>${x.new_plays}</b><small>${wlab(x.week)}</small></div>`).join("")}</div>`:`<p class="help" style="margin:4px 0 0">New plays are counted from today on, so the weekly chart fills in as coaches build plays.</p>`}
+    <h4 class="us-h">Scheduled</h4>
+    <div class="us-tiles">${tile(m.games_total,"games on calendars")}${tile(m.games_upcoming,"games still to play")}${tile(m.days_marked,"days marked (off, meetings, bus…)")}${tile(m.my_events,"personal events")}${tile(m.gym_bookings,"gym bookings")}</div>
+    <h4 class="us-h">Photo importer</h4>
+    <div class="us-tiles">${tile(m.photo_total,"photos read, all time")}${tile(m.photo_30,"photos read, last 30 days")}${(m.photo_kinds||[]).map(k=>tile(k.n,(KIND[k.kind]||k.kind).toLowerCase())).join("")}</div>`;
+  /* Fill "Using it for" in the coaches table. */
+  const by=Object.fromEntries((m.people||[]).map(p=>[p.email,p]));
+  document.querySelectorAll("#usageBody .us-table tbody tr").forEach(tr=>{const em=(tr.querySelector("td small")||{}).textContent||"",p=by[em],c=tr.querySelector("[data-span]");if(!c)return;
+    if(!p){c.textContent="—";return;}const span=Math.round((new Date(p.last)-new Date(p.first))/864e5)+1;c.innerHTML=`${span} day${span===1?"":"s"}<small>${p.days} day${p.days===1?"":"s"} used</small>`;});
+}
 $("#acc-usage").addEventListener("toggle",e=>{if(e.target.open)renderUsage();});
 async function openTeam(t){
   if(typeof INV!=="undefined"){INV.teams=null;INV.list=[];INV.url="";INV.err="";invLoaded=false;}

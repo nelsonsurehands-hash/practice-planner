@@ -1378,6 +1378,7 @@ $("#pNotes").addEventListener("input",e=>{play.notes=e.target.value;markDirty();
 async function savePlay(){
   if(!play.name.trim()){pflash("Give the play a name before saving.");$("#pName").focus();return false;}
   play.name=titleCase(play.name.trim());$("#pName").value=play.name;
+  if(!play.id&&window.track)track("play:new");
   const id=play.id||uid()+uid();
   const body={name:play.name.trim(),type:play.type,notes:play.notes||"",frames:play.frames,updatedAt:Date.now(),editedBy:ME.name};
   play.id=id;delete play.draftOf;delete play.draft;pdirty=false;

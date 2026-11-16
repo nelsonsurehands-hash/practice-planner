@@ -122,7 +122,7 @@ const myLocal=()=>{try{localStorage.setItem(MYK,JSON.stringify(MY_EV));}catch{}}
 const myTableErr=err=>new Error(/coach_events|relation|schema cache/i.test(err.message||"")?"Personal events aren't set up on the server yet.":err.message);
 window.MyEvents={
   list:()=>MY_EV||[],
-  async add(rows){if(MY_EV===null)await loadMyEvents();rows=rows.map(r=>({date:r.date,title:r.title||"Event",time:r.time||null,info:r.info||null,list:r.list||"My events"}));
+  async add(rows){if(MY_EV===null)await loadMyEvents();if(window.track)track("event:mine");rows=rows.map(r=>({date:r.date,title:r.title||"Event",time:r.time||null,info:r.info||null,list:r.list||"My events"}));
     if(myHosted()){const {data,error}=await sb.from("coach_events").insert(rows).select("id,date,title,time,info,list");if(error)throw myTableErr(error);MY_EV.push(...data);}
     else{MY_EV.push(...rows.map(r=>({...r,id:"e"+Math.random().toString(36).slice(2,10)})));myLocal();}},
   async remove(ids){if(!ids.length)return;if(myHosted()){const {error}=await sb.from("coach_events").delete().in("id",ids);if(error)throw myTableErr(error);}
@@ -489,6 +489,7 @@ $("#dayBody").addEventListener("click",async e=>{
     {const ev=titleCase($("#dgEvent").value.trim()),loc=$("#dgLoc").value.trim();if(ev)g.event=ev;if(loc)g.location=loc;}
     if(tbd||!g.time)g.tbd=true;
     const tid=($("#dgTeam")||{}).value||team.id,busT=$("#dgBus").value;
+    if(!orig&&window.track)track("event:game");
     change(st=>{st.games=st.games.filter(x=>x.date!==orig&&x.date!==date);st.games.push(g);
       /* bus departure for this game: one entry per game day */
       st.special=st.special.filter(x=>!((x.date===orig||x.date===date)&&(x.bus!==undefined||isBus(x.note))));

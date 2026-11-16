@@ -1907,3 +1907,12 @@ input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and
 .sch-scoref .f{width:92px;margin:0}
 .sch-scoref .f input{font-size:17px;font-weight:700;text-align:center}
 .sch-scoref .sch-dash{font-weight:700;padding-bottom:10px}
+/* Settings → Usage: weekly bars */
+.us-weeks{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px;align-items:end;height:130px;margin:6px 0 4px}
+.us-weeks>div{display:grid;grid-template-rows:1fr auto auto;height:100%;align-items:end;justify-items:center;min-width:0}
+.us-weeks span{width:100%;background:var(--accent);border-radius:4px 4px 0 0;min-height:3px}
+.us-weeks.alt span{background:color-mix(in srgb,var(--accent) 55%,var(--surface))}
+.us-weeks b{font-size:11.5px;font-variant-numeric:tabular-nums}
+.us-weeks small{font-size:9.5px;color:var(--muted);white-space:nowrap;overflow:hidden;max-width:100%}
+.us-tile small span{display:block;font-size:11px;opacity:.8}
+.us-table td small{display:block;color:var(--muted);font-size:11px}
