@@ -3,7 +3,7 @@
    No logo uploaded? A clean monogram in the team color (e.g. "HH") stands in. */
 window.teamBrand=function(t,title){
   t=t||{};
-  const color=/^#[0-9a-f]{6}$/i.test(t.color||"")?t.color:"#5b2a86";
+  const color=/^#[0-9a-f]{6}$/i.test(t.color||"")?t.color:"#172a5e";
   const tc=document.querySelector('meta[name="theme-color"]');if(tc)tc.content=color;
   if(title)document.title=title;
   const put=(rel,href)=>{document.querySelectorAll(`link[rel="${rel}"]`).forEach(l=>l.remove());

@@ -29,7 +29,7 @@ function setPerms(p){
 const sp=()=>SPORTS[SPORT]||SPORTS.basketball;
 let PRACTICES=[], SETTINGS={};
 const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const DEFAULT_SETTINGS={sport:"basketball",school:"",mascot:"",teamLabel:"",color:"#5b2a86",weekdayStart:"16:00",weekdayEnd:"18:00",weekendStart:"10:00",weekendEnd:"12:00",
+const DEFAULT_SETTINGS={sport:"basketball",school:"",mascot:"",teamLabel:"",color:"#172a5e",weekdayStart:"16:00",weekdayEnd:"18:00",weekendStart:"10:00",weekendEnd:"12:00",
   seasonStart:"",seasonEnd:"",practiceDays:[1,2,3,4,5],games:[],special:[]};
 const isoOf=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 function addDays(iso,n){const d=dObj(iso);d.setDate(d.getDate()+n);return isoOf(d);}
@@ -74,7 +74,7 @@ function applyBrand(st){
    "classic": the original purple icon
    Phones take the icon when the app is added to the home screen, so a coach who changes it
    re-adds the app once to see the new icon. */
-function appIconMode(st){return st.appIcon||(st.color&&st.color.toLowerCase()!=="#5b2a86"?"colors":"classic");}
+function appIconMode(st){return st.appIcon||(st.color&&!["#5b2a86","#172a5e"].includes(st.color.toLowerCase())?"colors":"classic");}
 /* Half court in a 336-unit box, true to a real court: lane with free-throw line, the full
    free-throw circle, and a symmetric 3-point line (straight corners joined by an arc around the basket). */
 function drawCourtIcon(ctx,N,o){
@@ -96,12 +96,12 @@ function drawCourtIcon(ctx,N,o){
    "none" is see-through; iPhones don't allow that on home-screen icons, so those get white. */
 function iconBg(st,opaque){
   const k=st.iconBg||"white";
-  const c=k==="team"?st.color||"#5b2a86":k==="team2"?st.color2||"#ffffff":k==="black"?"#000000":k==="custom"?st.iconBgColor||"#ffffff":k==="none"?null:"#ffffff";
+  const c=k==="team"?st.color||"#172a5e":k==="team2"?st.color2||"#ffffff":k==="black"?"#000000":k==="custom"?st.iconBgColor||"#ffffff":k==="none"?null:"#ffffff";
   return c||(opaque?"#ffffff":null);
 }
 function iconCanvas(st,N,opts){
   const c=document.createElement("canvas");c.width=c.height=N;const x=c.getContext("2d");
-  const team=st.color||"#5b2a86",ink=contrastInk(team);
+  const team=st.color||"#172a5e",ink=contrastInk(team);
   if(opts.mode==="logo"&&opts.img){
     const bg=iconBg(st,opts.opaque);
     if(bg){x.fillStyle=bg;if(opts.round){const r=N*.22;x.beginPath();x.moveTo(r,0);x.arcTo(N,0,N,N,r);x.arcTo(N,N,0,N,r);x.arcTo(0,N,0,0,r);x.arcTo(0,0,N,0,r);x.closePath();x.fill();}else x.fillRect(0,0,N,N);}
@@ -120,7 +120,7 @@ function applyAppIcon(st){
     const name=[st.mascot||st.school].filter(Boolean)[0]||"Practice Planner";
     const tm=document.querySelector('meta[name="apple-mobile-web-app-title"]');if(tm)tm.content=name;
     const base=location.href.replace(/[#?].*$/,"").replace(/[^/]*$/,"");
-    const man={name:`${name} Practice Planner`,short_name:name.slice(0,12),start_url:base,scope:base,display:"standalone",background_color:"#f3f2f6",theme_color:st.color||"#5b2a86",icons};
+    const man={name:`${name} Practice Planner`,short_name:name.slice(0,12),start_url:base,scope:base,display:"standalone",background_color:"#f3f2f6",theme_color:st.color||"#172a5e",icons};
     try{if(_manifestURL)URL.revokeObjectURL(_manifestURL);_manifestURL=URL.createObjectURL(new Blob([JSON.stringify(man)],{type:"application/manifest+json"}));
       const ml=document.querySelector('link[rel="manifest"]');if(ml)ml.href=_manifestURL;}catch{}
   };
@@ -187,13 +187,13 @@ function applySettings(st){
   SETTINGS={...DEFAULT_SETTINGS,...(st||{})};
   PRACTICES=computePractices(SETTINGS);
   SPORT=SPORTS[SETTINGS.sport]?SETTINGS.sport:"basketball";refreshSportUI();
-  document.documentElement.style.setProperty("--team",SETTINGS.color||"#5b2a86");
+  document.documentElement.style.setProperty("--team",SETTINGS.color||"#172a5e");
   document.documentElement.style.setProperty("--team-ink",contrastInk(SETTINGS.color));
   applyBrand(SETTINGS);
   $("#eyebrow").textContent=[SETTINGS.school,SETTINGS.teamLabel].filter(Boolean).join(" · ");
   $("#brandName").textContent=SETTINGS.mascot||SETTINGS.school||"Team";
   document.title=(SETTINGS.mascot||SETTINGS.school||"Coach")+" Practice Planner";
-  const tc=document.querySelector('meta[name="theme-color"]');if(tc)tc.content=SETTINGS.color||"#5b2a86";
+  const tc=document.querySelector('meta[name="theme-color"]');if(tc)tc.content=SETTINGS.color||"#172a5e";
   if(cur){buildDateSelect();renderPlan();}
   applyFeatures();
   if(window.onCalChange)window.onCalChange();

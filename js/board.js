@@ -71,7 +71,7 @@ function courtLook(){let v="";try{v=localStorage.getItem("cpp:courtLook")||"";}c
   if(!["basketball","volleyball"].includes(typeof SPORT==="string"?SPORT:"basketball"))return "classic";return LOOKS[v]?v:"wood";}
 function setCourtLook(v){try{localStorage.setItem("cpp:courtLook",v);}catch(e){}}
 function lookColors(){const L=courtLook();
-  if(L==="wood")return {wood:true,out:"color-mix(in srgb,var(--team,#5b2a86) 62%,#1a1020)",floor:"url(#cpWood)",line:"#fffdf8",o:"var(--team-ink,#fff)",ofill:"var(--team,#5b2a86)",d:"#1d1720",act:"#1d1720",ball:"#e2672a",paint:"color-mix(in srgb,var(--team,#5b2a86) 86%,transparent)"};
+  if(L==="wood")return {wood:true,out:"color-mix(in srgb,var(--team,#172a5e) 62%,#1a1020)",floor:"url(#cpWood)",line:"#fffdf8",o:"var(--team-ink,#fff)",ofill:"var(--team,#172a5e)",d:"#1d1720",act:"#1d1720",ball:"#e2672a",paint:"color-mix(in srgb,var(--team,#172a5e) 86%,transparent)"};
   if(L==="board")return {out:"#eef1f7",floor:"#ffffff",line:"#172a5e",o:"#172a5e",ofill:"#ffffff",d:"#b3261e",act:"#172a5e",ball:"#e2672a",paint:"#e3e9f4"};
   return {out:"var(--court-out)",floor:"var(--court)",line:"var(--court-line)",o:"var(--accent)",ofill:"var(--surface)",d:"var(--ink)",act:"var(--ink)",ball:"var(--ball)",paint:"var(--court-paint)"};}
 function boardInner(fr,mode,tmp,fade,ghost){
@@ -306,7 +306,7 @@ async function unpackPlaybook(str){
 /* Only what players need: no plans, drills, staff or schedule. */
 function playbookPayload(title,team,playList){
   const st=team.settings||{};
-  return {v:1,title,team:{name:team.name,sport:st.sport||"basketball",color:st.color||"#5b2a86",color2:st.color2||"",school:st.school||"",mascot:st.mascot||"",teamLabel:st.teamLabel||""},
+  return {v:1,title,team:{name:team.name,sport:st.sport||"basketball",color:st.color||"#172a5e",color2:st.color2||"",school:st.school||"",mascot:st.mascot||"",teamLabel:st.teamLabel||""},
     plays:playList.map(p=>({id:p.id,name:p.name,type:p.type,notes:p.notes||"",frames:p.frames.map(compactFrame)}))};
 }
 /* Whole numbers are plenty for a diagram and keep packed links shorter. */

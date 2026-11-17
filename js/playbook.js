@@ -29,7 +29,7 @@ function start(){
   if(new URLSearchParams(location.search).has("coach")){const f=document.querySelector(".pb-foot");if(f)f.textContent="Shared by a coach. Tap Copy to my playbook to make it yours.";}
   const t=BOOK.team||{};
   SPORT=SPORTS[t.sport]?t.sport:"basketball";
-  document.documentElement.style.setProperty("--team",t.color||"#5b2a86");
+  document.documentElement.style.setProperty("--team",t.color||"#172a5e");
   if(t.color2){document.documentElement.style.setProperty("--team2",t.color2);document.documentElement.classList.add("has-c2");}
   if(t.logo){const im=$("#pbLogo");im.src=t.logo;im.hidden=false;}
   teamBrand(t);

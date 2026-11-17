@@ -62,7 +62,7 @@ function renderSwitch(){
   const school=t=>String((t.settings||{}).school||t.name||"").trim().toLowerCase(),mine=school(team);
   const lab=t=>{const s=t.settings||{},l=s.teamLabel||t.name||"Team";return (school(t)===mine?"":((s.school||t.name)+" "))+(l.replace(/\s+(basketball|volleyball|soccer|football|baseball|softball)$/i,"")||l);};
   const sorted=[...list].sort((a,b)=>(school(a)===mine?0:1)-(school(b)===mine?0:1)||lab(a).localeCompare(lab(b),undefined,{numeric:true}));
-  el.innerHTML=sorted.map(t=>{const c=(t.settings||{}).color||"#5b2a86",on=t.id===team.id;
+  el.innerHTML=sorted.map(t=>{const c=(t.settings||{}).color||"#172a5e",on=t.id===team.id;
     return `<button type="button" data-tmteam="${esc(t.id)}" aria-pressed="${on}"${on?' class="on"':""}><i style="background:${esc(c)}"></i>${esc(lab(t))}</button>`;}).join("");
 }
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-tmteam]");if(!b||b.classList.contains("on"))return;
@@ -114,7 +114,7 @@ async function put(kind,id,body){
 /* ---------- my teams ---------- */
 function teamCard(t){
   const st=t.settings||{},on=t.id===team.id;
-  const mark=st.logo?`<img class="sw-logo" src="${esc(st.logo)}" alt="">`:`<span class="sw-dot" style="background:${esc(st.color||"#5b2a86")}${st.color2?`;box-shadow:inset -8px 0 0 ${esc(st.color2)}`:""}"></span>`;
+  const mark=st.logo?`<img class="sw-logo" src="${esc(st.logo)}" alt="">`:`<span class="sw-dot" style="background:${esc(st.color||"#172a5e")}${st.color2?`;box-shadow:inset -8px 0 0 ${esc(st.color2)}`:""}"></span>`;
   const games=(st.games||[]).length,season=st.seasonStart?`${longDay(st.seasonStart)} – ${longDay(st.seasonEnd)}`:"No season dates yet";
   return `<article class="tm-tcard${on?" on":""}">${mark}<div class="tm-tinfo"><b>${esc(t.name)}</b>
     <small>${st.teamLabel?esc(st.teamLabel)+" · ":""}${esc(sportName(t))} · ${esc(roleName(t.role))}</small>
@@ -220,7 +220,7 @@ function renderTeams(){
       ${on?`<span class="tm-badge">Open now</span>`:`<button class="btn" type="button" data-openteam="${t.id}">Open</button>`}</li>`;};
   $("#tm-teams").innerHTML=`<div class="tm-card"><h3 class="tm-h">Schools and teams <small>${teams.length} team${teams.length===1?"":"s"}</small></h3>
     ${groups.map(g=>{const st=g.lead.settings||{},mayAdd=g.list.some(t=>canEdit(t))||!HOSTED,open=addClassFor&&addClassFor.key===g.key;
-      const mark=st.logo?`<img class="sw-logo" src="${esc(st.logo)}" alt="">`:`<span class="sw-dot" style="background:${esc(st.color||"#5b2a86")}${st.color2?`;box-shadow:inset -8px 0 0 ${esc(st.color2)}`:""}"></span>`;
+      const mark=st.logo?`<img class="sw-logo" src="${esc(st.logo)}" alt="">`:`<span class="sw-dot" style="background:${esc(st.color||"#172a5e")}${st.color2?`;box-shadow:inset -8px 0 0 ${esc(st.color2)}`:""}"></span>`;
       return `<section class="tm-school"><header>${mark}<div><b>${esc([g.school,g.mascot].filter(Boolean).join(" "))}</b><small>${g.list.length} team${g.list.length===1?"":"s"}</small></div></header>
         <ul class="tm-classes">${[...g.list].sort((x,y)=>{const i=t=>{const c=classOf(t);return c?CLASSES.findIndex(k=>k.id===c):99;};return i(x)-i(y);}).map(t=>{const c=CLASSES.find(k=>k.id===classOf(t));return row(t,c&&(t.settings||{}).teamLabel===c.label?c.name:(t.settings||{}).teamLabel||(c?c.name:"Main team"));}).join("")}</ul>
         ${open?addClassForm(g):mayAdd?`<button class="btn" type="button" data-addclass="${esc(g.key)}">+ Add a team at ${esc(g.school)}</button>`:""}
@@ -249,7 +249,7 @@ $("#tm-teams").addEventListener("submit",async e=>{
   const cls=CLASSES.find(c=>c.label===label);
   if(cls&&g.list.some(t=>classOf(t)===cls.id)){msg(f.querySelector("[data-addmsg]"),`${g.school} already has a ${cls.name} team.`,"err");return;}
   if(teams.some(t=>schoolKey(t)===g.key&&String((t.settings||{}).teamLabel||"").trim().toLowerCase()===label.toLowerCase())){msg(f.querySelector("[data-addmsg]"),`${g.school} already has a team called ${label}.`,"err");return;}
-  const settings={...DEFAULT_SETTINGS,sport,school:base.school||"",mascot:base.mascot||"",teamLabel:label,color:base.color||"#5b2a86"};
+  const settings={...DEFAULT_SETTINGS,sport,school:base.school||"",mascot:base.mascot||"",teamLabel:label,color:base.color||"#172a5e"};
   if(src){const want=k=>f.elements["cal_"+k]&&f.elements["cal_"+k].checked,ss=src.settings||{};
     if(want("games"))settings.games=JSON.parse(JSON.stringify(ss.games||[]));
     settings.special=JSON.parse(JSON.stringify((ss.special||[]).filter(x=>x.date&&want(calKind(x)))));}
@@ -710,7 +710,7 @@ function renderFoodAll(box){
   const none=foodAll.list.filter(x=>!x.board||!x.board.active);
   const dates=Object.keys(rows).sort();
   const block=r=>{const b=r.board,d=dropFor(b,r.g,r.t),by={};r.entries.forEach(e=>{if((e.game_date||"").slice(0,10)===r.g.date){(by[e.slot]=by[e.slot]||[]).push(e);}});
-    return `<div class="fd-allteam" style="--tc:${esc((r.t.settings||{}).color||"#5b2a86")}"><div class="fd-allhead"><b>${esc(teamShort(r.t))}</b><span>${r.g.home===false?"at":"vs"} ${esc(r.g.opponent||"Game")}${r.g.time?" · "+hm(r.g.time):""}</span><span>${d.time?`🍎 by ${hm(d.time)}`:"food time not set"}${(b.dropoff||{}).feed?` · feeds ${(b.dropoff||{}).feed}`:""}</span></div>
+    return `<div class="fd-allteam" style="--tc:${esc((r.t.settings||{}).color||"#172a5e")}"><div class="fd-allhead"><b>${esc(teamShort(r.t))}</b><span>${r.g.home===false?"at":"vs"} ${esc(r.g.opponent||"Game")}${r.g.time?" · "+hm(r.g.time):""}</span><span>${d.time?`🍎 by ${hm(d.time)}`:"food time not set"}${(b.dropoff||{}).feed?` · feeds ${(b.dropoff||{}).feed}`:""}</span></div>
       ${(b.slots||[]).map(s=>{const l=by[s.name]||[];return `<div class="fd-srow"><div class="fd-sname">${esc(s.name)} <small>${l.length} of ${s.count}</small></div><ul>${l.map(e=>`<li><b>${esc(e.name)}</b>${e.player?` <span>(${esc(e.player)})</span>`:""}${e.item?` · ${esc(e.item)}`:""}${e.contact?`<small>${esc(e.contact)}</small>`:""}</li>`).join("")||`<li class="none">Open</li>`}</ul></div>`;}).join("")}</div>`;};
   box.innerHTML=head+`<p class="help" style="margin:0">Every team's food sign-ups by game day. Each team still has its own link for its parents.</p>
     ${none.length?`<p class="help warn" style="margin:6px 0 0">No sign-up sheet yet for: ${none.map(x=>esc(teamShort(x.t))).join(", ")}. Switch to that team and make one.</p>`:""}</div>

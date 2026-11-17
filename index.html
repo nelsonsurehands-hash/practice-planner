@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="has-c2" style="--team:#172a5e;--team2:#ff7a2f">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -12,7 +12,7 @@
 <meta property="og:description" content="Plan it. Draw it. Run it. Practice plans, plays, the calendar, live stats and parent tools in one app for your coaching staff.">
 <meta property="og:image" content="https://theextracoach.com/icons/icon-512.png">
 <meta property="og:url" content="https://theextracoach.com/">
-<meta name="theme-color" content="#5b2a86">
+<meta name="theme-color" content="#172a5e">
 <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Organization", "@id": "https://theextracoach.com/#org", "name": "The Extra Coach", "url": "https://theextracoach.com/", "logo": "https://theextracoach.com/icons/icon-512.png"}, {"@type": "WebSite", "@id": "https://theextracoach.com/#site", "name": "The Extra Coach", "url": "https://theextracoach.com/", "publisher": {"@id": "https://theextracoach.com/#org"}}, {"@type": "SoftwareApplication", "name": "The Extra Coach", "applicationCategory": "SportsApplication", "operatingSystem": "Web, iOS, Android, Windows, macOS", "url": "https://theextracoach.com/", "description": "Basketball practice planner and play designer for coaching staffs: timed practice plans, animated plays, a season calendar, live stats and parent sign-ups.", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "publisher": {"@id": "https://theextracoach.com/#org"}}]}</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="brand/mark.svg" type="image/svg+xml">
@@ -47,7 +47,7 @@
 /* Splash: the last team opened on this device (saved by boot.js), shown before anything else loads. */
 (function(){try{
   var s=JSON.parse(localStorage.getItem("cpp:splash")||"null");if(!s)return;
-  var el=document.getElementById("screen-loading"),c=s.color||"#5b2a86",m=/^#?([0-9a-f]{6})$/i.exec(c),dark=true;
+  var el=document.getElementById("screen-loading"),c=s.color||"#172a5e",m=/^#?([0-9a-f]{6})$/i.exec(c),dark=true;
   if(m){var n=parseInt(m[1],16),L=[n>>16&255,n>>8&255,n&255].map(function(v){v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);});dark=.2126*L[0]+.7152*L[1]+.0722*L[2]<=.4;}
   el.style.setProperty("--sp-bg",c);el.style.setProperty("--sp-ink",dark?"#ffffff":"#17141c");
   if(s.color2)el.style.setProperty("--sp-2",s.color2);
@@ -249,8 +249,8 @@
         <div class="lc-pick" id="suLogoColors" hidden></div></div>
     </div>
     <div class="grid2">
-      <label class="f">Team color<input id="suColor" type="color" value="#5b2a86"></label>
-      <div class="f">Second color<div class="c2row"><input id="suColor2" type="color" value="#f2b705" aria-label="Second color"><label><input type="checkbox" id="suUseC2" style="width:auto"> Use it</label></div></div>
+      <label class="f">Team color<input id="suColor" type="color" value="#172a5e"></label>
+      <div class="f">Second color<div class="c2row"><input id="suColor2" type="color" value="#ff7a2f" aria-label="Second color"><label><input type="checkbox" id="suUseC2" checked style="width:auto"> Use it</label></div></div>
     </div>
     <div class="grid2">
       <label class="f" id="suStarterWrap" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:14px;font-weight:500;color:var(--ink)"><input type="checkbox" id="suStarter" checked style="width:auto"> <span id="suStarterText">Add starter drills</span></label>

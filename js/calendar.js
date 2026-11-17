@@ -100,7 +100,7 @@ function hubData(all){
   /* Teams from the same school often share one color: give the repeats their own dot color here. */
   const used=new Set(),PAL=["#5b2a86","#d0632a","#1f7a8c","#b3283c","#3c8d2f","#c79a12","#2d5bd3","#8a4f7d"];
   const tid=typeof team!=="undefined"&&team?team.id:null,pick=new Map();
-  [...list].sort((a,b)=>(b.id===tid)-(a.id===tid)).forEach(t=>{let c=String((t.settings||{}).color||"#5b2a86").toLowerCase();if(used.has(c))c=PAL.find(x=>!used.has(x))||c;used.add(c);pick.set(t,c);});
+  [...list].sort((a,b)=>(b.id===tid)-(a.id===tid)).forEach(t=>{let c=String((t.settings||{}).color||"#172a5e").toLowerCase();if(used.has(c))c=PAL.find(x=>!used.has(x))||c;used.add(c);pick.set(t,c);});
   return list.map(t=>{const c=pick.get(t);
     return {t,label:shortLabel(t),tag:tagOf(t),color:c,days:all?buildDays(t.settings||{}).days:filterDays(buildDays(t.settings||{}).days)};});
 }
@@ -325,7 +325,7 @@ function renderDay(){
   const noteChips=()=>{const ns=list.map((x,i)=>({x,i})).filter(o=>o.x.kind!=="off"&&o.x.note&&!isBus(o.x.note));
     return ns.length?`<div class="note-chips">${ns.map(o=>`<span class="nchip">${esc(o.x.note)}${ed?`<button type="button" class="icon" data-rmentry="${o.i}" aria-label="Remove ${esc(o.x.note)}">✕</button>`:""}</span>`).join("")}</div>`:"";};
   if(d.practice){const p=d.practice,pi=planInfo(iso);
-    h+=`<div class="day-ev practice">${dayHub?`<small class="gev-h"><i class="hub-dot" style="background:${esc((SETTINGS||{}).color||"#5b2a86")}"></i>${esc(teamShort(team))}'s practice · changes go to the checked teams</small>`:""}<b>${p.notes.some(isTryout)?"Tryouts":"Practice"}</b><span>${span(p.start,p.end)}</span>${prNoteOf(SETTINGS)?`<span class="pr-note">📌 ${esc(prNoteOf(SETTINGS))}</span>`:""}${noteChips()}
+    h+=`<div class="day-ev practice">${dayHub?`<small class="gev-h"><i class="hub-dot" style="background:${esc((SETTINGS||{}).color||"#172a5e")}"></i>${esc(teamShort(team))}'s practice · changes go to the checked teams</small>`:""}<b>${p.notes.some(isTryout)?"Tryouts":"Practice"}</b><span>${span(p.start,p.end)}</span>${prNoteOf(SETTINGS)?`<span class="pr-note">📌 ${esc(prNoteOf(SETTINGS))}</span>`:""}${noteChips()}
       <span>${pi?`Plan ready: ${pi.used} of ${pi.avail} minutes booked`:"No practice plan yet"}</span>${ed?delBtn("delPractice","Cancel this practice"):""}</div>
       <button class="btn primary" type="button" data-go="plan">${pi?"Open practice plan":"Plan this practice"}</button>`;
     if(ed)h+=`<details class="day-edit"><summary>Change time or add a note</summary><div class="day-form">

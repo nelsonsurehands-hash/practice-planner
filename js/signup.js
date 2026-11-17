@@ -64,7 +64,7 @@ async function load(){
   try{SHEET=await api.get();}catch(e){fail("Couldn't load the sign-up. Check your connection and try again.");return;}
   if(!SHEET){fail("This sign-up sheet is closed or the link is wrong. Ask your coach for the current link.");return;}
   const t=SHEET.team||{};
-  document.documentElement.style.setProperty("--team",t.color||"#5b2a86");
+  document.documentElement.style.setProperty("--team",t.color||"#172a5e");
   if(t.color2){document.documentElement.style.setProperty("--team2",t.color2);document.documentElement.classList.add("has-c2");}
   document.documentElement.style.setProperty("--team-ink",ink(t.color));
   teamBrand(t,`${SHEET.title||"Game-day food"} · ${teamFullName(t)}`);

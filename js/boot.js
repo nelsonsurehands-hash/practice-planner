@@ -63,7 +63,7 @@ function show(id){
 /* Remember this team's look for the splash screen next time the app opens on this device. */
 function saveSplash(){
   try{const st=team&&team.settings||{};
-    localStorage.setItem("cpp:splash",JSON.stringify({name:[st.school,st.mascot].filter(Boolean).join(" ")||team.name,label:st.teamLabel||"",logo:st.logo||"",color:st.color||"#5b2a86",color2:st.color2||""}));
+    localStorage.setItem("cpp:splash",JSON.stringify({name:[st.school,st.mascot].filter(Boolean).join(" ")||team.name,label:st.teamLabel||"",logo:st.logo||"",color:st.color||"#172a5e",color2:st.color2||""}));
   }catch{}
 }
 const msg=(el,text,kind)=>{el.textContent=text||"";el.className="msg"+(kind?" "+kind:"");};
@@ -159,7 +159,7 @@ async function showJoinInvite(){
   if(!d){box.hidden=true;return;}
   if(!d.ok){box.hidden=false;box.className="join-invite bad";box.innerHTML=`<b>This invite link ${d.reason==="used"?"was already used or has expired":"isn't valid"}.</b><span>Ask your head coach to send a new one. You can still sign in below.</span>`;
     try{localStorage.removeItem("cpp:join");}catch{}JOIN=null;return;}
-  const t=(d.teams||[])[0]||{},color=/^#[0-9a-f]{6}$/i.test(t.color||"")?t.color:"#5b2a86";
+  const t=(d.teams||[])[0]||{},color=/^#[0-9a-f]{6}$/i.test(t.color||"")?t.color:"#172a5e";
   box.hidden=false;box.className="join-invite";box.style.setProperty("--jc",color);
   box.innerHTML=`${t.logo?`<img src="${esc(t.logo)}" alt="">`:""}<div><small>You're invited to join the coaching staff</small><b>${esc(inviteTeamName(d.teams||[]))}</b>
     <span>${esc(accessLine(d))}${d.role!=="owner"?(()=>{const p=permsFor(d.role,d.perms),on=AREAS.filter(a=>p[a]&&a!=="share"&&a!=="staff").map(a=>AREA_LABELS[a].split(/[,&]/)[0].trim().toLowerCase());return on.length?` · can edit ${esc(on.join(", "))}`:" · can view everything";})():""}. Create an account or sign in to join.</span></div>`;
@@ -298,7 +298,7 @@ function renderSwitcher(){
   $("#swMenu").innerHTML=[...groups.values()].map(list=>{list.sort((a,b)=>String((a.settings||{}).teamLabel||"").localeCompare(String((b.settings||{}).teamLabel||""),undefined,{numeric:true}));const st=list[0].settings||{};
     return `<div class="sw-head">${esc([st.school,st.mascot].filter(Boolean).join(" ")||list[0].name)}</div>`+
     list.map(t=>`<button class="sw-item${t.id===team.id?" on":""}" data-team="${t.id}" role="menuitem">
-      ${(t.settings||{}).logo?`<img class="sw-logo" src="${esc(t.settings.logo)}" alt="">`:`<span class="sw-dot" style="background:${esc((t.settings||{}).color||"#5b2a86")}${(t.settings||{}).color2?`;box-shadow:inset -6px 0 0 ${esc(t.settings.color2)}`:""}"></span>`}
+      ${(t.settings||{}).logo?`<img class="sw-logo" src="${esc(t.settings.logo)}" alt="">`:`<span class="sw-dot" style="background:${esc((t.settings||{}).color||"#172a5e")}${(t.settings||{}).color2?`;box-shadow:inset -6px 0 0 ${esc(t.settings.color2)}`:""}"></span>`}
       <span><b>${esc((t.settings||{}).teamLabel||t.name)}</b><small>${esc(sportName(t))} · ${esc(roleName(t.role))}</small></span></button>`).join("");}).join("")+
     `<div class="sw-actions"><button class="btn" id="swManage">Manage teams</button><button class="btn" id="swNew">+ Add a grade or team</button>${HOSTED?`<button class="btn" id="swJoin">Join a staff</button>`:""}</div>`;
 }
@@ -391,7 +391,9 @@ function showSetup(canGoBack,focusJoin){
   $("#suBack").hidden=!canGoBack;msg($("#setupMsg"),"");msg($("#joinMsg"),"");
   const nm=team&&team.myName||"";$("#suName").value=nm;$("#joinName").value=nm;
   updateStarterLabel();fillCopyFrom();
-  if(typeof suLogo!=="undefined"){suLogo="";$("#suLogoPrev").textContent="Logo";$("#suLogoRm").hidden=true;$("#suLogoColors").hidden=true;$("#suUseC2").checked=false;}
+  if(typeof suLogo!=="undefined"){suLogo="";$("#suLogoPrev").textContent="Logo";$("#suLogoRm").hidden=true;$("#suLogoColors").hidden=true;
+    /* A new team starts in The Extra Coach's own navy and orange until the coach picks colors. */
+    $("#suColor").value=BRAND_C1;$("#suColor2").value=BRAND_C2;$("#suUseC2").checked=true;suPreview();}
   /* Coaches who already have a team see the full form, open, like before. First-timers get the short one. */
   $("#suMore").open=!!(teams&&teams.length);suFeatTouched=false;
   show("screen-setup");
@@ -421,7 +423,7 @@ $("#suCopyFrom").addEventListener("change",()=>{
   const src=teams.find(t=>t.id===$("#suCopyFrom").value);
   if(src){const st=src.settings||{};
     $("#suSport").value=st.sport||"basketball";$("#suSchool").value=st.school||"";$("#suMascot").value=st.mascot||"";
-    setLevel("suLabelSel","");$("#suColor").value=st.color||"#5b2a86";$("#suUseC2").checked=!!st.color2;if(st.color2)$("#suColor2").value=st.color2;
+    setLevel("suLabelSel","");$("#suColor").value=st.color||"#172a5e";$("#suUseC2").checked=!!st.color2;if(st.color2)$("#suColor2").value=st.color2;
     $("#suStart").value=st.seasonStart||"";$("#suEnd").value=st.seasonEnd||"";
     $("#suWdS").value=st.weekdayStart||"";$("#suWdE").value=st.weekdayEnd||"";
     $("#suStarter").checked=false;$("#suLabelSel").focus();}
@@ -433,7 +435,7 @@ async function readItems(teamId,kind){
   const {data,error}=await sb.from("items").select("id,data").eq("team_id",teamId).eq("kind",kind).limit(5000);
   if(error)throw error;return (data||[]).map(r=>[r.id,r.data]);
 }
-$("#suBack").addEventListener("click",()=>{show("app");});
+$("#suBack").addEventListener("click",()=>{if(team)applySettings(team.settings);show("app");});   // put the team's colors back
 /* ---------- Grade/Level: pick from the usual levels, or Other to type your own ---------- */
 const LEVELS=["6th Grade","7th Grade","8th Grade","Freshman","JV","Varsity"],GENDERS=["Girls","Boys","Coed"];
 /* The saved label is one text ("8th Grade Girls"), built from the level and Boys/Girls. */
@@ -471,6 +473,12 @@ const readFeat=box=>Object.fromEntries([...box.querySelectorAll("[data-feat]")].
 const progOf=f=>Object.keys(PROGRAMS).find(k=>FEATURES.every(([x])=>(f[x]!==false)===featuresFor(k)[x]))||"";
 function renderSuFeatures(prog){$("#suProg").innerHTML=progHTML("suProg",prog);$("#suFeatures").innerHTML=featHTML(featuresFor(prog));}
 renderSuFeatures("school");
+/* Brand colors (the logo and website). The setup screen previews the team colors as the coach picks them. */
+var BRAND_C1="#172a5e",BRAND_C2="#ff7a2f";
+function suPreview(){const r=document.documentElement,c1=$("#suColor").value||BRAND_C1,c2=$("#suUseC2").checked?$("#suColor2").value:"";
+  r.style.setProperty("--team",c1);r.style.setProperty("--team-ink",contrastInk(c1));
+  if(c2){r.style.setProperty("--team2",c2);r.classList.add("has-c2");}else{r.style.removeProperty("--team2");r.classList.remove("has-c2");}}
+["#suColor","#suColor2","#suUseC2"].forEach(q=>$(q).addEventListener("input",suPreview));$("#suUseC2").addEventListener("change",suPreview);
 var suFeatTouched=false;   // a coach who picks features on the form gets exactly what they picked
 $("#suProg").addEventListener("change",e=>{if(e.target.name==="suProg"){suFeatTouched=true;$("#suFeatures").innerHTML=featHTML(featuresFor(e.target.value));}});
 $("#suFeatures").addEventListener("change",()=>{suFeatTouched=true;const p=progOf(readFeat($("#suFeatures")));document.querySelectorAll('[name="suProg"]').forEach(r=>r.checked=r.value===p);});
@@ -479,7 +487,7 @@ $("#suLogo").addEventListener("change",async e=>{
   const f=e.target.files[0];e.target.value="";if(!f)return;
   try{let out=await shrinkImage(f,256);if(out.length>150000)out=await shrinkImage(f,160);suLogo=out;
     $("#suLogoPrev").innerHTML=`<img src="${out}" alt="Team logo">`;$("#suLogoRm").hidden=false;
-    const cs=await logoColors(out);const apply=(c1,c2)=>{$("#suColor").value=c1;if(c2){$("#suColor2").value=c2;$("#suUseC2").checked=true;}};
+    const cs=await logoColors(out);const apply=(c1,c2)=>{$("#suColor").value=c1;if(c2){$("#suColor2").value=c2;$("#suUseC2").checked=true;}suPreview();};
     if(cs.length)apply(cs[0],cs[1]||"");showLogoColors($("#suLogoColors"),cs,apply);}
   catch{msg($("#setupMsg"),"That file couldn't be read as an image. Try a PNG or JPG.","err");}
 });
@@ -661,7 +669,7 @@ window.onSettingsTab=function(force){
   draft=JSON.parse(JSON.stringify({...DEFAULT_SETTINGS,...(team.settings||{})}));
   draft.games=draft.games||[];draft.special=draft.special||[];
   $("#sSport").value=draft.sport||"basketball";$("#sSportHelp").hidden=true;
-  $("#sSchool").value=draft.school||"";$("#sMascot").value=draft.mascot||"";setLevel("sLabelSel",draft.teamLabel||"");$("#sColor").value=draft.color||"#5b2a86";
+  $("#sSchool").value=draft.school||"";$("#sMascot").value=draft.mascot||"";setLevel("sLabelSel",draft.teamLabel||"");$("#sColor").value=draft.color||"#172a5e";
   $("#sColor2").value=draft.color2||"#f2b705";$("#sUseC2").checked=!!draft.color2;renderLogoEdit();renderIconPick();
   $("#sWdS").value=draft.weekdayStart||"";$("#sWdE").value=draft.weekdayEnd||"";$("#sWeS").value=draft.weekendStart||"";$("#sWeE").value=draft.weekendEnd||"";$("#sArrive").value=String(draft.arriveEarly||0);$("#sPrNote").value=draft.practiceNote||"";
   renderAlso();
