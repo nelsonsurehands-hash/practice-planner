@@ -25,13 +25,13 @@ function recordCard(){
   const split=home=>{const x=rs.filter(r=>(r.home!==false)===home);return `${x.filter(r=>r.wl==="W").length}–${x.filter(r=>r.wl==="L").length}`;};
   let streak="";if(rs.length){const last=rs[rs.length-1].wl;let n=0;for(let i=rs.length-1;i>=0&&rs[i].wl===last;i--)n++;streak=`${last}${n}`;}
   const last=rs[rs.length-1];
-  const played=(SETTINGS.games||[]).filter(g=>g.date&&g.date<todayISO()).length,missing=Math.max(0,played-rs.length);
+  const played=(SETTINGS.games||[]).filter(g=>g.date&&g.date<=todayISO()).length,missing=Math.max(0,played-rs.length);
   return `<div class="hm-card hm-record"><small class="hm-k">Season record</small>
     <b class="hm-big">${w}–${l}${t?`–${t}`:""}</b>
     ${rs.length?`<div class="hm-split"><span>Home ${split(true)}</span><span>Away ${split(false)}</span>${streak?`<span>Streak ${streak}</span>`:""}</div>
       <p class="hm-last"><span class="hm-wl ${last.wl}">${last.wl}</span> ${last.us}–${last.them} ${last.home===false?"at":"vs"} ${esc(last.opponent||"")} <small>${shortDay(last.date)}</small></p>`:
-      `<p class="hm-help">Scores show up here after a game: from the live tracker, or typed into the game's Gameplan.</p>`}
-    ${missing?`<button type="button" class="linkbtn hm-miss" data-hm="scores">${missing} played game${missing===1?" has":"s have"} no score yet</button>`:""}</div>`;
+      `<p class="hm-help">Type in a final score after each game, or use the live tracker. Your record adds up here.</p>`}
+    ${played&&canScore()?`<div class="hm-scorebtns">${missing?`<button type="button" class="btn primary" data-hm="scores">Enter ${missing===1?"a final score":`${missing} final scores`}</button>`:`<button type="button" class="linkbtn" data-hm="scores">Enter or fix a score</button>`}</div>`:""}</div>`;
 }
 function nextGameCard(){
   const t=todayISO(),lv=liveGame();
@@ -96,6 +96,47 @@ function render(){
   box.innerHTML=(window.Onboard?Onboard.card():"")+`<div class="hm-grid"><div class="hm-col">${todayCard(days)}${quick()}</div><div class="hm-col">${nextGameCard()}${recordCard()}${weekCard(days)}</div></div>`;
   if(window.Onboard)Onboard.maybeAsk();
 }
+/* ---------- final scores, typed in (no live tracker needed) ----------
+   Saved to the game's Gameplan (kind "gameplans", id = date) as result {us, them}, the same place the
+   live tracker and the Team schedule save it, so the record, schedule and parent pages all agree. */
+const canScore=()=>typeof PERM==="undefined"||PERM.plans;
+let scDlg=null;
+function scoreDialog(focus){
+  if(!scDlg){scDlg=document.createElement("dialog");scDlg.className="sc-dlg";document.body.appendChild(scDlg);
+    scDlg.addEventListener("click",e=>{if(e.target===scDlg||e.target.closest("[data-sc=close]"))scDlg.close();});
+    scDlg.addEventListener("submit",saveScore);}
+  const t=todayISO(),plans=T().plans||{};
+  const past=(SETTINGS.games||[]).filter(g=>g.date&&g.date<=t).sort((a,b)=>a.date<b.date?1:-1);
+  const row=g=>{const r=(plans[g.date]||{}).result||{},has=r.us!==""&&r.us!=null&&r.them!==""&&r.them!=null;
+    return `<form class="sc-row${has?" has":""}" data-scdate="${g.date}"><div class="sc-g"><b>${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")}</b><small>${shortDay(g.date)}${g.event?` · ${esc(g.event)}`:""}</small></div>
+      <label class="sc-n"><span>Us</span><input name="us" type="number" inputmode="numeric" min="0" max="999" value="${has?esc(r.us):""}" required></label>
+      <span class="sc-dash">–</span>
+      <label class="sc-n"><span>Them</span><input name="them" type="number" inputmode="numeric" min="0" max="999" value="${has?esc(r.them):""}" required></label>
+      <button class="btn${has?"":" primary"}" type="submit">${has?"Update":"Save"}</button><span class="sc-ok" aria-live="polite"></span></form>`;};
+  const missing=past.filter(g=>{const r=(plans[g.date]||{}).result||{};return !(r.us!==""&&r.us!=null&&r.them!==""&&r.them!=null);});
+  scDlg.innerHTML=`<div class="dlg"><div class="sc-top"><h2>Final scores</h2><button class="icon" type="button" data-sc="close" aria-label="Close">✕</button></div>
+    <p class="help" style="margin:0 0 10px">Type each final and tap Save. No live tracking needed. Your record, schedule and parent pages update.</p>
+    ${past.length?`<div class="sc-list">${missing.map(row).join("")}${past.filter(g=>!missing.includes(g)).map(row).join("")}</div>`:`<p class="hm-help">No games played yet. Add games on the Calendar.</p>`}
+    <div class="actions" style="justify-content:flex-end;margin:12px 0 0"><button class="btn" type="button" data-sc="close">Done</button></div></div>`;
+  if(!scDlg.open)scDlg.showModal();
+  const fr=focus&&scDlg.querySelector(`[data-scdate="${focus}"]`);
+  if(fr){fr.classList.add("focus");fr.scrollIntoView({block:"nearest"});fr.querySelector("input[name=us]").focus();}
+  else{const first=scDlg.querySelector(".sc-row:not(.has) input[name=us]");if(first)first.focus();}
+}
+async function saveScore(e){
+  const f=e.target.closest("[data-scdate]");if(!f)return;e.preventDefault();
+  const date=f.dataset.scdate,us=f.us.value.trim(),them=f.them.value.trim();if(us===""||them==="")return;
+  const plans=T().plans||{},plan=JSON.parse(JSON.stringify(plans[date]||{}));
+  plan.result={...(plan.result||{}),us:String(+us),them:String(+them)};plan.updatedAt=Date.now();
+  const ok=f.querySelector(".sc-ok"),btn=f.querySelector("button");btn.disabled=true;
+  try{await store.collection("gameplans").doc(date).set(plan);plans[date]=plan;
+    const u=+us,th=+them;ok.textContent=u>th?"✓ Win":u<th?"✓ Loss":"✓ Tie";f.classList.add("has");btn.textContent="Update";btn.classList.remove("primary");
+    if(typeof track==="function")track("score:typed");render();if(window.TM&&TM.pane==="stats"&&TM.render)TM.render();}
+  catch(err){ok.textContent="Not saved";if(typeof showNotice==="function")showNotice("Score not saved: "+(err.message||"check your connection"));}
+  btn.disabled=false;
+  const next=[...scDlg.querySelectorAll(".sc-row:not(.has) input[name=us]")].find(i=>!i.value);if(next)next.focus();
+}
+window.openScores=scoreDialog;
 window.onHomeTab=render;
 window.renderHome=render;
 
@@ -108,7 +149,8 @@ document.getElementById("view-home").addEventListener("click",e=>{
   const b=e.target.closest("[data-hm]");if(!b)return;const k=b.dataset.hm,d=b.dataset.date;
   if(k==="practice")openPractice(d);
   if(k==="live"){window.goTeam("stats");setTimeout(()=>{const x=document.querySelector("#tm-stats [data-st=golive]");if(x)x.click();},0);}
-  if(k==="stats"||k==="scores"){window.goTeam("stats");setTimeout(()=>{const x=document.querySelector(`#tm-stats [data-st=${k==="scores"?"games":"season"}]`);if(x)x.click();},0);}
+  if(k==="scores"){scoreDialog();return;}
+  if(k==="stats"){window.goTeam("stats");setTimeout(()=>{const x=document.querySelector(`#tm-stats [data-st=season]`);if(x)x.click();},0);}
   if(k==="cal"){setTab("cal");setTimeout(()=>{const x=document.getElementById("calToday");if(x)x.click();},0);}
   if(k==="gameplan")window.goTeam("game",{date:d});
   if(k==="bus")window.goTeam("bus",{date:d});

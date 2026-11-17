@@ -326,8 +326,11 @@ function renderGames(){
   const box=$("#tm-stats"),gs=games(),today=todayISO();
   box.innerHTML=`<div class="tm-card"><h3 class="tm-h">Games</h3>
     ${gs.length?`<ul class="st-games">${gs.map(g=>{const s=GAMES[g.date],c=s&&(s.events||[]).length?compute(s):null;
-      return `<li><div><b>${esc(T().longDay(g.date))}</b> ${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")}<small>${c?`${s.final?(c.us>c.them?"W":c.us<c.them?"L":"T")+" ":"Live · "}${c.us}–${c.them}`:g.date<today?"Not tracked":""}</small></div>
-        <span class="st-gbtn">${c?`<button type="button" class="btn" data-st="open" data-date="${g.date}">Recap</button>`:""}${can()&&(!s||!s.final)?`<button type="button" class="btn ${c?"":"primary"}" data-st="track" data-date="${g.date}">${c?"Resume":"Track"}</button>`:""}</span></li>`;}).join("")}</ul>`:
+      /* A game that wasn't tracked can still have a final score typed in (saved on its Gameplan). */
+      const r=(((T().plans||{})[g.date]||{}).result)||{},typed=!c&&r.us!==""&&r.us!=null&&r.them!==""&&r.them!=null,played=g.date<=today;
+      const tw=typed?(+r.us>+r.them?"W":+r.us<+r.them?"L":"T"):"";
+      return `<li><div><b>${esc(T().longDay(g.date))}</b> ${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")}<small>${c?`${s.final?(c.us>c.them?"W":c.us<c.them?"L":"T")+" ":"Live · "}${c.us}–${c.them}`:typed?`<span class="st-final ${tw}">${tw} ${esc(r.us)}–${esc(r.them)}</span> Final score`:g.date<today?"Not tracked":""}</small></div>
+        <span class="st-gbtn">${c?`<button type="button" class="btn" data-st="open" data-date="${g.date}">Recap</button>`:""}${can()&&!c&&played&&window.openScores?`<button type="button" class="btn${typed?"":" primary"}" data-st="score" data-date="${g.date}">${typed?"Edit score":"+ Score"}</button>`:""}${can()&&(!s||!s.final)&&!typed?`<button type="button" class="btn ${c||played?"":"primary"}" data-st="track" data-date="${g.date}">${c?"Resume":"Track"}</button>`:""}</span></li>`;}).join("")}</ul>`:
       `<p class="help">No games on the schedule. Add games in the Calendar tab, or track a quick game.</p>`}</div>`+quickList();
 }
 function quickList(){const q=quickGames();
@@ -395,6 +398,7 @@ $("#tm-stats").addEventListener("click",e=>{
   if(a==="games"){view="games";render();}
   if(a==="back"){view="games";render();}
   if(a==="open"){openDate=b.dataset.date;view="recap";render();}
+  if(a==="score"&&window.openScores){openScores(b.dataset.date);return;}
   if(a==="player"&&b.dataset.pid){playerId=b.dataset.pid;view="player";render();}
   if(a==="golive"){const g=liveTarget();
     if(!g){startQuick();return;}
