@@ -88,8 +88,18 @@ function boardInner(fr,mode,tmp,fade,ghost){
     else s+=`<text x="${t.x}" y="${t.y+7}" text-anchor="middle" style="fill:${c.d};font:700 20px Arial,Helvetica,sans-serif">X<tspan style="font-size:12px" dy="3">${t.n}</tspan></text>`;
   });
   const b=fr.tokens.find(t=>t.kind==="ball");
-  if(b)s+=`<circle cx="${b.x}" cy="${b.y}" r="7.5" style="fill:${c.ball};stroke:${P?"#000":c.floor==="var(--court)"?"var(--ink)":"#1d1720"};stroke-width:1.5"/>`;
+  if(b)s+=ballSVG(b.x,b.y,c,P);
   return s;
+}
+/* The ball. A basketball gets its seams: the two straight ones and the two curved side seams,
+   so it reads as a basketball at a glance. On paper it's a white ball with black seams. */
+function ballSVG(x,y,c,P){
+  const edge=P?"#000":c.floor==="var(--court)"?"var(--ink)":"#1d1720";
+  const fill=P?"#fff":c.ball;
+  const bb=(typeof SPORT==="string"?SPORT:"basketball")==="basketball";
+  let s=`<g class="ball" transform="translate(${+x} ${+y})"><circle r="7.5" style="fill:${fill};stroke:${edge};stroke-width:1.5"/>`;
+  if(bb)s+=`<path d="M-7.5 0H7.5M0-7.5V7.5M-5 -5.6Q-1.6 0 -5 5.6M5 -5.6Q1.6 0 5 5.6" style="fill:none;stroke:${edge};stroke-width:1;stroke-linecap:round"/>`;
+  return s+`</g>`;
 }
 /* The step number of an action, in a small square on its line (only when the coach set the order). */
 function beatBadge(a,n,P){
