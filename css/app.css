@@ -1955,7 +1955,7 @@ input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and
 
 /* ---------- final scores typed in from Home ---------- */
 .hm-scorebtns{margin:10px 0 0}
-.sc-dlg .dlg{max-width:520px}
+dialog.sc-dlg{width:min(540px,calc(100vw - 24px))}
 .sc-top{display:flex;justify-content:space-between;align-items:center;gap:10px}.sc-top h2{margin:0}
 .sc-list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden;max-height:60vh;overflow-y:auto}
 .sc-row{display:grid;grid-template-columns:minmax(0,1fr) 64px 10px 64px auto;align-items:end;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);margin:0}
@@ -1971,3 +1971,27 @@ input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and
 @media (max-width:480px){.sc-row{grid-template-columns:56px 10px 56px minmax(0,1fr)}.sc-g{grid-column:1/-1}.sc-row .btn{justify-self:end}}
 .sc-row.focus{box-shadow:inset 3px 0 0 var(--accent)}
 .st-final{font-weight:700;color:var(--ink)}.st-final.W{color:var(--good)}.st-final.L{color:var(--warn)}
+
+/* ---------- Plays tab → Common plays ---------- */
+dialog.cl-dlg{width:min(940px,calc(100vw - 24px))}
+.cl-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin:0 0 8px}.cl-top h2{margin:2px 0 0;text-wrap:balance}
+.cl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px}
+.cl-card{display:flex;flex-direction:column;gap:0;padding:0;border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden;text-align:left;cursor:pointer;color:var(--ink);font:inherit}
+.cl-card:hover,.cl-card:focus-visible{border-color:var(--accent);box-shadow:0 4px 14px rgba(0,0,0,.08)}
+.cl-thumb{display:block;width:100%;height:auto;background:var(--court-out)}
+.cl-card>span{display:flex;flex-direction:column;gap:2px;padding:9px 11px 11px}
+.cl-card b{font-size:14.5px;line-height:1.25}.cl-card small{color:var(--muted);font-size:12.5px}
+.cl-card em{font-style:normal;font-size:11.5px;font-weight:600;color:var(--good)}
+.cl-name{margin:2px 0 12px}
+.cl-cols{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px;align-items:start}
+.cl-board{border-radius:12px;overflow:hidden;background:var(--court-out)}.cl-board svg{display:block;width:100%;height:auto}
+.cl-ctrl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 0}
+.cl-steps{display:flex;gap:6px}.cl-steps .btn{min-width:38px;padding:7px 0;justify-content:center}
+.cl-steps .btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.cl-cap{margin:10px 0 0;font-size:14px;line-height:1.45}.cl-cap b{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.cl-info{font-size:14px;line-height:1.5}.cl-info p{margin:0 0 10px}
+.cl-info h3{font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+.cl-info ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px}
+.cl-acts{flex-wrap:wrap;align-items:center;margin:16px 0 0;padding-top:14px;border-top:1px solid var(--line)}
+.cl-acts .linkbtn{margin-left:auto}
+@media (max-width:720px){.cl-cols{grid-template-columns:minmax(0,1fr)}.cl-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cl-acts .linkbtn{margin-left:0}}

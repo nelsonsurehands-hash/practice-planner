@@ -117,11 +117,11 @@ function itemPage(it,all){
       <div class="sc-stepbtns" id="scSteps">${frames.map((f,i)=>`<button type="button" data-step="${i}" aria-pressed="${i===0}" aria-label="Step ${i+1}">${i+1}</button>`).join("")}</div>
     </div>
     <p class="sc-cap" id="scCap" aria-live="polite"><b>Step 1</b>${esc(frames[0].caption)}</p>
-    ${LEGEND}${it.defense?`<p class="sc-note">X's show ${it.defense==="man"?"man-to-man":"zone"} defense moving the way the app draws it.</p>`:""}
+    ${LEGEND}${it.defense?`<p class="sc-note">X's show ${it.defense==="man"?"man-to-man":it.defense==="z23"?"a 2-3 zone":"zone"} defense moving the way the app draws it.</p>`:""}
   </section>
   <div class="sc-cols">
     <section class="sc-sec"><h2>${listName}</h2><ol class="sc-steps">${frames.map((f,i)=>`<li id="step-${i+1}"><button type="button" class="sc-steplink" data-step="${i}">Step ${i+1}</button> ${esc(f.caption)}</li>`).join("")}</ol></section>
-    <section class="sc-sec"><h2>Coaching points</h2><ul class="sc-list">${it.points.map(p=>`<li>${esc(p)}</li>`).join("")}</ul>
+    <section class="sc-sec">${it.when?`<h2>When to use it</h2><p class="sc-when">${esc(it.when)}</p>`:""}<h2>Coaching points</h2><ul class="sc-list">${it.points.map(p=>`<li>${esc(p)}</li>`).join("")}</ul>
       ${extra&&extra.length?`<h2>${extraTitle}</h2><ul class="sc-list">${extra.map(p=>`<li>${esc(p)}</li>`).join("")}</ul>`:""}</section>
   </div>
   ${cta(it)}
@@ -141,7 +141,7 @@ function card(it){const f=framesOf(it)[0];
 
 function hubPage(all){
   const plays=all.filter(x=>x.kind==="play"),drills=all.filter(x=>x.kind==="drill");
-  const desc="Free animated basketball plays and drills: common sets like Horns, 5-out motion and box BLOB, plus drills like the 3-man weave, Mikan and shell, with step-by-step diagrams.";
+  const desc="Free animated basketball plays and drills: common sets like Horns, Flex, 1-4 high, 5-out motion, zone offense, press break and out-of-bounds plays, plus drills like the 3-man weave, Mikan and shell, with step-by-step diagrams.";
   const ld=[{"@context":"https://schema.org","@type":"CollectionPage",name:"Basketball plays & drills, animated",description:desc,url:`${SITE}/basketball/`,
     hasPart:all.map(it=>({"@type":"CreativeWork",name:it.name,url:SITE+urlOf(it)}))}];
   return head({title:"Basketball Plays & Drills with Animated Diagrams | The Extra Coach",desc,canon:"/basketball/",ld})+`
@@ -307,6 +307,10 @@ ${PRINT_JS}
 const out=(rel,html)=>{const p=path.join(ROOT,rel);fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,html);};
 ITEMS.forEach(it=>out(urlOf(it).slice(1)+"index.html",itemPage(it,ITEMS)));
 out("basketball/index.html",hubPage(ITEMS));
+/* The same plays for the app's Play library (Plays tab → Play library), so the website and the app match. */
+{const lib=ITEMS.filter(x=>x.kind==="play").map(it=>({id:it.slug,name:it.name,type:it.type,level:it.level,intro:it.intro,when:it.when||"",
+  points:it.points,reads:it.reads||[],url:SITE+urlOf(it),frames:framesOf(it)}));
+ out("js/playlib.js",`/* Built by tools/showcase/build.js from tools/showcase/data.js. Don't edit by hand. */\nwindow.PLAY_LIBRARY=${JSON.stringify(lib)};\n`);}
 out("basketball-play-designer/index.html",designerPage(ITEMS));
 out("basketball-practice-plan-template/index.html",practiceTemplatePage());
 out("basketball-play-template/index.html",playTemplatePage());

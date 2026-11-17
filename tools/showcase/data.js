@@ -12,6 +12,7 @@ module.exports=[
 {slug:"horns-pick-and-roll",kind:"play",name:"Horns Pick-and-Roll",type:"Half-court offense",level:"Middle school to varsity",defense:"man",
  summary:"Horns pick-and-roll for basketball: an animated diagram of the set, the screen, the roll and the pop, with coaching points and reads.",
  intro:"Horns puts two bigs at the elbows and two shooters in the corners, so the floor is spread before the action even starts. The point guard picks a side, one big sets the ball screen and rolls, and the other big pops to the top. It's simple enough for middle school and still a staple at every level above it.",
+ when:"Against man-to-man when you have a guard who can make plays off a ball screen. It's also a great late-clock or end-of-game set because the spacing is built in.",
  start:{o1:[250,320],o4:S.elbL,o5:S.elbR,o2:S.cornR,o3:S.cornL,ball:"o1"},
  steps:[
   {cap:"Horns set: 4 and 5 at the elbows, 2 and 3 in the corners. 5 steps up to set a ball screen on 1's defender.",acts:[["screen","o5",284,296,-.1]]},
@@ -23,6 +24,7 @@ module.exports=[
 {slug:"5-out-pass-and-cut",kind:"play",name:"5-Out Motion: Pass and Cut",type:"Motion offense",level:"Youth to high school",defense:"man",
  summary:"5-out motion offense basics: pass, basket cut and fill. Animated diagram with spacing rules and coaching points for youth and middle school teams.",
  intro:"5-out motion is the best way to teach young teams to play without set plays. All five players start outside the arc. The rule is simple: pass, cut hard to the basket, then fill the open spot away from the ball. Everyone else rotates over one spot. It opens the lane and teaches spacing, cutting and reading defenders.",
+ when:"With young or newer teams learning to play without set plays, and against man-to-man teams that help too much. It needs no bigs, so any five players can run it.",
  start:{o1:[250,312],o2:S.wingR,o3:S.wingL,o4:S.cornR,o5:S.cornL,ball:"o1"},
  steps:[
   {cap:"All five spaced outside the arc. 1 passes to 2 on the wing.",acts:[["pass","o1","o2"]]},
@@ -35,6 +37,7 @@ module.exports=[
 {slug:"box-baseline-out-of-bounds",kind:"play",name:"Box Baseline Out-of-Bounds",type:"Baseline inbound",level:"Middle school to varsity",defense:null,
  summary:"Box baseline out-of-bounds play (BLOB): screen across, screen the screener and a safety outlet. Animated diagram and inbound reads.",
  intro:"The box set is the most common baseline out-of-bounds alignment in basketball. Four players line up at the blocks and elbows, so the defense has to guard every screen at once. This version uses a screen across for a layup, then the screener gets a screen of her own for a shot at the elbow, with a safety to the corner every time.",
+ when:"Every baseline inbound under your own basket. Run it the same way every time so it's automatic, then add a second option once your team knows it.",
  start:{o1:[302,-22],o4:[338,102],o5:[162,102],o2:[338,190],o3:[162,190],ball:"o1"},
  steps:[
   {cap:"Box set. On the slap of the ball, 4 screens across for 5, who cuts to the rim. 2 pops to the corner as the safety.",acts:[["screen","o4",204,100,.05],["cut","o5",292,66,.2],["cut","o2",466,52,-.12]]},
@@ -46,6 +49,7 @@ module.exports=[
 {slug:"down-screen-wing-entry",kind:"play",name:"Down Screen Wing Entry",type:"Quick hitter",level:"Youth to high school",defense:"man",
  summary:"Down screen wing entry for basketball: get a shooter open on the wing and slip the screener. Animated diagram with coaching points.",
  intro:"When the wing is being denied, a down screen is the cleanest way to get the ball there. A player sets a screen for a teammate on the block, who curls or pops to the wing. The screener then slips to the basket. It works as a play on its own or as the first action of almost any offense.",
+ when:"When the defense denies your wings and you can't get into your offense, or to get a shooter a catch-and-shoot look out of a timeout.",
  start:{o1:[250,320],o2:[350,92],o4:[372,262],o3:S.wingL,o5:S.blkL,ball:"o1"},
  steps:[
   {cap:"2 starts on the right block. 4 comes down and sets a down screen on 2's defender.",acts:[["screen","o4",352,140,.05]]},
@@ -57,6 +61,7 @@ module.exports=[
 {slug:"give-and-go",kind:"play",name:"Give and Go",type:"Basic action",level:"Youth and beginners",defense:"man",
  summary:"Give and go basketball play for youth teams: pass, cut and get it back for a layup. Animated diagram and teaching tips.",
  intro:"The give and go is the first two-player action every young team should learn. Pass to a teammate, take your defender away with a jab step, then cut hard to the basket to get the ball right back. It teaches passing, timing and cutting, and it beats defenders who watch the ball.",
+ when:"With youth and beginner teams as a first two-player action, and any time a defender turns her head to watch the ball.",
  start:{o1:S.slotR,o2:S.wingR,o3:S.wingL,o4:S.cornL,o5:S.cornR,ball:"o1"},
  steps:[
   {cap:"1 passes to 2 on the wing (the give).",acts:[["pass","o1","o2"]]},
@@ -64,6 +69,66 @@ module.exports=[
   {cap:"2 hits 1 in stride for the layup.",acts:[["pass","o2","o1"],["shot","o1"]]}],
  points:["Set up the cut: a jab step or a step away makes the defender lean.","Cut in front of the defender, with your target hand up.","The passer leads the cutter, a bounce pass in front, not at her.","If it's not open, keep going through and fill the spot on the far side."],
  reads:["Defender watches the ball: cut in front for the layup.","Defender jumps to the ball: back cut behind her.","Help comes from the lane: kick out to the open wing."]},
+
+{slug:"flex-offense",kind:"play",name:"Flex Offense",type:"Continuity offense",level:"Middle school to varsity",defense:"man",
+ summary:"Flex offense for basketball: the flex cut off a baseline back screen, then screen the screener and reverse the ball. Animated diagram with coaching points and reads.",
+ intro:"The flex is a patient continuity offense built on two screens. A player on the block sets a back screen for a teammate in the corner, who cuts across the lane for a layup (the flex cut). Then the player who just passed screens down for that screener, who comes to the top for the ball and a shot (screen the screener). Every reversal sets up the same two screens on the other side, so players learn one pattern and can run it all game.",
+ when:"Against man-to-man, with a team that screens well and is patient. It's great for teams without a dominant scorer, because every player cuts, screens and shoots from the same spots.",
+ start:{o1:S.slotL,o2:S.slotR,o3:S.cornL,o4:S.blkL,o5:S.wingR,ball:"o1"},
+ steps:[
+  {cap:"Flex set: 1 and 2 up top, 3 in the left corner, 4 on the left block, 5 on the right wing. 1 reverses the ball to 2.",acts:[["pass","o1","o2"]]},
+  {cap:"The flex cut: 4 sets a back screen on the block and 3 cuts off it, under the rim, to the right block. 2 looks inside to 3 first.",acts:[["screen","o4",186,82,.05],["cut","o3",318,86,.22]]},
+  {cap:"Screen the screener: 1 screens down for 4, who comes up to the top. 2 reverses the ball to 4 for the shot, or keeps the flex going to the other side.",acts:[["screen","o1",184,150,.08],["cut","o4",214,300,-.18],["pass","o2","o4"],["shot","o4"]]}],
+ points:["The back screen is set with the screener's back to the corner, so the cutter can come tight off the hip.","The flex cutter sets up her defender with a step toward the corner, then cuts hard and low under the rim.","Screen the screener right away. The defense is busy with the flex cut, so the down screen catches them late.","Reverse the ball quickly. Every reversal starts the same two screens on the other side.","Be patient. The flex wears the defense down; the open shot often comes on the second or third reversal."],
+ reads:["Defender trails the flex cut: pass inside for the layup.","Help comes off the screener: the screener seals and is open at the rim.","Everyone sinks to stop the cut: the down screen gives a wide open shot at the top.","Defense switches everything: post the smaller defender on the flex cut."]},
+
+{slug:"1-4-high-backdoor",kind:"play",name:"1-4 High Backdoor",type:"Quick hitter",level:"Youth to varsity",defense:"man",
+ summary:"1-4 high basketball play: entry to the elbow and a backdoor cut for a layup. Animated diagram with coaching points and reads for beating a denial defense.",
+ intro:"The 1-4 high set lines four players across the free-throw line extended: two wings and two bigs at the elbows. It opens the whole lane, which makes it the perfect set for backdoor cuts. The point guard enters to a big at the elbow, and the wing on that side cuts backdoor behind a defender who is denying the pass.",
+ when:"Against teams that pressure and deny the wings, or as a set play out of a timeout when you need a layup. It's also a simple first set for young teams.",
+ start:{o1:[250,350],o2:[440,190],o3:[60,190],o4:S.elbR,o5:S.elbL,ball:"o1"},
+ steps:[
+  {cap:"1-4 high: wings 2 and 3 on the free-throw line extended, 4 and 5 at the elbows. 4 steps out and 1 enters to her at the right elbow.",acts:[["cut","o4",340,200,.05],["pass","o1","o4"]]},
+  {cap:"2's defender is denying the wing, so 2 cuts backdoor to the rim. 4 hits her with a bounce pass.",acts:[["cut","o2",284,76,.22],["pass","o4","o2"]]},
+  {cap:"2 finishes the layup. If it isn't there, 5 dives from the other elbow for a high-low pass from 4.",acts:[["shot","o2"]]}],
+ points:["Bigs at the elbows step out to meet the entry pass, so their defenders can't front them.","The wing takes one hard step up to sell the denial, then plants and cuts backdoor.","The pass is a bounce pass led to the rim, away from the defender.","Corners and the lane stay empty: no one fills the spot the cutter is going to."],
+ reads:["Wing is denied: backdoor cut for the layup.","Wing is open: pass to the wing and run a ball screen with the big.","Help steps in on the backdoor: hit the opposite big diving for a high-low.","Defense sags into the lane: the big at the elbow has the jumper."]},
+
+{slug:"sideline-out-of-bounds",kind:"play",name:"Sideline Out-of-Bounds",type:"Sideline inbound",level:"Middle school to varsity",defense:null,
+ summary:"Sideline out-of-bounds play (SLOB) for basketball: a back screen for a lob, a safety outlet and a swing for the shot. Animated diagram with inbound reads.",
+ intro:"Sideline inbounds should do two things: get the ball in safely every time, and give you a chance at a quick score. This set runs a back screen for a cut to the rim, brings a big out as the safe outlet, and then swings the ball to the weak side for an open shot before the defense recovers.",
+ when:"Any time you inbound from the sideline in the frontcourt, especially late in a quarter when you need a good look without risking a turnover.",
+ start:{o3:[514,232],o1:[250,330],o5:S.elbR,o4:S.blkR,o2:S.wingL,ball:"o3"},
+ steps:[
+  {cap:"3 inbounds from the sideline. 1 sets a back screen for 5 at the elbow, who cuts to the rim for a lob or bounce pass. 4 pops out toward the ball as the safety.",acts:[["screen","o1",300,216,.05],["cut","o5",284,76,.2],["cut","o4",440,262,-.15]]},
+  {cap:"5 is covered, so 3 makes the safe inbound to 4. 1 steps back out to the top to receive the swing.",acts:[["pass","o3","o4"],["cut","o1",250,320,.05]]},
+  {cap:"Swing it fast: 4 to 1 to 2 on the weak side for the open shot, or flow right into your offense.",acts:[["pass","o4","o1"],["pass","o1","o2"],["shot","o2"]]}],
+ points:["Everyone breaks on the inbounder's signal, usually a slap of the ball.","The back screen is set on a body; the cutter goes shoulder to shoulder off it.","The safety outlet always comes back toward the ball. Never inbound into a trap.","Swing the ball quickly. The defense is still recovering from guarding the screen."],
+ reads:["Back screen is open: lob or bounce pass to the rim.","Defense switches the screen: the screener (1) seals for a pass.","Everything covered: safety pass to 4, then swing for the shot.","Five-second count is close: take the safety pass and call your offense."]},
+
+{slug:"1-3-1-zone-offense",kind:"play",name:"1-3-1 Zone Offense vs. 2-3",type:"Zone offense",level:"Middle school to varsity",defense:"z23",
+ summary:"How to beat a 2-3 zone: the 1-3-1 zone offense with a high post, a baseline runner and skip passes. Animated diagram against a moving 2-3 zone.",
+ intro:"A 2-3 zone has two defenders up top and three across the baseline, which leaves gaps at the free-throw line and on the wings. The 1-3-1 alignment puts a player in each gap: a guard at the top between the two guards, wings on each side, a big at the free-throw line, and a baseline runner. Get the ball to the high post and the zone has to collapse, which opens the wings and the baseline.",
+ when:"Whenever a team sits in a 2-3 zone. The same alignment works against a 2-1-2 and gives your players a simple rule: get the ball inside the zone, then find the open shooter.",
+ start:{o1:[250,330],o2:[440,210],o3:[60,210],o4:[250,200],o5:[190,62],ball:"o1"},
+ steps:[
+  {cap:"1-3-1 against the 2-3: 1 splits the two top defenders, 4 sits at the free-throw line in the middle of the zone. 1 passes to 2 on the wing.",acts:[["pass","o1","o2"]]},
+  {cap:"5 runs the baseline to the ball-side short corner, and 2 hits 4 at the high post, the soft spot of the 2-3.",acts:[["cut","o5",420,60,-.1],["pass","o2","o4"]]},
+  {cap:"4 turns and reads the zone: 5 under the basket, or 3 on the weak-side wing. The back line shifted to the ball, so 4 finds 3 for the open shot.",acts:[["pass","o4","o3"],["shot","o3"]]}],
+ points:["Sit in the gaps between defenders, never right in front of one.","The high post catches facing the basket, or turns immediately. That turn is what collapses the zone.","Use ball fakes: a fake one way moves the zone, then pass the other way.","Skip passes beat zones. Look over the top to the weak-side wing.","Crash the boards from the weak side; zones have trouble boxing out."],
+ reads:["High post catches and the middle defender steps up: pass to 5 on the baseline.","Back line shifts to the ball: skip it to the weak-side wing.","Top defenders sink to the high post: 1 is open for the shot at the top.","Wing defender closes out hard: one dribble into the gap and pull up."]},
+
+{slug:"press-break",kind:"play",name:"Press Break",type:"Press break",level:"Youth to varsity",defense:null,
+ summary:"Simple basketball press break: inbound to the corner, hit the middle, and pass ahead up the sideline. Animated diagram with rules for beating a full-court press.",
+ intro:"Full-court pressure beats teams that panic, dribble into traps and throw long, slow passes. This press break gives every player a job: two guards break to the corners for the inbound, a middle player flashes to the center of the floor, and a deep player sprints ahead up the sideline. Middle, then ahead: pass first and the trap never closes.",
+ when:"Against any full-court press or trap after a made basket or a dead ball. Teach it early so your team stays calm when it comes.",
+ start:{o4:[226,-24],o1:[190,198],o2:[310,198],o3:[250,430],o5:[120,452],ball:"o4"},
+ steps:[
+  {cap:"After a make, 4 takes it out right away. 1 and 2 start at the free-throw line, then break out: 1 to the left corner for the inbound, 2 to the right side.",acts:[["cut","o1",72,150,-.12],["cut","o2",430,170,.12],["pass","o4","o1"]]},
+  {cap:"4 steps in behind the ball as the safety. 3 flashes from half court to the middle of the floor, and 1 hits her before the trap closes.",acts:[["cut","o4",200,80,.08],["cut","o3",250,300,.05],["pass","o1","o3"]]},
+  {cap:"3 turns to face the floor and passes ahead: 2 sprints up the right sideline. Middle, then ahead, and the press is broken.",acts:[["cut","o2",452,420,-.08],["pass","o3","o2"]]}],
+ points:["Inbound quickly, before the defense sets up the press. The inbounder can run the baseline after a made basket.","Meet every pass. Come to the ball with your hands ready, never wait for it.","Look middle first. The middle of the floor is where the press is weakest.","Pass, don't dribble. A dribble into the corner is exactly what a trap wants.","Short, quick passes. Avoid the long lob; it's slow and easy to steal."],
+ reads:["Inbound denied in the corner: 2 comes back to the ball on the other side.","Trap comes on 1: the middle (3) or the safety (4) is open behind the trap.","Middle is covered: pass up the sideline to 2.","Press drops back: walk it up and run your offense."]},
 
 /* ======================= DRILLS ======================= */
 {slug:"3-man-weave",kind:"drill",name:"3-Man Weave",type:"Passing · Transition",level:"All levels",minutes:"8–10",players:"3 per group",defense:null,

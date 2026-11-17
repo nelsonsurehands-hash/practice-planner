@@ -33,7 +33,7 @@ function steps(){
   return [
     {k:"roster",t:"Add your roster",s:"Type players in, or snap a photo of your roster sheet.",done:roster.length>0},
     H("plans")&&{k:"plan",t:"Build your first practice",s:"Pick drills, set the minutes, and the times fill in.",done:anyPlan},
-    H("plays")&&{k:"play",t:"Draw your first play",s:"Start from a set like Horns, then drag and draw.",done:anyPlay},
+    H("plays")&&{k:"play",t:"Draw your first play",s:"Pick a common play like Horns or Flex, or draw your own.",done:anyPlay},
     {k:"games",t:"Add your games",s:"Type them in, or snap a photo of the schedule.",done:games},
     {k:"staff",t:"Invite an assistant coach",s:"Share your staff code so they can help.",done:!!staff},
     H("plink")&&{k:"parents",t:"Send parents the calendar link",s:"One link that's always up to date.",done:!!seen.parents}

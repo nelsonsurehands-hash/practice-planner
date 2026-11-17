@@ -26,6 +26,11 @@ function build(){
     step(5,"Add the next step","Tap <b>+ Next step</b>. Players slide to where their lines ended, ready for the next action."),
     step(6,"Watch it and save","Tap <b>▶ Play through</b> to see it run, then <b>Save play</b>.")
   ],true);
+  const common=sp().name==="Basketball"?section("common","Common plays: Horns, Flex and more, ready to run","Tap <b>📚 Common plays</b> above your play list for well-known sets: Horns, Flex, 5-Out motion, 1-4 High, zone offense against a 2-3, press break, and baseline and sideline out-of-bounds plays.",[
+    step(1,"Watch it run","Pick a play and tap <b>▶ Watch it run</b>, or tap the step numbers. Read when to use it, the coaching points and the reads beside it."),
+    step(2,"Make it yours","<b>Add to my playbook</b> saves a copy, with the notes, as it is. <b>Open in the designer</b> lets you change it first, then tap Save play."),
+    step(3,"Share how to run it","<b>Share the how-to page</b> opens the public page for that play, a link you can send to your players or assistants.")
+  ]):"";
   const setup=section("setup","Set up the court","Every play starts with players in their spots. These tools add or move them.",[
     step(1,"Set",`Fills the court with a ready-made formation (for example 5-Out or 1-4 High). It replaces your offense but keeps any defenders. <b>Empty</b> clears the court.`),
     step(2,"+ Player",`Tap the court to place players 1 through ${n}, in order. ${tryIt("o","+ Player")}`),
@@ -85,7 +90,7 @@ function build(){
   dlg.innerHTML=`<div class="dlg hg">
     <div class="hg-head"><h2 id="helpTitle">How to use the play designer</h2><button type="button" class="icon" data-hgclose aria-label="Close">✕</button></div>
     <nav class="hg-nav" aria-label="Guide sections">${[["quick","Quick start"],["setup","Set up"],["draw","Draw"],["steps","Steps"],["options","Options"],["watch","Watch"],["full","Full screen"],["save","Save & share"]].map(([k,l])=>`<button type="button" data-hgjump="${k}">${l}</button>`).join("")}</nav>
-    <div class="hg-scroll">${quick}${setup}${draw}${steps}${options}${watch}${full}${save}
+    <div class="hg-scroll">${quick}${common}${setup}${draw}${steps}${options}${watch}${full}${save}
       ${PERM.plays?"":`<p class="help">You have view-only access to plays, so the drawing tools are hidden. You can still play through, print and watch every option.</p>`}</div>
     <div class="actions" style="margin:0"><button type="button" class="btn primary" data-hgclose>Got it</button></div></div>`;
 }
