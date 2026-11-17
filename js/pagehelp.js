@@ -5,6 +5,7 @@
 const H=(title,intro,steps,tips)=>({title,intro,steps,tips:tips||[]});
 const GUIDES={
   home:H("Home","Your day at a glance every time you open the app.",[
+    ["Get started","New head coaches see a short checklist at the top: roster, first practice, first play, games, an assistant and the parent link. Each step checks itself off. Some game-day and parent tools start turned off to keep things simple; tap See them (or say yes when the app asks) to turn them on, or use Settings → Features any time. Hide this list removes it."],
     ["Today","What's on the calendar today. If there's a practice, tap the plan line to open or build today's plan."],
     ["Quick links","Big buttons for the things you use most at the gym: today's practice, the live tracker, stats and the calendar."],
     ["Next game","The opponent, time, home or away, and buttons for the gameplan and the bus list."],
@@ -165,9 +166,14 @@ function tour(force){
   try{localStorage.setItem("cpp:toured","1");}catch{}
 }
 window.showTour=()=>tour(true);
-/* First time on this device with a team open: show the tour once. */
-let shown=false;try{shown=localStorage.getItem("cpp:toured")==="1";}catch{}
-if(!shown){const iv=setInterval(()=>{
-  if(typeof team!=="undefined"&&team&&!document.getElementById("app").hidden&&!document.querySelector("dialog[open]")){clearInterval(iv);setTimeout(()=>{if(!document.querySelector("dialog[open]"))tour();},900);}
-},700);setTimeout(()=>clearInterval(iv),120000);}
+/* The walkthrough shows by itself only for a coach who just joined a staff by code. New head coaches get
+   the Get started checklist on Home instead, and coaches who've used the app never get a pop-up. */
+function tourAfterJoin(){
+  let next=false;try{next=localStorage.getItem("cpp:tourNext")==="1";}catch{}if(!next)return;
+  try{localStorage.removeItem("cpp:tourNext");}catch{}
+  let n=0;const iv=setInterval(()=>{n++;
+    if(typeof team!=="undefined"&&team&&!document.getElementById("app").hidden&&!document.querySelector("dialog[open]")){clearInterval(iv);setTimeout(()=>{if(!document.querySelector("dialog[open]"))tour(true);},1500);}
+    else if(n>160)clearInterval(iv);},700);
+}
+window.tourAfterJoin=tourAfterJoin;tourAfterJoin();
 })();

@@ -1916,3 +1916,39 @@ input[type=time]::-webkit-date-and-time-value,input[type=date]::-webkit-date-and
 .us-weeks small{font-size:9.5px;color:var(--muted);white-space:nowrap;overflow:hidden;max-width:100%}
 .us-tile small span{display:block;font-size:11px;opacity:.8}
 .us-table td small{display:block;color:var(--muted);font-size:11px}
+
+/* ---------- getting started (new head coaches, first team only) ---------- */
+.su-quick{font-size:13px;margin:2px 0 10px}
+.su-more{border:1px solid var(--line);border-radius:10px;padding:0 14px;margin:0 0 14px;background:var(--surface)}
+.su-more>summary{cursor:pointer;list-style:none;padding:12px 0;font-weight:600;font-size:14px;color:var(--ink);display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px}
+.su-more>summary::-webkit-details-marker{display:none}
+.su-more>summary::before{content:"";width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);margin-right:4px;transition:transform .15s;align-self:center}
+.su-more[open]>summary::before{transform:rotate(45deg)}
+.su-more>summary small{font-weight:400;color:var(--muted);font-size:12.5px}
+.su-more[open]{padding-bottom:4px}
+.ob-card{margin:0 0 16px;border-top:3px solid var(--team,#5b2a86)}
+.ob-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.ob-title{margin:2px 0 0;font-size:19px;line-height:1.2;text-wrap:balance}
+.ob-count{font-size:13px;color:var(--muted);white-space:nowrap}.ob-count b{font-size:20px;color:var(--ink);font-variant-numeric:tabular-nums}
+.ob-bar{height:6px;border-radius:99px;background:var(--sunk);margin:10px 0 4px;overflow:hidden}
+.ob-bar i{display:block;height:100%;border-radius:inherit;background:var(--team,#5b2a86);transition:width .4s ease}
+.ob-steps{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:20px}
+.ob-steps li{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.ob-tick{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff}
+.ob-steps li.done .ob-tick{background:var(--good);border-color:var(--good)}
+.ob-txt{min-width:0}.ob-txt b{display:block;font-size:14.5px}.ob-txt small{display:block;color:var(--muted);font-size:12.5px;line-height:1.35}
+.ob-steps li.done .ob-txt b{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+.ob-steps li.done .ob-txt small{display:none}
+.ob-ok{font-size:12px;font-weight:600;color:var(--good)}
+.ob-go{padding:6px 14px;font-size:13px}
+.ob-more{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;margin:12px 0 0;padding:10px 12px;border-radius:8px;background:var(--sunk);font-size:13px}
+.ob-foot{display:flex;justify-content:space-between;gap:12px;margin:10px 0 0;font-size:13px}
+.ob-foot .linkbtn:last-child{color:var(--muted)}
+.ob-dlg .dlg{max-width:440px}
+.ob-dlg h2{margin:4px 0 6px;text-align:center;text-wrap:balance}
+.ob-dlg p{text-align:center;color:var(--muted);margin:0 0 12px}
+.ob-dlg-ic{font-size:34px;text-align:center}
+.ob-feats{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.ob-feats li{padding:9px 12px;border-bottom:1px solid var(--line)}.ob-feats li:last-child{border-bottom:0}
+.ob-feats b{display:block;font-size:14px}.ob-feats small{color:var(--muted);font-size:12.5px}
+@media (max-width:760px){.ob-steps{grid-template-columns:minmax(0,1fr)}}

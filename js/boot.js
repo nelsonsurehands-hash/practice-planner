@@ -171,7 +171,9 @@ async function useJoin(){
   return data;
 }
 function alertBar(text,ok){const b=document.createElement("div");b.className="join-toast"+(ok?" ok":"");b.setAttribute("role","status");b.textContent=text;document.body.appendChild(b);setTimeout(()=>b.classList.add("out"),5200);setTimeout(()=>b.remove(),6000);}
-function joinedToast(t){alertBar(`You're on the ${(t.settings||{}).teamLabel||t.name} staff. Welcome, coach!`,true);}
+function joinedToast(t){alertBar(`You're on the ${(t.settings||{}).teamLabel||t.name} staff. Welcome, coach!`,true);
+  /* A coach who just joined a staff by code gets the quick feature walkthrough once (pagehelp.js). */
+  try{localStorage.setItem("cpp:tourNext","1");}catch{}if(window.tourAfterJoin)tourAfterJoin();}
 async function loadTeams(){
   if(!HOSTED){teams=readDemoTeams();return;}
   let {data,error}=await sb.from("team_members").select("role,title,display_name,perms, teams(id,name,settings,join_code,viewer_code)").eq("user_id",user.id);
@@ -213,7 +215,7 @@ const FEAT_NAMES={"tab:home":"Home","tab:plan":"Practice plan","tab:plays":"Play
   "cal:export":"Export calendar","cal:setup":"Season setup","cal:multiday":"Apply time to more days","parentlink:open":"Parent link opened","parentlink:send":"Parent link sent",
   "food:send":"Food sign-up link sent","stats:live":"Live stat tracker","stats:tracking":"Stats tapped in a game","stats:season":"Season stats","bus:print":"Bus list printed",
   "bus:copy":"Bus list copied","bus:checkin":"Bus check-in","schedule:print":"Schedule printed","schedule:copy":"Schedule copied","export":"Backup exported","help":"How-to (?) opened",
-  "drill:save":"Drill saved","play:new":"New play saved","event:game":"Game added","event:mine":"Personal event added","plays:coachshare":"Play sent to a coach","plays:copied":"Shared play copied","team:create":"Team created","team:join":"Joined a team","staff:schoolcode":"School staff code","invite:open":"Invite a coach opened"};
+  "drill:save":"Drill saved","play:new":"New play saved","onboard:roster":"Get started: roster","onboard:plan":"Get started: practice","onboard:play":"Get started: play","onboard:games":"Get started: games","onboard:staff":"Get started: invite assistant","onboard:parents":"Get started: parent link","onboard:unlock":"Turned on the rest of the app","onboard:later":"Rest of app: not yet","onboard:pick":"Rest of app: picked some","onboard:hide":"Hid the Get started list","event:game":"Game added","event:mine":"Personal event added","plays:coachshare":"Play sent to a coach","plays:copied":"Shared play copied","team:create":"Team created","team:join":"Joined a team","staff:schoolcode":"School staff code","invite:open":"Invite a coach opened"};
 const featName=k=>FEAT_NAMES[k]||(k.startsWith("team:")?"Team → "+k.slice(5):k.startsWith("defense:")?"Auto defense: "+k.slice(8):k.startsWith("home:")?"Home tile: "+k.slice(5):k.startsWith("photo:")?"Photo import: "+k.slice(6):k.startsWith("cal:export:")?"Calendar export: "+k.slice(11):k);
 async function renderUsage(){
   const box=$("#usageBody");box.innerHTML=`<p class="help">Loading…</p>`;
@@ -390,6 +392,8 @@ function showSetup(canGoBack,focusJoin){
   const nm=team&&team.myName||"";$("#suName").value=nm;$("#joinName").value=nm;
   updateStarterLabel();fillCopyFrom();
   if(typeof suLogo!=="undefined"){suLogo="";$("#suLogoPrev").textContent="Logo";$("#suLogoRm").hidden=true;$("#suLogoColors").hidden=true;$("#suUseC2").checked=false;}
+  /* Coaches who already have a team see the full form, open, like before. First-timers get the short one. */
+  $("#suMore").open=!!(teams&&teams.length);suFeatTouched=false;
   show("screen-setup");
   if(focusJoin)$("#joinCode").focus();
 }
@@ -467,8 +471,9 @@ const readFeat=box=>Object.fromEntries([...box.querySelectorAll("[data-feat]")].
 const progOf=f=>Object.keys(PROGRAMS).find(k=>FEATURES.every(([x])=>(f[x]!==false)===featuresFor(k)[x]))||"";
 function renderSuFeatures(prog){$("#suProg").innerHTML=progHTML("suProg",prog);$("#suFeatures").innerHTML=featHTML(featuresFor(prog));}
 renderSuFeatures("school");
-$("#suProg").addEventListener("change",e=>{if(e.target.name==="suProg")$("#suFeatures").innerHTML=featHTML(featuresFor(e.target.value));});
-$("#suFeatures").addEventListener("change",()=>{const p=progOf(readFeat($("#suFeatures")));document.querySelectorAll('[name="suProg"]').forEach(r=>r.checked=r.value===p);});
+var suFeatTouched=false;   // a coach who picks features on the form gets exactly what they picked
+$("#suProg").addEventListener("change",e=>{if(e.target.name==="suProg"){suFeatTouched=true;$("#suFeatures").innerHTML=featHTML(featuresFor(e.target.value));}});
+$("#suFeatures").addEventListener("change",()=>{suFeatTouched=true;const p=progOf(readFeat($("#suFeatures")));document.querySelectorAll('[name="suProg"]').forEach(r=>r.checked=r.value===p);});
 let suLogo="";
 $("#suLogo").addEventListener("change",async e=>{
   const f=e.target.files[0];e.target.value="";if(!f)return;
@@ -491,6 +496,12 @@ $("#setupForm").addEventListener("submit",async e=>{
     color2:$("#suUseC2").checked?$("#suColor2").value:""};
   if(suLogo)settings.logo=suLogo;
   settings.features=readFeat($("#suFeatures"));settings.program=progOf(settings.features)||"custom";
+  /* A coach's very first team starts simple: the Get started checklist on Home, and (unless they chose
+     features themselves) the game-day and parent tools waiting until they're ready for them.
+     Coaches who already have a team, and assistants joining one, never see any of this. */
+  const firstTeam=!(HOSTED?teams:readDemoTeams()).length;
+  if(firstTeam&&window.Onboard){const off=suFeatTouched?[]:Onboard.STARTER_OFF.filter(k=>settings.features[k]!==false);
+    off.forEach(k=>settings.features[k]=false);settings.onboard={since:todayISO(),starterOff:off};}
   const src=teams.find(x=>x.id===$("#suCopyFrom").value)||null,sst=src&&src.settings||{};
   if(src&&$("#suCpSched").checked){
     ["practiceDays","weekendStart","weekendEnd","minPractices"].forEach(k=>{if(sst[k]!==undefined)settings[k]=JSON.parse(JSON.stringify(sst[k]));});
@@ -541,7 +552,7 @@ $("#joinForm").addEventListener("submit",async e=>{
   const {data,error}=await sb.rpc("join_team",{p_code:code,p_display_name:$("#joinName").value.trim()||null});
   if(error){msg($("#joinMsg"),error.message,"err");return;}
   await loadTeams();const t=teams.find(x=>x.id===data);
-  if(t){$("#joinForm").reset();await openTeam(t);setTab("home");}
+  if(t){$("#joinForm").reset();await openTeam(t);setTab("home");joinedToast(t);}
   else msg($("#joinMsg"),"Joined, but the team couldn't be loaded. Reload the page.","err");
 });
 

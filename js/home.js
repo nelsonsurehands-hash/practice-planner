@@ -93,7 +93,8 @@ function render(){
   const days=SchedCore.days(SETTINGS);
   document.getElementById("hmEyebrow").textContent=typeof team!=="undefined"&&team?[team.name,(team.settings||{}).teamLabel].filter(Boolean).join(" · "):"";
   const h=new Date().getHours();document.getElementById("hmHello").textContent=h<12?"Good morning":h<17?"Good afternoon":"Good evening";
-  box.innerHTML=`<div class="hm-grid"><div class="hm-col">${todayCard(days)}${quick()}</div><div class="hm-col">${nextGameCard()}${recordCard()}${weekCard(days)}</div></div>`;
+  box.innerHTML=(window.Onboard?Onboard.card():"")+`<div class="hm-grid"><div class="hm-col">${todayCard(days)}${quick()}</div><div class="hm-col">${nextGameCard()}${recordCard()}${weekCard(days)}</div></div>`;
+  if(window.Onboard)Onboard.maybeAsk();
 }
 window.onHomeTab=render;
 window.renderHome=render;

@@ -231,6 +231,8 @@
       <label class="f">School or club<input id="suSchool" data-tc required placeholder="e.g. Riverside"></label>
       <label class="f">Team name<input id="suMascot" data-tc placeholder="e.g. Ravens"></label>
     </div>
+    <p class="help su-quick">That's all you need to start. Season dates, practice times, your logo and the rest can be filled in any time.</p>
+    <details class="su-more" id="suMore"><summary>More options <small>Grade, season, practice times, logo, colors, features</small></summary>
     <div class="f">Grade/Level<div class="lvl-pick"><select id="suLabelSel" aria-label="Grade or level" data-lvl="suLabel"></select><input id="suLabel" placeholder="Type it, e.g. 14U, 6th Grade" hidden></div></div>
     <div class="grid2">
       <label class="f">Season starts<input id="suStart" type="date"></label>
@@ -269,6 +271,7 @@
       <details class="feat-more"><summary>Choose the features you'll use</summary><div class="feat-list" id="suFeatures"></div></details>
     </fieldset>
     <p class="help" style="font-size:13px">You can add games, days off and weekend times on the Calendar tab later, and turn features on or off in Settings any time.</p>
+    </details>
     <div class="actions" style="margin-top:0"><button class="btn primary" type="submit">Create team</button><button class="btn demo-only" type="button" id="suSample">Explore with sample team</button><button class="btn" type="button" id="suBack" hidden>Back to planner</button></div>
     <div class="msg" id="setupMsg"></div>
   </form>
@@ -775,6 +778,7 @@
 <script src="js/photoai.js"></script>
 <script src="js/schedule-core.js"></script>
 <script src="js/home.js"></script>
+<script src="js/onboard.js"></script>
 <script src="js/pagehelp.js"></script>
 <script src="js/update.js"></script>
 <script src="js/brand.js"></script>
