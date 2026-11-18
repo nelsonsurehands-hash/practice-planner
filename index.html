@@ -28,9 +28,17 @@
 
 <!-- Loading -->
 <div id="screen-loading" class="splash" role="status" aria-live="polite">
-  <svg class="sp-court" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <circle cx="200" cy="200" r="70"/><circle cx="200" cy="200" r="22"/><path d="M0 200H400"/>
-    <path d="M140 0V120H260V0M140 400V280H260V400"/><path d="M40 0V40A160 160 0 0 0 360 40V0M40 400V360A160 160 0 0 1 360 360V400"/>
+  <svg class="sp-play" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs><marker id="spArrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="sp-head"/></marker>
+      <mask id="spPassMask" maskUnits="userSpaceOnUse"><path class="sp-draw d3" pathLength="1" d="M672 318C728 420 728 600 662 708" stroke="#fff" stroke-width="22" fill="none"/></mask></defs>
+    <g class="sp-tok t1"><circle cx="330" cy="262" r="24"/></g>
+    <g class="sp-tok t2"><circle cx="660" cy="300" r="24"/></g>
+    <g class="sp-tok t3"><circle cx="650" cy="728" r="24"/></g>
+    <g class="sp-tok t4"><path d="M330 738l36 36M366 738l-36 36"/></g>
+    <path class="sp-draw d1" pathLength="1" d="M318 290C270 380 280 520 352 600" marker-end="url(#spArrow)"/>
+    <path class="sp-draw d2" pathLength="1" d="M636 290C584 214 452 210 398 296"/>
+    <path class="sp-screen d2b" d="M380 286L416 306"/>
+    <path class="sp-pass" d="M672 318C728 420 728 600 662 708" mask="url(#spPassMask)" marker-end="url(#spArrow)"/>
   </svg>
   <div class="sp-center">
     <div class="sp-badge">
