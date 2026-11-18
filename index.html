@@ -29,16 +29,19 @@
 <!-- Loading -->
 <div id="screen-loading" class="splash" role="status" aria-live="polite">
   <svg class="sp-play" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <defs><marker id="spArrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="sp-head"/></marker>
-      <mask id="spPassMask" maskUnits="userSpaceOnUse"><path class="sp-draw d3" pathLength="1" d="M672 318C728 420 728 600 662 708" stroke="#fff" stroke-width="22" fill="none"/></mask></defs>
+    <defs><mask id="spPassMask" maskUnits="userSpaceOnUse"><path class="sp-draw d3" pathLength="1" d="M688 548C692 640 620 702 560 708"/></mask></defs>
+    <!-- 1 (top left) gets the screen, 2 (top right) sets it, 3 (right) has the ball -->
     <g class="sp-tok t1"><circle cx="330" cy="262" r="24"/></g>
     <g class="sp-tok t2"><circle cx="660" cy="300" r="24"/></g>
-    <g class="sp-tok t3"><circle cx="650" cy="728" r="24"/></g>
-    <g class="sp-tok t4"><path d="M330 738l36 36M366 738l-36 36"/></g>
-    <path class="sp-draw d1" pathLength="1" d="M318 290C270 380 280 520 352 600" marker-end="url(#spArrow)"/>
-    <path class="sp-draw d2" pathLength="1" d="M636 290C584 214 452 210 398 296"/>
-    <path class="sp-screen d2b" d="M380 286L416 306"/>
-    <path class="sp-pass" d="M672 318C728 420 728 600 662 708" mask="url(#spPassMask)" marker-end="url(#spArrow)"/>
+    <g class="sp-tok t3"><circle cx="690" cy="520" r="24"/><circle class="sp-ballmark" cx="716" cy="498" r="9"/></g>
+    <!-- 2 comes over the top of the logo and screens for 1 -->
+    <path class="sp-draw d1" pathLength="1" d="M636 288C584 194 424 186 374 234"/>
+    <path class="sp-screen" d="M358 220L388 250"/>
+    <!-- 1 uses the screen and cuts all the way around to catch -->
+    <path class="sp-draw d2" pathLength="1" d="M320 290C228 470 290 702 470 714"/><path class="sp-arrow a2" d="M452 700L476 714L452 728Z"/>
+    <!-- 3 passes to 1 as she arrives -->
+    <path class="sp-pass" d="M688 548C692 640 620 702 560 708" mask="url(#spPassMask)"/><path class="sp-arrow a3" d="M578 696L554 709L578 722Z"/>
+    <circle class="sp-ballmark sp-fly" r="9" cx="0" cy="0"><animateMotion dur=".8s" begin="3.25s" fill="freeze" path="M716 498C694 640 610 704 506 712"/></circle>
   </svg>
   <div class="sp-center">
     <div class="sp-badge">
