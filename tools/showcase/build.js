@@ -3,7 +3,7 @@
    so every page shows exactly what the app draws.  Run:  node tools/showcase/build.js */
 const fs=require("fs"),path=require("path"),vm=require("vm");
 const ROOT=path.join(__dirname,"..",".."),SITE="https://theextracoach.com";
-const ITEMS=require("./data.js");
+const ITEMS=require("./data.js"),LEGAL=require("./legal.js");
 
 /* ---- load the app's drawing code ---- */
 const ctx={console,Math,JSON,document:{querySelector:()=>null},performance:{now:()=>0}};vm.createContext(ctx);
@@ -78,7 +78,7 @@ ${(ld||[]).map(o=>`<script type="application/ld+json">${JSON.stringify(o).replac
 const foot=`<footer class="sc-foot"><div class="sc-wrap">
   <span class="lp-logo small"><img src="/brand/mark.svg" alt="" width="24" height="24"><span>The Extra <b>Coach</b></span></span>
   <span>Practice plans, animated plays, the season calendar and parent sign-ups in one app for your whole staff.</span>
-  <span class="sc-foot-links"><a href="/basketball/">Plays &amp; drills</a><a href="/basketball-practice-plan-template/">Practice plan templates</a><a href="/basketball-play-template/">Printable play templates</a></span>
+  <span class="sc-foot-links"><a href="/basketball/">Plays &amp; drills</a><a href="/basketball-practice-plan-template/">Practice plan templates</a><a href="/basketball-play-template/">Printable play templates</a><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a></span>
 </div></footer>`;
 const cta=it=>`<aside class="sc-cta">
   <div><p class="sc-eyebrow">Made in The Extra Coach</p>
@@ -315,9 +315,22 @@ out("basketball-play-designer/index.html",designerPage(ITEMS));
 out("basketball-practice-plan-template/index.html",practiceTemplatePage());
 out("basketball-play-template/index.html",playTemplatePage());
 const today=new Date().toISOString().slice(0,10);
+/* ---- privacy policy and terms (text in tools/showcase/legal.js) ---- */
+function legalPage(key,url){const L=LEGAL[key];
+  return head({title:`${L.title} | The Extra Coach`,desc:L.lede,canon:url})+`
+<main class="sc-wrap sc-main sc-legal">
+  <header class="sc-hero"><p class="sc-eyebrow">Last updated ${LEGAL.UPDATED}</p><h1>${esc(L.title)}</h1><p class="sc-lede">${esc(L.lede)}</p></header>
+  ${L.sections.map(([h,ps])=>`<section class="sc-sec"><h2>${esc(h)}</h2>${ps.map(t=>`<p>${t}</p>`).join("")}</section>`).join("\n  ")}
+</main>
+${foot}
+</body>
+</html>
+`;}
+out("privacy/index.html",legalPage("privacy","/privacy/"));
+out("terms/index.html",legalPage("terms","/terms/"));
 out("sitemap.xml",`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${["/","/basketball-play-designer/","/basketball-practice-plan-template/","/basketball-play-template/","/basketball/",...ITEMS.map(urlOf)].map(u=>`  <url><loc>${SITE}${u}</loc><lastmod>${today}</lastmod></url>`).join("\n")}
+${["/","/privacy/","/terms/","/basketball-play-designer/","/basketball-practice-plan-template/","/basketball-play-template/","/basketball/",...ITEMS.map(urlOf)].map(u=>`  <url><loc>${SITE}${u}</loc><lastmod>${today}</lastmod></url>`).join("\n")}
 </urlset>
 `);
 out("robots.txt",`User-agent: *

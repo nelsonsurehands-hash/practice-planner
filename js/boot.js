@@ -1115,13 +1115,40 @@ $("#staffBody").addEventListener("change",async e=>{
   if(sel&&sel.dataset.role===user.id){await loadTeams();team=teams.find(t=>t.id===team.id)||team;openTeam(team);}
 });
 
+/* ---------- delete my account ----------
+   Shows what happens to each team first (deleted, handed to another coach, or just left), asks for a
+   backup, and only goes ahead once the coach types DELETE. supabase/delete-account.sql does the work. */
+async function renderDelete(){
+  const box=$("#delBody");box.innerHTML=`<p class="help">Loading…</p>`;
+  const {data,error}=await sb.rpc("account_delete_preview");
+  if(error){box.innerHTML=`<p class="msg err">${/function|schema cache|does not exist/i.test(error.message)?"Account deletion isn't set up yet. Email coach@theextracoach.com and we'll delete your account for you.":esc(error.message)}</p>`;return;}
+  const what={delete:"will be deleted, with all its plans, plays, roster, schedule and sign-ups",handoff:"stays with your staff. It goes to",leave:"stays. You're just removed from the staff"};
+  const rows=(data||[]).map(r=>`<li class="${r.action}"><b>${esc(r.team)}</b> ${what[r.action]}${r.action==="handoff"?` <b>${esc(r.to||"another coach")}</b>`:""}.</li>`).join("");
+  box.innerHTML=`<p class="help">This permanently deletes your account. It can't be undone.</p>
+    ${rows?`<ul class="del-list">${rows}</ul>`:""}
+    <p class="help">Want a copy first? Use <b>Export</b> in Settings to download a backup of each team.</p>
+    <form id="delForm" class="actions" style="margin:0;align-items:end"><label class="f" style="flex:1 1 200px">Type DELETE to confirm<input id="delType" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>
+      <button class="btn danger" type="submit" id="delGo" disabled>Delete my account</button></form><div class="msg" id="delMsg"></div>`;
+  $("#delType").addEventListener("input",e=>{$("#delGo").disabled=e.target.value.trim().toUpperCase()!=="DELETE";});
+  $("#delForm").addEventListener("submit",async e=>{
+    e.preventDefault();if($("#delType").value.trim().toUpperCase()!=="DELETE")return;
+    $("#delGo").disabled=true;msg($("#delMsg"),"Deleting…");
+    const {error}=await sb.rpc("delete_my_account");
+    if(error){msg($("#delMsg"),error.message,"err");$("#delGo").disabled=false;return;}
+    try{["cpp:lastTeam","cpp:splash"].forEach(k=>localStorage.removeItem(k));}catch{}
+    await sb.auth.signOut().catch(()=>{});
+    alertBar("Your account has been deleted. Thanks for coaching with The Extra Coach.",true);
+  });
+}
 /* ---------- account ---------- */
 function renderAccount(){
   const box=$("#accountBody");
   box.innerHTML=(HOSTED?`<p class="help">Signed in as <b>${esc(user.email||"")}</b>.</p>`:`<p class="help">Demo mode: no account needed.</p>`)+
     `<form id="nameForm" class="actions" style="margin:0;align-items:end"><label class="f" style="flex:1 1 200px">Your name (shown to your staff)<input id="myName" value="${esc(ME.name||"")}"></label><button class="btn" type="submit">Save name</button></form><div class="msg" id="nameMsg"></div>`+
     (HOSTED?`<form id="pwSetForm" class="actions" style="margin:0;align-items:end"><input type="email" autocomplete="username" value="${esc(user.email||"")}" hidden aria-hidden="true"><label class="f" style="flex:1 1 200px">Change password<input id="newPw" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></label><button class="btn" type="submit">Set password</button></form><div class="msg" id="pwMsg"></div>`:"")+
-    `<div class="actions" style="margin-top:0">${HOSTED?`<button class="btn danger" id="signOut">Sign out</button>`:`<button class="btn danger" id="resetDemo">Erase demo data</button>`}</div>`;
+    `<div class="actions" style="margin-top:0">${HOSTED?`<button class="btn danger" id="signOut">Sign out</button>`:`<button class="btn danger" id="resetDemo">Erase demo data</button>`}</div>`+
+    (HOSTED?`<details class="acc-del" id="delAcct"><summary>Delete my account</summary><div id="delBody"><p class="help">Loading…</p></div></details>`:"")+
+    `<p class="help acc-legal"><a href="/privacy/" target="_blank" rel="noopener">Privacy policy</a> · <a href="/terms/" target="_blank" rel="noopener">Terms of use</a></p>`;
   $("#nameForm").addEventListener("submit",async e=>{
     e.preventDefault();const v=$("#myName").value.trim();if(!v)return;
     if(HOSTED){
@@ -1133,6 +1160,7 @@ function renderAccount(){
     msg($("#nameMsg"),"Saved","ok");renderStaff();if(cur)renderPlan();window.onViewChange();
   });
   if(HOSTED)$("#signOut").addEventListener("click",async()=>{await sb.auth.signOut();});
+  if(HOSTED)$("#delAcct").addEventListener("toggle",e=>{if(e.target.open)renderDelete();});
   if(HOSTED)$("#pwSetForm").addEventListener("submit",async e=>{
     e.preventDefault();const v=$("#newPw").value;
     if(v.length<8){msg($("#pwMsg"),"Use at least 8 characters.","err");return;}

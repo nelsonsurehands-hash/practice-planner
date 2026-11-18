@@ -172,3 +172,7 @@ body.sc{max-width:none;margin:0;padding:0;background:var(--bg);color:var(--ink);
   .pt-courts.g4 .pt-cell svg{max-height:115mm}
   .pt-courts,.pt-sheet,.pt-table tr{break-inside:avoid}
 }
+/* Privacy policy and terms */
+.sc-legal .sc-sec{max-width:74ch}
+.sc-legal .sc-sec p{margin:0 0 10px;line-height:1.6;color:var(--ink)}
+.sc-legal .sc-sec a{color:inherit;text-decoration-color:color-mix(in srgb,currentColor 40%,transparent)}
