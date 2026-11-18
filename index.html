@@ -461,8 +461,9 @@
       </div>
     </div>
     <aside class="playlib">
-      <div class="board-head"><h2>Play Library</h2><div class="bh-btns"><button class="btn" type="button" id="pCommon" hidden>📚 Common plays</button><button class="btn edit-only" type="button" data-photo="play">📷 From a photo</button><button class="btn narrow-only edit-only" type="button" id="pNewTop">+ New play</button></div></div>
-      <button class="btn primary edit-share" id="shareBook">Share with players</button>
+      <div class="board-head pl-head"><h2>Play Library</h2><button class="btn primary pl-new narrow-only edit-only" type="button" id="pNewTop"><span aria-hidden="true">+</span> New play</button></div>
+      <div class="pl-tools"><button class="pl-tool" type="button" id="pCommon" hidden><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5h5.5A3.5 3.5 0 0 1 12 9v10.5a2.5 2.5 0 0 0-2.5-2.5H3z"/><path d="M21 5.5h-5.5A3.5 3.5 0 0 0 12 9v10.5a2.5 2.5 0 0 1 2.5-2.5H21z"/></svg><span>Common plays</span></button><button class="pl-tool edit-only" type="button" data-photo="play"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.4-2h6.2l1.4 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.2"/></svg><span>From a photo</span></button></div>
+      <button class="btn pl-share edit-share" id="shareBook"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="m8 8 4-4 4 4"/><path d="M6 12v6.5A1.5 1.5 0 0 0 7.5 20h9a1.5 1.5 0 0 0 1.5-1.5V12"/></svg>Share with players</button>
       <input id="plSearch" placeholder="Search plays">
       <div id="plList" style="display:flex;flex-direction:column;gap:8px"></div>
     </aside>
