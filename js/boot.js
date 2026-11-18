@@ -230,20 +230,21 @@ async function renderUsage(){
     ${r.features?`<h4 class="us-h">Most used features <small>last 30 days</small></h4>
     ${r.features.length?`<div class="us-feats">${(()=>{const fm=Math.max(1,...r.features.map(f=>f.uses));return r.features.slice(0,40).map((f,i)=>`<div class="us-feat${i>=10?" us-extra":""}"><span>${esc(featName(f.feature))}</span><i style="width:${Math.max(2,Math.round(f.uses/fm*100))}%"></i><b>${f.uses}</b><small>${f.coaches} coach${f.coaches===1?"":"es"}</small></div>`).join("");})()}</div>`:`<p class="help">No feature use counted yet. It starts adding up as coaches use the app.</p>`}`:""}
     ${r.sources&&r.sources.length?`<h4 class="us-h">Where new coaches came from</h4><div class="us-feats">${r.sources.map(x=>`<div class="us-feat"><span>${esc({parent:"Parent calendar page",food:"Food sign-up page",playbook:"Player playbook page",play:"Play sent to a coach"}[x.source]||x.source)}</span><b>${x.n}</b></div>`).join("")}</div>`:""}
+    <div id="usageTime"><p class="help">Loading time in the app…</p></div>
     <div id="usageMore"><p class="help">Loading plays, schedules and photo imports…</p></div>
     <h4 class="us-h">Coaches <small>${(r.users||[]).length} signed up</small></h4>
     <div class="us-ctl"><input type="search" id="usFind" placeholder="Find a coach or team" aria-label="Find a coach or team">
       <div class="us-chips" role="group" aria-label="Show">${[["all","All"],["week","Active this week"],["new","New (30 days)"],["quiet","Gone quiet"]].map(([k,l],i)=>`<button type="button" class="btn" data-usf="${k}" aria-pressed="${!i}">${l}</button>`).join("")}</div>
       <label class="us-mask"><input type="checkbox" id="usShowEmail"> Show emails</label></div>
-    <div class="us-wrap"><table class="us-table"><thead><tr><th>Coach</th><th>Teams</th><th>Last used</th><th>Days used<br><small>30 days</small></th><th>Opens<br><small>30 days</small></th><th>Using it for</th><th>Invited</th><th>Joined</th></tr></thead><tbody>
+    <div class="us-wrap"><table class="us-table"><thead><tr><th>Coach</th><th>Teams</th><th>Last used</th><th>Days used<br><small>30 days</small></th><th>Visits<br><small>30 days</small></th><th>Avg visit<br><small>30 days</small></th><th>Using it for</th><th>Invited</th><th>Joined</th></tr></thead><tbody>
     ${(r.users||[]).map(u=>{const seen=u.last_seen||u.last_sign_in,ago=seen?(Date.now()-new Date(seen))/864e5:999,age=u.joined?(Date.now()-new Date(u.joined))/864e5:999;
-      return `<tr data-email="${esc(u.email||"")}" data-q="${esc([u.name,u.email,...(u.teams||[])].join(" ").toLowerCase())}" data-week="${ago<=7?1:0}" data-new="${age<=30?1:0}" data-quiet="${ago>14?1:0}"><td><b>${esc(u.name||(u.email||"").split("@")[0])}</b><small class="us-em" data-full="${esc(u.email||"")}">${esc(maskEmail(u.email))}</small></td><td>${esc((u.teams||[]).join(", ")||"—")}</td><td>${esc(usageAgo(u.last_seen||u.last_sign_in))}</td><td>${u.days_30}</td><td>${u.opens_30}</td><td data-span>…</td><td>${u.invited||0}</td><td>${u.joined?esc(new Date(u.joined).toLocaleDateString("en-US",{month:"short",day:"numeric"})):"—"}</td></tr>`;}).join("")}</tbody></table></div>
+      return `<tr data-email="${esc(u.email||"")}" data-q="${esc([u.name,u.email,...(u.teams||[])].join(" ").toLowerCase())}" data-week="${ago<=7?1:0}" data-new="${age<=30?1:0}" data-quiet="${ago>14?1:0}"><td><b>${esc(u.name||(u.email||"").split("@")[0])}</b><small class="us-em" data-full="${esc(u.email||"")}">${esc(maskEmail(u.email))}</small></td><td>${esc((u.teams||[]).join(", ")||"—")}</td><td>${esc(usageAgo(u.last_seen||u.last_sign_in))}</td><td>${u.days_30}</td><td>${u.opens_30}</td><td data-avg>…</td><td data-span>…</td><td>${u.invited||0}</td><td>${u.joined?esc(new Date(u.joined).toLocaleDateString("en-US",{month:"short",day:"numeric"})):"—"}</td></tr>`;}).join("")}</tbody></table></div>
     <div class="us-more"><span id="usCount"></span><button class="btn" type="button" id="usAll" hidden>Show all</button></div>
-    <p class="help">An "open" is each time a coach starts the app or comes back to it after 30 minutes away. Counting started when this was turned on, so earlier use isn't included.</p>
+    <p class="help">A visit is each time a coach starts the app or comes back to it after 30 minutes away. Visit length counts only time with the app on screen. Counting started when this was turned on, so earlier use isn't included.</p>
     <div class="actions" style="margin:0"><button class="btn" type="button" id="usageRefresh">Refresh</button></div>`;
   if(r.features&&r.features.length>10){const f=box.querySelector(".us-feats");if(f)f.insertAdjacentHTML("afterend",`<button class="linkbtn us-featall" type="button">Show all ${Math.min(40,r.features.length)} features</button>`);}
   usLimit=10;usFilter="all";usApply();
-  renderUsageMore();
+  renderUsageMore();renderUsageTime();
 }
 /* The coaches list stays short: 10 at a time, with a search, quick filters, and emails hidden until asked. */
 const maskEmail=e=>{e=String(e||"");const [n,d]=e.split("@");if(!d)return e?"•••":"";return n.slice(0,1)+"•••@"+d;};
@@ -263,6 +264,24 @@ document.addEventListener("click",e=>{
   const f=e.target.closest("[data-usf]");if(f){usFilter=f.dataset.usf;usLimit=10;document.querySelectorAll("[data-usf]").forEach(b=>b.setAttribute("aria-pressed",b===f));usApply();}
   if(e.target.closest(".us-featall")){document.querySelector("#usageBody .us-feats").classList.add("all");e.target.remove();}
 });
+/* Time in the app: how long a visit lasts, how often coaches come, how many days a week. */
+const mmss=sec=>{sec=Math.round(+sec||0);if(sec<60)return sec+" sec";const m=Math.floor(sec/60),r=sec%60;return m+" min"+(r&&m<10?" "+r+" sec":"");};
+async function renderUsageTime(){
+  const box=$("#usageTime");if(!box)return;
+  const {data:t,error}=await sb.rpc("usage_time");
+  if(error){box.innerHTML=`<p class="msg err">${/function|schema cache|does not exist/i.test(error.message)?"Time in the app needs one database step: run supabase/visit-time.sql in Supabase → SQL Editor.":esc(error.message)}</p>`;return;}
+  const tile=(n,l)=>`<div class="us-tile"><b>${n??"–"}</b><small>${l}</small></div>`;
+  const bd=t.by_day||[],vm=Math.max(1,...bd.map(x=>x.visits));
+  const dl=d=>{const x=new Date(String(d).slice(0,10)+"T12:00");return (x.getMonth()+1)+"/"+x.getDate();};
+  box.innerHTML=`<h4 class="us-h">Time in the app <small>last 30 days</small></h4>
+    ${t.visits_30?`<div class="us-tiles">${tile(mmss(t.avg_sec),"average visit")}${tile(mmss(t.median_sec),"typical visit (median)")}${tile(t.visits_30,"visits")}${tile(t.visits_per_day,"visits a day, all coaches")}${tile(t.visits_per_coach_day,"visits per coach, on days they use it")}${tile(t.days_per_week,"days a week, per coach")}${tile((t.total_min??0)+" min","total time in the app")}${t.installed_pct!=null?tile(t.installed_pct+"%","of visits from the home-screen app"):""}</div>
+    <h4 class="us-h">Visits each day <small>last 14 days</small></h4>
+    <div class="us-weeks d14">${bd.map(x=>`<div><span style="height:${Math.max(3,Math.round(x.visits/vm*100))}%" title="${dl(x.day)}: ${x.visits} visits, ${x.minutes} min, ${x.coaches} coaches"></span><b>${x.visits}</b><small>${dl(x.day)}</small></div>`).join("")}</div>`
+    :`<p class="help">Counting started. Visit lengths show up here as coaches use the app.</p>`}`;
+  const by=Object.fromEntries((t.people||[]).map(p=>[p.email,p]));
+  document.querySelectorAll("#usageBody .us-table tbody tr").forEach(tr=>{const p=by[tr.dataset.email||""],c=tr.querySelector("[data-avg]");if(!c)return;
+    c.innerHTML=p?`${esc(mmss(p.avg_sec))}<small>${p.minutes} min total</small>`:"—";});
+}
 /* Plays built, games and events scheduled, photo imports, and whether coaches keep coming back. */
 async function renderUsageMore(){
   const box=$("#usageMore");if(!box)return;
