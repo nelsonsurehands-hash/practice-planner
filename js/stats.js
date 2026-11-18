@@ -20,7 +20,10 @@ const lineupSize=()=>({basketball:5,volleyball:6,soccer:11,football:11,baseball:
 const mmss=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");};
 const pct=(m,a)=>a?Math.round(100*m/a)+"%":"–";
 const avg=(v,n)=>n?(Math.round(10*v/n)/10).toFixed(1):"–";
-const pname=p=>p?T().pname(p):"Player";
+const pname=p=>p?(p.numOnly?"#"+p.number:T().pname(p)):"Player";
+/* A game tracked with numbers only (no roster) keeps its own players: [{id:"n12",number:"12",numOnly:true}]. */
+const rosterOf=g=>(g&&g.players&&g.players.length)?g.players:T().roster;
+const numPlayers=txt=>[...new Set(String(txt||"").split(/[^0-9]+/).filter(Boolean).map(n=>String(+n)))].slice(0,30).map(n=>({id:"n"+n,number:n,name:"",numOnly:true}));
 const short=p=>p?`${p.number?"#"+p.number+" ":""}${String(p.name||"").split(" ")[0]}`:"?";
 
 /* What can be recorded, by sport. pts = points it adds to our score. */
@@ -90,18 +93,25 @@ function stopTick(){clearInterval(tick);tick=null;}
 function setupForm(g,saved){
   const R=T().roster,plan=(T().plans||{})[g.date]||{},pre=(plan.starters||[]).filter(Boolean);
   const isBB=SPORT()==="basketball";
+  /* Numbers only: no roster needed (pickup, open gym, a scrimmage with kids you don't have on the roster).
+     It's the only choice when the roster is empty. */
+  const nums=!R.length||setupForm.nums;
+  const chips=(list,checked)=>list.map(p=>`<label><input type="checkbox" name="st" value="${esc(p.id)}"${checked.includes(p.id)?" checked":""}> ${esc(pname(p))}</label>`).join("");
   return `<div class="tm-card"><h3 class="tm-h">${g.quick?"Quick game":`Track ${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")}`} <small>${esc(T().longDay(dayOf(g.date)))}</small></h3>
     ${g.quick?`<p class="help" style="margin-top:0">For scrimmages, pickup and open gym: no game on the schedule needed.</p>`:""}
-    ${R.length?`<form id="lvSetup" class="lv-setup">
+    <form id="lvSetup" class="lv-setup">
+      ${R.length?`<div class="seg lv-mode" role="group" aria-label="Players"><button type="button" data-lvmode="roster" aria-pressed="${!nums}">My roster</button><button type="button" data-lvmode="nums" aria-pressed="${nums}">Numbers only</button></div>`:""}
       <div class="bus-grid">
         ${g.quick?`<label class="f">Name or opponent (optional)<input name="opp" maxlength="40" placeholder="e.g. Scrimmage, Blue vs White, Lincoln JV"></label>`:""}
         <label class="f">Game is played in<select name="periods"><option value="4"${isBB?" selected":""}>4 quarters</option><option value="2"${isBB?"":" selected"}>2 halves</option><option value="3">3 periods</option></select></label>
       </div>
-      <fieldset class="catpick"><legend>Starters (${lineupSize()})</legend><div class="lv-starters">${R.map(p=>`<label><input type="checkbox" name="st" value="${esc(p.id)}"${pre.includes(p.id)?" checked":""}> ${esc(pname(p))}</label>`).join("")}</div></fieldset>
-      ${pre.length?`<p class="help" style="margin:0">Starters are filled in from this game's gameplan.</p>`:""}
-      ${g.quick?`<label class="lv-season"><input type="checkbox" name="season"> Count these stats in season stats</label>`:""}
-      <div class="actions" style="margin:0"><button class="btn primary" type="submit">Start tracking</button><button class="btn" type="button" data-st="back">Back</button></div><div class="msg" id="lvMsg"></div></form>`:
-      `<p class="help">Add your players on the <button type="button" class="linkbtn" data-goteam="roster">Roster</button> page first, then come back to track the game.</p>`}</div>`;
+      ${nums?`<label class="f">Jersey numbers<input name="nums" inputmode="numeric" autocomplete="off" placeholder="e.g. 3 5 12 14 23 30" value="${esc(setupForm.numTxt||"")}"></label>
+        <p class="help" style="margin:-4px 0 0">${R.length?"":"No roster needed. "}Type the numbers with spaces or commas. These players aren't added to your roster.</p>
+        <fieldset class="catpick"><legend>Starters (${lineupSize()})</legend><div class="lv-starters" id="lvNumStart">${numPlayers(setupForm.numTxt).length?chips(numPlayers(setupForm.numTxt),numPlayers(setupForm.numTxt).slice(0,lineupSize()).map(p=>p.id)):`<span class="help">Type numbers above, then pick who starts.</span>`}</div></fieldset>`
+      :`<fieldset class="catpick"><legend>Starters (${lineupSize()})</legend><div class="lv-starters">${chips(R,pre)}</div></fieldset>
+        ${pre.length?`<p class="help" style="margin:0">Starters are filled in from this game's gameplan.</p>`:""}
+        ${g.quick?`<label class="lv-season"><input type="checkbox" name="season"> Count these stats in season stats</label>`:""}`}
+      <div class="actions" style="margin:0"><button class="btn primary" type="submit">Start tracking</button><button class="btn" type="button" data-st="back">Back</button></div><div class="msg" id="lvMsg"></div></form></div>`;
 }
 /* Short labels for the stat bar. */
 const SHORT={"2pm":"2 PT ✓","2px":"2 PT ✗","3pm":"3 PT ✓","3px":"3 PT ✗","ftm":"FT ✓","ftx":"FT ✗","oreb":"O REB","dreb":"D REB","ast":"AST","stl":"STL","blk":"BLK","to":"TO","pf":"FOUL"};
@@ -110,7 +120,7 @@ let armed=null;   // a stat waiting for a player tap
 function renderLive(){
   const box=$("#tm-stats"),g=live;if(!g){document.body.classList.remove("live-mode");return;}
   document.body.classList.add("live-mode");if(!renderLive.top){window.scrollTo(0,0);renderLive.top=true;}
-  const R=T().roster,by=Object.fromEntries(R.map(p=>[p.id,p])),c=compute(g,true),set=statset();
+  const R=rosterOf(g),by=Object.fromEntries(R.map(p=>[p.id,p])),c=compute(g,true),set=statset();
   const onc=c.onCourt.map(id=>by[id]).filter(Boolean),bench=R.filter(p=>!c.onCourt.includes(p.id));
   const left=g.len-clockNow(g),tf=teamFouls(g,g.period),bb=SPORT()==="basketball";
   const tile=(p,floor)=>{const r=c.players[p.id]||{s:{},pts:0,min:0},pf=r.s.pf||r.s.foul||0;
@@ -147,7 +157,7 @@ function addEvent(e){
 }
 function applyStat(pid,k){
   addEvent({k:"stat",pid,stat:k});armed=null;pick=null;
-  const p=T().roster.find(x=>x.id===pid),lab=SHORT[k]||(statset().find(x=>x[0]===k)||[])[1]||k;
+  const p=rosterOf(live).find(x=>x.id===pid),lab=SHORT[k]||(statset().find(x=>x[0]===k)||[])[1]||k;
   renderLive();flash(`${short(p)} · ${lab}`);
 }
 /* Drag a player between the floor and the bench to sub. Works with a finger or a mouse. */
@@ -176,7 +186,7 @@ function endDrag(e,cancel){
   d.ghost.remove();d.el.classList.remove("dragging");noClick=true;setTimeout(()=>noClick=false,350);
   if(cancel)return;
   const under=document.elementFromPoint(e.clientX,e.clientY),tile=under&&under.closest("[data-tile]"),zone=under&&under.closest("[data-zone]");
-  const c=compute(live,true),full=c.onCourt.length>=lineupSize(),by=Object.fromEntries(T().roster.map(p=>[p.id,p]));
+  const c=compute(live,true),full=c.onCourt.length>=lineupSize(),by=Object.fromEntries(rosterOf(live).map(p=>[p.id,p]));
   let ev=null;
   if(!d.floor&&tile&&tile.dataset.floor==="1")ev={k:"sub",ins:[d.id],outs:[tile.dataset.tile]};
   else if(d.floor&&tile&&tile.dataset.floor==="0")ev={k:"sub",ins:[tile.dataset.tile],outs:[d.id]};
@@ -214,13 +224,24 @@ function showSetClock(){
   box.insertAdjacentHTML("beforeend",`<form class="lv-set" id="lvSet"><input name="t" value="${mmss(g.len-clockNow(g))}" aria-label="Time left (m:ss)" inputmode="numeric"><button class="btn primary" type="submit">OK</button></form>`);
   $("#lvSet input").select();
 }
+/* Setup: switch between the roster and numbers only, and redraw the starter chips as numbers are typed. */
+$("#tm-stats").addEventListener("click",e=>{const b=e.target.closest("[data-lvmode]");if(!b)return;
+  setupForm.nums=b.dataset.lvmode==="nums";const f=$("#lvSetup"),opp=f&&f.opp?f.opp.value:"";render();const g=$("#lvSetup");if(g&&g.opp)g.opp.value=opp;if(setupForm.nums&&g&&g.nums)g.nums.focus();});
+$("#tm-stats").addEventListener("change",e=>{if(e.target.name==="st"&&e.target.closest("#lvNumStart"))setupForm.picked=true;});
+$("#tm-stats").addEventListener("input",e=>{if(e.target.name!=="nums"||!e.target.closest("#lvSetup"))return;
+  setupForm.numTxt=e.target.value;const box=$("#lvNumStart");if(!box)return;
+  const was=new Set([...box.querySelectorAll("[name=st]:checked")].map(x=>x.value)),list=numPlayers(e.target.value);
+  const pick=setupForm.picked?list.filter(p=>was.has(p.id)).map(p=>p.id):list.slice(0,lineupSize()).map(p=>p.id);
+  box.innerHTML=list.length?list.map(p=>`<label><input type="checkbox" name="st" value="${esc(p.id)}"${pick.includes(p.id)?" checked":""}> #${esc(p.number)}</label>`).join(""):`<span class="help">Type numbers above, then pick who starts.</span>`;});
 $("#tm-stats").addEventListener("submit",e=>{
   if(e.target.id==="lvSet"){e.preventDefault();const m=/^(\d{1,2})(?::(\d{1,2}))?$/.exec(e.target.t.value.trim());if(!m||!live)return;
     const left=(+m[1])*60+(+(m[2]||0));live.elapsed=Math.max(0,Math.min(live.len,live.len-left));if(live.running)live.startedAt=Date.now();persist(true);renderLive();return;}
   if(e.target.id==="lvSetup"){e.preventDefault();const f=e.target,st=[...f.querySelectorAll("[name=st]:checked")].map(x=>x.value);
+    const np=f.nums?numPlayers(f.nums.value):null;
+    if(np&&!np.length){msg($("#lvMsg"),"Type at least one jersey number.","err");return;}
     if(st.length>lineupSize()){msg($("#lvMsg"),`Pick up to ${lineupSize()} starters.`,"err");return;}
     const q=isQuick(openDate),g=q?{opponent:(f.opp&&f.opp.value.trim())||"",home:true}:games().find(x=>x.date===openDate);
-    live={date:openDate,...(q?{quick:true,season:!!(f.season&&f.season.checked)}:{}),opponent:g.opponent||"",home:g.home!==false,sport:SPORT(),periods:+f.periods.value,len:480,period:1,elapsed:0,running:false,startedAt:null,lineup:st,events:[],final:false,startedOn:Date.now()};
+    live={date:openDate,...(q?{quick:true,season:!np&&!!(f.season&&f.season.checked)}:{}),...(np?{players:np}:{}),opponent:g.opponent||"",home:g.home!==false,sport:SPORT(),periods:+f.periods.value,len:480,period:1,elapsed:0,running:false,startedAt:null,lineup:st,events:[],final:false,startedOn:Date.now()};
     persist(true);startTick();renderLive();}
 });
 function flash(t){const el=document.createElement("div");el.className="lv-flash";el.textContent="✓ "+t;document.body.appendChild(el);setTimeout(()=>el.remove(),900);}
@@ -233,7 +254,7 @@ async function saveResult(date){
 
 /* ---------- recap ---------- */
 function boxRows(g,c){
-  const R=T().roster,by=Object.fromEntries(R.map(p=>[p.id,p]));
+  const R=rosterOf(g),by=Object.fromEntries(R.map(p=>[p.id,p]));
   const ids=Object.keys(c.players).sort((a,b)=>(c.players[b].pts-c.players[a].pts)||((parseInt((by[a]||{}).number)||99)-(parseInt((by[b]||{}).number)||99)));
   return ids.map(id=>({p:by[id]||{name:"Former player"},r:c.players[id]}));
 }
@@ -256,7 +277,7 @@ function renderRecap(date){
   const g=GAMES[date],gm=metaOf(date)||{date,opponent:(g||{}).opponent};
   const box=$("#tm-stats");
   if(!g){box.innerHTML=`<div class="tm-card"><p class="help">This game hasn't been tracked.</p><button class="btn" data-st="games">‹ Games</button></div>`;return;}
-  const c=compute(g),rows=boxRows(g,c),C=cols(),tot=totalsRow(rows),by=Object.fromEntries(T().roster.map(p=>[p.id,p]));
+  const c=compute(g),rows=boxRows(g,c),C=cols(),tot=totalsRow(rows),by=Object.fromEntries(rosterOf(g).map(p=>[p.id,p]));
   const per=Array.from({length:Math.max(g.periods,g.period)},(_,i)=>i+1);
   const top=rows.slice(0,3).filter(x=>x.r.pts);
   const reb=SPORT()==="basketball"?[...rows].sort((a,b)=>((b.r.s.oreb||0)+(b.r.s.dreb||0))-((a.r.s.oreb||0)+(a.r.s.dreb||0)))[0]:null;
@@ -343,7 +364,7 @@ function quickList(){const q=quickGames();
 /* ---------- printing and spreadsheet ---------- */
 function printRecap(date){
   const g=GAMES[date],gm=metaOf(date)||{};if(!g)return;
-  const c=compute(g),rows=boxRows(g,c),C=cols(),tot=totalsRow(rows),by=Object.fromEntries(T().roster.map(p=>[p.id,p])),doc=T().pdfDoc();
+  const c=compute(g),rows=boxRows(g,c),C=cols(),tot=totalsRow(rows),by=Object.fromEntries(rosterOf(g).map(p=>[p.id,p])),doc=T().pdfDoc();
   let y=T().pdfHead(doc,`${gm.quick?quickTitle(gm):`${gm.home===false?"at":"vs"} ${gm.opponent||"Game"}`}: ${c.us}–${c.them}`,[team.name,(team.settings||{}).teamLabel,T().longDay(dayOf(date))].filter(Boolean).join(" · "));
   const per=Array.from({length:Math.max(g.periods,g.period)},(_,i)=>i+1);
   doc.setFontSize(10);doc.setFont("helvetica","bold");per.forEach((p,i)=>doc.text(g.periods===2?(p===1?"1H":"2H"):PERIOD_NAME(g)+p,170+i*40,y));doc.text("T",170+per.length*40,y);y+=14;
@@ -390,7 +411,7 @@ function render(){
   else swap(renderSeason);
 }
 T().panes.stats=render;
-function startQuick(){openDate="q"+todayISO()+"-"+Math.random().toString(36).slice(2,6);view="setup";render();}
+function startQuick(){setupForm.nums=false;setupForm.numTxt="";setupForm.picked=false;openDate="q"+todayISO()+"-"+Math.random().toString(36).slice(2,6);view="setup";render();}
 $("#tm-stats").addEventListener("click",e=>{
   const b=e.target.closest("[data-st]");if(!b||live)return;
   const a=b.dataset.st;

@@ -71,7 +71,7 @@ const GUIDES={
   ]),
   "team:stats":H("Stats & live tracker","Track a game as it happens, then see box scores and season stats.",[
     ["Live tracker","Tap ● Live tracker to open the game in progress, today's game or the next one. Pick your starters."],
-    ["Quick game","No game on the schedule? Tap + Quick game for a scrimmage, pickup or open gym. Name it if you like, and check Count these stats in season stats if it should count."],
+    ["Quick game","No game on the schedule? Tap + Quick game for a scrimmage, pickup or open gym. Name it if you like, and check Count these stats in season stats if it should count. Pick Numbers only to just type jersey numbers: handy for kids who aren't on your roster (those games stay out of season stats)."],
     ["Add a stat","Tap a stat, then the player (or the player, then the stat). Undo fixes a mistake."],
     ["Subs","Drag a player from the bench onto the floor, or tap to swap. Playing time counts quarters played."],
     ["Other team","Add their points with +1, +2, +3."],
