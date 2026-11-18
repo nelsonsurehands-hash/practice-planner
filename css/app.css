@@ -2071,3 +2071,10 @@ dialog.in-dlg{width:min(460px,calc(100vw - 24px))}
 .del-list li.delete b:first-child{color:var(--warn)}
 .acc-legal{margin:14px 0 0;font-size:13px}.acc-legal a{color:var(--muted)}
 .auth-legal{margin:12px 0 0;font-size:12.5px;color:var(--muted);text-align:center;line-height:1.45}.auth-legal a{color:inherit}
+
+/* Usage: green arrow when a number went up today */
+.us-up{display:inline-flex;align-items:center;gap:3px;margin-left:8px;font-style:normal;font-size:.5em;font-weight:700;color:#14894a;background:color-mix(in srgb,#14894a 13%,transparent);border-radius:999px;padding:2px 8px 2px 6px;vertical-align:middle;letter-spacing:0}
+.us-up svg{width:.8em;height:.8em;fill:currentColor}
+.us-upnote{color:#14894a;font-weight:700}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .us-up,:root:not([data-theme="light"]) .us-upnote{color:#4ade80}}
+:root[data-theme="dark"] .us-up,:root[data-theme="dark"] .us-upnote{color:#4ade80}

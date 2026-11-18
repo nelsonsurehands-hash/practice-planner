@@ -221,10 +221,14 @@ async function renderUsage(){
   const box=$("#usageBody");box.innerHTML=`<p class="help">Loading…</p>`;
   const {data:r,error}=await sb.rpc("usage_report");
   if(error){box.innerHTML=`<p class="msg err">${/function|schema cache|does not exist/i.test(error.message)?"Usage tracking needs one database step: run supabase/team-tools.sql in Supabase → SQL Editor.":esc(error.message)}</p>`;return;}
-  const tile=(n,l)=>`<div class="us-tile"><b>${n}</b><small>${l}</small></div>`;
+  /* Green ▲ +N when the number went up today (local day). */
+  const up=(d,when)=>d>0?`<em class="us-up" title="${d} new ${when}"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.5 9 8H1z"/></svg>${d} ${when}</em>`:"";
+  const tile=(n,l,d,when)=>`<div class="us-tile"><b>${n}${up(d,when||"today")}</b><small>${l}</small></div>`;
+  const dayKey=t=>{const d=new Date(t);return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();},todayKey=dayKey(Date.now());
+  const newToday=(r.users||[]).filter(u=>u.joined&&dayKey(u.joined)===todayKey).length;
   const days=[];for(let i=29;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push(d.toISOString().slice(0,10));}
   const by=Object.fromEntries((r.by_day||[]).map(x=>[String(x.day).slice(0,10),x])),mx=Math.max(1,...(r.by_day||[]).map(x=>x.coaches));
-  box.innerHTML=`<div class="us-tiles">${tile(r.coaches,"coaches signed up")}${tile(r.teams,"teams")}${tile(r.active_today,"used it today")}${tile(r.active_7,"this week")}${tile(r.active_30,"last 30 days")}${tile(r.opens_7,"opens this week")}${r.referred!=null?tile(r.referred,"came from invites"):""}</div>
+  box.innerHTML=`<div class="us-tiles">${tile(r.coaches,"coaches signed up",newToday)}${tile(r.teams,"teams")}${tile(r.active_today,"used it today")}${tile(r.active_7,"this week")}${tile(r.active_30,"last 30 days")}${tile(r.opens_7,"opens this week")}${r.referred!=null?tile(r.referred,"came from invites"):""}</div>
     <h4 class="us-h">Coaches using it each day <small>last 30 days</small></h4>
     <div class="us-bars" role="img" aria-label="Coaches active each day for the last 30 days">${days.map(d=>{const x=by[d];const n=x?x.coaches:0;return `<span title="${d}: ${n} coach${n===1?"":"es"}, ${x?x.opens:0} opens" style="height:${Math.max(3,Math.round(n/mx*100))}%"${n?"":' class="z"'}></span>`;}).join("")}</div>
     ${r.features?`<h4 class="us-h">Most used features <small>last 30 days</small></h4>
