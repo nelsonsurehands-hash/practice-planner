@@ -2035,3 +2035,13 @@ dialog.in-dlg{width:min(460px,calc(100vw - 24px))}
 
 /* Page headers: no team-name line when the team switcher already shows it */
 #calEyebrow:empty,#tmEyebrow:empty{display:none}
+
+/* Settings → Usage: a short, searchable coaches list */
+.us-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px}
+.us-ctl input[type=search]{flex:1 1 220px;min-width:0}
+.us-chips{display:flex;flex-wrap:wrap;gap:6px}.us-chips .btn{padding:6px 11px;font-size:13px}
+.us-chips .btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.us-mask{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}.us-mask input{width:auto}
+.us-more{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 4px;font-size:13px;color:var(--muted)}
+.us-feats .us-extra{display:none}.us-feats.all .us-extra{display:revert}
+.us-featall{margin:6px 0 0;font-size:13px}

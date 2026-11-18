@@ -228,17 +228,41 @@ async function renderUsage(){
     <h4 class="us-h">Coaches using it each day <small>last 30 days</small></h4>
     <div class="us-bars" role="img" aria-label="Coaches active each day for the last 30 days">${days.map(d=>{const x=by[d];const n=x?x.coaches:0;return `<span title="${d}: ${n} coach${n===1?"":"es"}, ${x?x.opens:0} opens" style="height:${Math.max(3,Math.round(n/mx*100))}%"${n?"":' class="z"'}></span>`;}).join("")}</div>
     ${r.features?`<h4 class="us-h">Most used features <small>last 30 days</small></h4>
-    ${r.features.length?`<div class="us-feats">${(()=>{const fm=Math.max(1,...r.features.map(f=>f.uses));return r.features.slice(0,25).map(f=>`<div class="us-feat"><span>${esc(featName(f.feature))}</span><i style="width:${Math.max(2,Math.round(f.uses/fm*100))}%"></i><b>${f.uses}</b><small>${f.coaches} coach${f.coaches===1?"":"es"}</small></div>`).join("");})()}</div>`:`<p class="help">No feature use counted yet. It starts adding up as coaches use the app.</p>`}`:""}
+    ${r.features.length?`<div class="us-feats">${(()=>{const fm=Math.max(1,...r.features.map(f=>f.uses));return r.features.slice(0,40).map((f,i)=>`<div class="us-feat${i>=10?" us-extra":""}"><span>${esc(featName(f.feature))}</span><i style="width:${Math.max(2,Math.round(f.uses/fm*100))}%"></i><b>${f.uses}</b><small>${f.coaches} coach${f.coaches===1?"":"es"}</small></div>`).join("");})()}</div>`:`<p class="help">No feature use counted yet. It starts adding up as coaches use the app.</p>`}`:""}
     ${r.sources&&r.sources.length?`<h4 class="us-h">Where new coaches came from</h4><div class="us-feats">${r.sources.map(x=>`<div class="us-feat"><span>${esc({parent:"Parent calendar page",food:"Food sign-up page",playbook:"Player playbook page",play:"Play sent to a coach"}[x.source]||x.source)}</span><b>${x.n}</b></div>`).join("")}</div>`:""}
     <div id="usageMore"><p class="help">Loading plays, schedules and photo imports…</p></div>
-    <h4 class="us-h">Coaches <small>most recent first</small></h4>
+    <h4 class="us-h">Coaches <small>${(r.users||[]).length} signed up</small></h4>
+    <div class="us-ctl"><input type="search" id="usFind" placeholder="Find a coach or team" aria-label="Find a coach or team">
+      <div class="us-chips" role="group" aria-label="Show">${[["all","All"],["week","Active this week"],["new","New (30 days)"],["quiet","Gone quiet"]].map(([k,l],i)=>`<button type="button" class="btn" data-usf="${k}" aria-pressed="${!i}">${l}</button>`).join("")}</div>
+      <label class="us-mask"><input type="checkbox" id="usShowEmail"> Show emails</label></div>
     <div class="us-wrap"><table class="us-table"><thead><tr><th>Coach</th><th>Teams</th><th>Last used</th><th>Days used<br><small>30 days</small></th><th>Opens<br><small>30 days</small></th><th>Using it for</th><th>Invited</th><th>Joined</th></tr></thead><tbody>
-    ${(r.users||[]).map(u=>`<tr><td><b>${esc(u.name||(u.email||"").split("@")[0])}</b><small>${esc(u.email||"")}</small></td><td>${esc((u.teams||[]).join(", ")||"—")}</td><td>${esc(usageAgo(u.last_seen||u.last_sign_in))}</td><td>${u.days_30}</td><td>${u.opens_30}</td><td data-span>…</td><td>${u.invited||0}</td><td>${u.joined?esc(new Date(u.joined).toLocaleDateString("en-US",{month:"short",day:"numeric"})):"—"}</td></tr>`).join("")}</tbody></table></div>
+    ${(r.users||[]).map(u=>{const seen=u.last_seen||u.last_sign_in,ago=seen?(Date.now()-new Date(seen))/864e5:999,age=u.joined?(Date.now()-new Date(u.joined))/864e5:999;
+      return `<tr data-email="${esc(u.email||"")}" data-q="${esc([u.name,u.email,...(u.teams||[])].join(" ").toLowerCase())}" data-week="${ago<=7?1:0}" data-new="${age<=30?1:0}" data-quiet="${ago>14?1:0}"><td><b>${esc(u.name||(u.email||"").split("@")[0])}</b><small class="us-em" data-full="${esc(u.email||"")}">${esc(maskEmail(u.email))}</small></td><td>${esc((u.teams||[]).join(", ")||"—")}</td><td>${esc(usageAgo(u.last_seen||u.last_sign_in))}</td><td>${u.days_30}</td><td>${u.opens_30}</td><td data-span>…</td><td>${u.invited||0}</td><td>${u.joined?esc(new Date(u.joined).toLocaleDateString("en-US",{month:"short",day:"numeric"})):"—"}</td></tr>`;}).join("")}</tbody></table></div>
+    <div class="us-more"><span id="usCount"></span><button class="btn" type="button" id="usAll" hidden>Show all</button></div>
     <p class="help">An "open" is each time a coach starts the app or comes back to it after 30 minutes away. Counting started when this was turned on, so earlier use isn't included.</p>
     <div class="actions" style="margin:0"><button class="btn" type="button" id="usageRefresh">Refresh</button></div>`;
+  if(r.features&&r.features.length>10){const f=box.querySelector(".us-feats");if(f)f.insertAdjacentHTML("afterend",`<button class="linkbtn us-featall" type="button">Show all ${Math.min(40,r.features.length)} features</button>`);}
+  usLimit=10;usFilter="all";usApply();
   renderUsageMore();
 }
-document.addEventListener("click",e=>{if(e.target.id==="usageRefresh")renderUsage();});
+/* The coaches list stays short: 10 at a time, with a search, quick filters, and emails hidden until asked. */
+const maskEmail=e=>{e=String(e||"");const [n,d]=e.split("@");if(!d)return e?"•••":"";return n.slice(0,1)+"•••@"+d;};
+let usLimit=10,usFilter="all";
+function usApply(){
+  const q=(($("#usFind")||{}).value||"").trim().toLowerCase(),rows=[...document.querySelectorAll("#usageBody .us-table tbody tr")];
+  let shown=0,match=0;
+  rows.forEach(tr=>{const ok=(!q||tr.dataset.q.includes(q))&&(usFilter==="all"||tr.dataset[usFilter]==="1");if(ok)match++;tr.hidden=!(ok&&shown<usLimit);if(ok&&shown<usLimit)shown++;});
+  const c=$("#usCount");if(c)c.textContent=match?`Showing ${shown} of ${match}`:"No coaches match.";
+  const a=$("#usAll");if(a)a.hidden=shown>=match;
+}
+document.addEventListener("input",e=>{if(e.target.id==="usFind"){usLimit=10;usApply();}});
+document.addEventListener("change",e=>{if(e.target.id==="usShowEmail")document.querySelectorAll("#usageBody .us-em").forEach(x=>x.textContent=e.target.checked?x.dataset.full:maskEmail(x.dataset.full));});
+document.addEventListener("click",e=>{
+  if(e.target.id==="usageRefresh")renderUsage();
+  if(e.target.id==="usAll"){usLimit=1e9;usApply();}
+  const f=e.target.closest("[data-usf]");if(f){usFilter=f.dataset.usf;usLimit=10;document.querySelectorAll("[data-usf]").forEach(b=>b.setAttribute("aria-pressed",b===f));usApply();}
+  if(e.target.closest(".us-featall")){document.querySelector("#usageBody .us-feats").classList.add("all");e.target.remove();}
+});
 /* Plays built, games and events scheduled, photo imports, and whether coaches keep coming back. */
 async function renderUsageMore(){
   const box=$("#usageMore");if(!box)return;
@@ -262,7 +286,7 @@ async function renderUsageMore(){
     <div class="us-tiles">${tile(m.photo_total,"photos read, all time")}${tile(m.photo_30,"photos read, last 30 days")}${(m.photo_kinds||[]).map(k=>tile(k.n,(KIND[k.kind]||k.kind).toLowerCase())).join("")}</div>`;
   /* Fill "Using it for" in the coaches table. */
   const by=Object.fromEntries((m.people||[]).map(p=>[p.email,p]));
-  document.querySelectorAll("#usageBody .us-table tbody tr").forEach(tr=>{const em=(tr.querySelector("td small")||{}).textContent||"",p=by[em],c=tr.querySelector("[data-span]");if(!c)return;
+  document.querySelectorAll("#usageBody .us-table tbody tr").forEach(tr=>{const em=tr.dataset.email||"",p=by[em],c=tr.querySelector("[data-span]");if(!c)return;
     if(!p){c.textContent="—";return;}const span=Math.round((new Date(p.last)-new Date(p.first))/864e5)+1;c.innerHTML=`${span} day${span===1?"":"s"}<small>${p.days} day${p.days===1?"":"s"} used</small>`;});
 }
 $("#acc-usage").addEventListener("toggle",e=>{if(e.target.open)renderUsage();});
