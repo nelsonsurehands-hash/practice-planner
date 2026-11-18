@@ -251,7 +251,7 @@ async function renderUsage(){
   renderUsageMore();renderUsageTime();renderUsageSources(r);
 }
 /* Where new coaches came from: the first link they used (the Facebook ad, page posts, Google, a coach's invite…). */
-const SRC_NAMES={fbad:"Facebook ad",fbpage:"Facebook page posts",facebook:"Facebook (other)",instagram:"Instagram",google:"Google search",bing:"Bing",duckduckgo:"DuckDuckGo",yahoo:"Yahoo",twitter:"X / Twitter",
+const SRC_NAMES={fbad:"Facebook ad",fbpage:"Facebook page posts",ig:"Instagram bio link",igpost:"Instagram posts",facebook:"Facebook (other)",instagram:"Instagram",google:"Google search",bing:"Bing",duckduckgo:"DuckDuckGo",yahoo:"Yahoo",twitter:"X / Twitter",
   parent:"Parent calendar page",food:"Food sign-up page",playbook:"Player playbook page",play:"Play sent to a coach",invite:"Another coach's invite",none:"No link (typed it in, or unknown)"};
 const srcName=(k,inviter)=>k==="invite"&&inviter?`Invite from ${inviter}`:(SRC_NAMES[k]||k);
 async function renderUsageSources(r){
