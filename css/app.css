@@ -2032,3 +2032,6 @@ dialog.in-dlg{width:min(460px,calc(100vw - 24px))}
 .in-steps li:last-child{border-bottom:0}
 .in-ic{width:40px;height:40px;border-radius:10px;background:var(--sunk);display:grid;place-items:center;color:#0a84ff}
 .in-ic img{border-radius:6px}
+
+/* Page headers: no team-name line when the team switcher already shows it */
+#calEyebrow:empty,#tmEyebrow:empty{display:none}

@@ -72,7 +72,7 @@ function render(){
   if(typeof team==="undefined"||!team||$("#view-team").hidden)return;
   /* Keep the visible section in step with the remembered one (the app can open straight onto the Team tab). */
   syncNav();
-  $("#tmEyebrow").textContent=[team.name,(team.settings||{}).teamLabel].filter(Boolean).join(" · ");
+  $("#tmEyebrow").textContent="";   // the team switcher above already names the team
   renderSwitch();
   if(pane==="teams")renderTeams();
   if(pane==="roster")renderRoster();
