@@ -39,6 +39,13 @@ document.addEventListener("submit",e=>{const f=e.target;
 try{
   const q=new URLSearchParams(location.search),ref=(q.get("ref")||"").trim().toLowerCase();
   if(ref&&/^[a-z0-9]{2,20}$/.test(ref)&&!localStorage.getItem("cpp:ref"))localStorage.setItem("cpp:ref",ref);
+  /* No link code? Note the site they came from (Google, Facebook…) so Usage can show it. */
+  if(!ref&&!localStorage.getItem("cpp:ref")){
+    let h="";try{h=document.referrer?new URL(document.referrer).hostname:"";}catch{}
+    const src=/(^|\.)google\./.test(h)?"google":/(^|\.)bing\.com$/.test(h)?"bing":/duckduckgo\.com$/.test(h)?"duckduckgo":/(^|\.)yahoo\./.test(h)?"yahoo":
+      /(^|\.)(facebook\.com|fb\.com|fb\.me)$/.test(h)?"facebook":/(^|\.)instagram\.com$/.test(h)?"instagram":/(^|\.)(t\.co|twitter\.com|x\.com)$/.test(h)?"twitter":"";
+    if(src)localStorage.setItem("cpp:ref",src);
+  }
   if(ref){q.delete("ref");history.replaceState(null,"",location.pathname+(q.toString()?"?"+q:"")+location.hash);}
 }catch{}
 /* Once a coach is signed in, credit the invite (the database only counts brand-new accounts). */

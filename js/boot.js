@@ -233,22 +233,40 @@ async function renderUsage(){
     <div class="us-bars" role="img" aria-label="Coaches active each day for the last 30 days">${days.map(d=>{const x=by[d];const n=x?x.coaches:0;return `<span title="${d}: ${n} coach${n===1?"":"es"}, ${x?x.opens:0} opens" style="height:${Math.max(3,Math.round(n/mx*100))}%"${n?"":' class="z"'}></span>`;}).join("")}</div>
     ${r.features?`<h4 class="us-h">Most used features <small>last 30 days</small></h4>
     ${r.features.length?`<div class="us-feats">${(()=>{const fm=Math.max(1,...r.features.map(f=>f.uses));return r.features.slice(0,40).map((f,i)=>`<div class="us-feat${i>=10?" us-extra":""}"><span>${esc(featName(f.feature))}</span><i style="width:${Math.max(2,Math.round(f.uses/fm*100))}%"></i><b>${f.uses}</b><small>${f.coaches} coach${f.coaches===1?"":"es"}</small></div>`).join("");})()}</div>`:`<p class="help">No feature use counted yet. It starts adding up as coaches use the app.</p>`}`:""}
-    ${r.sources&&r.sources.length?`<h4 class="us-h">Where new coaches came from</h4><div class="us-feats">${r.sources.map(x=>`<div class="us-feat"><span>${esc({parent:"Parent calendar page",food:"Food sign-up page",playbook:"Player playbook page",play:"Play sent to a coach"}[x.source]||x.source)}</span><b>${x.n}</b></div>`).join("")}</div>`:""}
+    <div id="usageSources"></div>
     <div id="usageTime"><p class="help">Loading time in the app…</p></div>
     <div id="usageMore"><p class="help">Loading plays, schedules and photo imports…</p></div>
     <h4 class="us-h">Coaches <small>${(r.users||[]).length} signed up</small></h4>
     <div class="us-ctl"><input type="search" id="usFind" placeholder="Find a coach or team" aria-label="Find a coach or team">
       <div class="us-chips" role="group" aria-label="Show">${[["all","All"],["week","Active this week"],["new","New (30 days)"],["quiet","Gone quiet"]].map(([k,l],i)=>`<button type="button" class="btn" data-usf="${k}" aria-pressed="${!i}">${l}</button>`).join("")}</div>
       <label class="us-mask"><input type="checkbox" id="usShowEmail"> Show emails</label></div>
-    <div class="us-wrap"><table class="us-table"><thead><tr><th>Coach</th><th>Teams</th><th>Last used</th><th>Days used<br><small>30 days</small></th><th>Visits<br><small>30 days</small></th><th>Avg visit<br><small>30 days</small></th><th>Using it for</th><th>Invited</th><th>Joined</th></tr></thead><tbody>
+    <div class="us-wrap"><table class="us-table"><thead><tr><th>Coach</th><th>Teams</th><th>Last used</th><th>Days used<br><small>30 days</small></th><th>Visits<br><small>30 days</small></th><th>Avg visit<br><small>30 days</small></th><th>Using it for</th><th>Came from</th><th>Invited</th><th>Joined</th></tr></thead><tbody>
     ${(r.users||[]).map(u=>{const seen=u.last_seen||u.last_sign_in,ago=seen?(Date.now()-new Date(seen))/864e5:999,age=u.joined?(Date.now()-new Date(u.joined))/864e5:999;
-      return `<tr data-email="${esc(u.email||"")}" data-q="${esc([u.name,u.email,...(u.teams||[])].join(" ").toLowerCase())}" data-week="${ago<=7?1:0}" data-new="${age<=30?1:0}" data-quiet="${ago>14?1:0}"><td><b>${esc(u.name||(u.email||"").split("@")[0])}</b><small class="us-em" data-full="${esc(u.email||"")}">${esc(maskEmail(u.email))}</small></td><td>${esc((u.teams||[]).join(", ")||"—")}</td><td>${esc(usageAgo(u.last_seen||u.last_sign_in))}</td><td>${u.days_30}</td><td>${u.opens_30}</td><td data-avg>…</td><td data-span>…</td><td>${u.invited||0}</td><td>${u.joined?esc(new Date(u.joined).toLocaleDateString("en-US",{month:"short",day:"numeric"})):"—"}</td></tr>`;}).join("")}</tbody></table></div>
+      return `<tr data-email="${esc(u.email||"")}" data-q="${esc([u.name,u.email,...(u.teams||[])].join(" ").toLowerCase())}" data-week="${ago<=7?1:0}" data-new="${age<=30?1:0}" data-quiet="${ago>14?1:0}"><td><b>${esc(u.name||(u.email||"").split("@")[0])}</b><small class="us-em" data-full="${esc(u.email||"")}">${esc(maskEmail(u.email))}</small></td><td>${esc((u.teams||[]).join(", ")||"—")}</td><td>${esc(usageAgo(u.last_seen||u.last_sign_in))}</td><td>${u.days_30}</td><td>${u.opens_30}</td><td data-avg>…</td><td data-span>…</td><td data-src>…</td><td>${u.invited||0}</td><td>${u.joined?esc(new Date(u.joined).toLocaleDateString("en-US",{month:"short",day:"numeric"})):"—"}</td></tr>`;}).join("")}</tbody></table></div>
     <div class="us-more"><span id="usCount"></span><button class="btn" type="button" id="usAll" hidden>Show all</button></div>
     <p class="help">A visit is each time a coach starts the app or comes back to it after 30 minutes away. Visit length counts only time with the app on screen. Counting started when this was turned on, so earlier use isn't included.</p>
     <div class="actions" style="margin:0"><button class="btn" type="button" id="usageRefresh">Refresh</button></div>`;
   if(r.features&&r.features.length>10){const f=box.querySelector(".us-feats");if(f)f.insertAdjacentHTML("afterend",`<button class="linkbtn us-featall" type="button">Show all ${Math.min(40,r.features.length)} features</button>`);}
   usLimit=10;usFilter="all";usApply();
-  renderUsageMore();renderUsageTime();
+  renderUsageMore();renderUsageTime();renderUsageSources(r);
+}
+/* Where new coaches came from: the first link they used (the Facebook ad, page posts, Google, a coach's invite…). */
+const SRC_NAMES={fbad:"Facebook ad",fbpage:"Facebook page posts",facebook:"Facebook (other)",instagram:"Instagram",google:"Google search",bing:"Bing",duckduckgo:"DuckDuckGo",yahoo:"Yahoo",twitter:"X / Twitter",
+  parent:"Parent calendar page",food:"Food sign-up page",playbook:"Player playbook page",play:"Play sent to a coach",invite:"Another coach's invite",none:"No link (typed it in, or unknown)"};
+const srcName=(k,inviter)=>k==="invite"&&inviter?`Invite from ${inviter}`:(SRC_NAMES[k]||k);
+async function renderUsageSources(r){
+  const box=$("#usageSources");if(!box)return;
+  const {data,error}=await sb.rpc("signup_sources");
+  const fill=map=>document.querySelectorAll("#usageBody .us-table tbody tr").forEach(tr=>{const td=tr.querySelector("[data-src]");if(!td)return;const x=map&&map[tr.dataset.email];td.textContent=x?srcName(x.source,x.inviter):"—";});
+  if(error){ /* database step not run yet: show the older list */
+    fill(null);
+    box.innerHTML=r.sources&&r.sources.length?`<h4 class="us-h">Where new coaches came from</h4><div class="us-feats">${r.sources.map(x=>`<div class="us-feat"><span>${esc(srcName(x.source))}</span><b>${x.n}</b></div>`).join("")}</div>`:"";return;}
+  const list=(data.by_source||[]).slice().sort((a,b)=>(a.source==="none")-(b.source==="none")||b.n-a.n),mx=Math.max(1,...list.map(x=>x.n));
+  const up=(d,w)=>d>0?`<em class="us-up" title="${d} new ${w}"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.5 9 8H1z"/></svg>${d} ${w}</em>`:"";
+  box.innerHTML=`<h4 class="us-h">Where new coaches came from <small>first link they used</small></h4>
+    ${list.length?`<div class="us-feats us-src">${list.map(x=>`<div class="us-feat"><span>${esc(srcName(x.source))}</span><i style="width:${Math.max(2,Math.round(x.n/mx*100))}%"></i><b>${x.n}</b><small>${x.today?up(x.today,"today"):x.week?up(x.week,"this week"):""}</small></div>`).join("")}</div>`:`<p class="help">No sign-ups yet.</p>`}
+    <p class="help">The ad and the page posts have their own tagged links, so those count automatically. Visits from Google, Facebook or Instagram without a tagged link count from Nov 18 on.</p>`;
+  fill(Object.fromEntries((data.people||[]).map(x=>[x.email,x])));
 }
 /* The coaches list stays short: 10 at a time, with a search, quick filters, and emails hidden until asked. */
 const maskEmail=e=>{e=String(e||"");const [n,d]=e.split("@");if(!d)return e?"•••":"";return n.slice(0,1)+"•••@"+d;};

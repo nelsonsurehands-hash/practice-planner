@@ -2078,3 +2078,4 @@ dialog.in-dlg{width:min(460px,calc(100vw - 24px))}
 .us-upnote{color:#14894a;font-weight:700}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .us-up,:root:not([data-theme="light"]) .us-upnote{color:#4ade80}}
 :root[data-theme="dark"] .us-up,:root[data-theme="dark"] .us-upnote{color:#4ade80}
+.us-src .us-up{font-size:12px;margin-left:0}
