@@ -736,7 +736,7 @@ body.pb-full{overflow:hidden}
 .sp-play .sp-pass{stroke-dasharray:14 14}
 .sp-play mask path{stroke:#fff;stroke-width:24;fill:none}
 .sp-tok{opacity:0;animation:sp-pop .45s ease-out forwards}
-.sp-tok.t1{animation-delay:.05s}.sp-tok.t2{animation-delay:.15s}.sp-tok.t3{animation-delay:.25s}
+.sp-tok.t1{animation-delay:.05s}.sp-tok.t2{animation-delay:.15s}.sp-tok.t3{animation-delay:.25s}.sp-tok.t4{animation-delay:.35s}
 .sp-draw{stroke-dasharray:1;stroke-dashoffset:1;animation:sp-draw 1.1s cubic-bezier(.5,0,.3,1) forwards}
 .sp-draw.d1{animation-delay:.5s}.sp-draw.d2{animation-delay:1.85s}.sp-draw.d3{animation-delay:2.6s;animation-duration:.7s}
 .sp-screen{opacity:0;animation:sp-pop .3s ease-out 1.55s forwards;stroke-width:7}

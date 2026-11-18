@@ -29,19 +29,17 @@
 <!-- Loading -->
 <div id="screen-loading" class="splash" role="status" aria-live="polite">
   <svg class="sp-play" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <defs><mask id="spPassMask" maskUnits="userSpaceOnUse"><path class="sp-draw d3" pathLength="1" d="M688 548C692 640 620 702 560 708"/></mask></defs>
-    <!-- 1 (top left) gets the screen, 2 (top right) sets it, 3 (right) has the ball -->
+    <defs><mask id="spPassMask" maskUnits="userSpaceOnUse"><path class="sp-draw d3" pathLength="1" d="M694 692C716 580 700 450 678 360"/></mask></defs>
+    <!-- Screen away: 2 screens 1's defender, 1 runs off 2's shoulder toward the ball, 3 passes to 1 -->
     <g class="sp-tok t1"><circle cx="330" cy="262" r="24"/></g>
-    <g class="sp-tok t2"><circle cx="660" cy="300" r="24"/></g>
-    <g class="sp-tok t3"><circle cx="690" cy="520" r="24"/><circle class="sp-ballmark" cx="716" cy="498" r="9"/></g>
-    <!-- 2 comes over the top of the logo and screens for 1 -->
-    <path class="sp-draw d1" pathLength="1" d="M636 288C584 194 424 186 374 234"/>
-    <path class="sp-screen" d="M358 220L388 250"/>
-    <!-- 1 uses the screen and cuts all the way around to catch -->
-    <path class="sp-draw d2" pathLength="1" d="M320 290C228 470 290 702 470 714"/><path class="sp-arrow a2" d="M452 700L476 714L452 728Z"/>
-    <!-- 3 passes to 1 as she arrives -->
-    <path class="sp-pass" d="M688 548C692 640 620 702 560 708" mask="url(#spPassMask)"/><path class="sp-arrow a3" d="M578 696L554 709L578 722Z"/>
-    <circle class="sp-ballmark sp-fly" r="9" cx="0" cy="0"><animateMotion dur=".8s" begin="3.25s" fill="freeze" path="M716 498C694 640 610 704 506 712"/></circle>
+    <g class="sp-tok t2"><circle cx="640" cy="172" r="24"/></g>
+    <g class="sp-tok t3"><circle cx="690" cy="720" r="24"/><circle class="sp-ballmark" cx="716" cy="698" r="9"/></g>
+    <g class="sp-tok t4"><path d="M342 186l28 28M370 186l-28 28"/></g>
+    <path class="sp-draw d1" pathLength="1" d="M616 186C560 118 440 118 396 198"/>
+    <path class="sp-screen" d="M375 186L417 210"/>
+    <path class="sp-draw d2" pathLength="1" d="M354 272C408 240 600 206 668 318"/><path class="sp-arrow a2" d="M647 309L671 323L670 296Z"/>
+    <path class="sp-pass" d="M694 692C716 580 700 450 678 360" mask="url(#spPassMask)"/><path class="sp-arrow a3" d="M695 374L677 354L669 381Z"/>
+    <circle class="sp-ballmark sp-fly" r="9" cx="0" cy="0"><animateMotion dur=".8s" begin="3.25s" fill="freeze" path="M718 698C720 580 702 450 674 342"/></circle>
   </svg>
   <div class="sp-center">
     <div class="sp-badge">
@@ -57,6 +55,8 @@
 <script>
 /* Splash: the last team opened on this device (saved by boot.js), shown before anything else loads. */
 (function(){try{
+  /* Wide screens show the whole background play; tall phone screens fill edge to edge. */
+  if(innerWidth>innerHeight){var pv=document.querySelector("#screen-loading .sp-play");if(pv)pv.setAttribute("preserveAspectRatio","xMidYMid meet");}
   var s=JSON.parse(localStorage.getItem("cpp:splash")||"null");if(!s)return;
   var el=document.getElementById("screen-loading"),c=s.color||"#172a5e",m=/^#?([0-9a-f]{6})$/i.exec(c),dark=true;
   if(m){var n=parseInt(m[1],16),L=[n>>16&255,n>>8&255,n&255].map(function(v){v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);});dark=.2126*L[0]+.7152*L[1]+.0722*L[2]<=.4;}
