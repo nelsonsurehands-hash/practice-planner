@@ -91,7 +91,7 @@ function quick(){
 function render(){
   const box=document.getElementById("homeBody");if(!box||document.getElementById("view-home").hidden||typeof SETTINGS==="undefined"||typeof team==="undefined"||!team)return;
   const days=SchedCore.days(SETTINGS);
-  document.getElementById("hmEyebrow").textContent=typeof team!=="undefined"&&team?[team.name,(team.settings||{}).teamLabel].filter(Boolean).join(" · "):"";
+  /* The team name is already in the team switcher above, so Home just says hello. */
   const h=new Date().getHours();document.getElementById("hmHello").textContent=h<12?"Good morning":h<17?"Good afternoon":"Good evening";
   box.innerHTML=(window.Onboard?Onboard.card():"")+`<div class="hm-grid"><div class="hm-col">${todayCard(days)}${quick()}</div><div class="hm-col">${nextGameCard()}${recordCard()}${weekCard(days)}</div></div>`;
   if(window.Onboard)Onboard.maybeAsk();
