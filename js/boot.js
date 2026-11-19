@@ -232,6 +232,7 @@ async function renderUsage(){
   const days=[];for(let i=29;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push(d.toISOString().slice(0,10));}
   const by=Object.fromEntries((r.by_day||[]).map(x=>[String(x.day).slice(0,10),x])),mx=Math.max(1,...(r.by_day||[]).map(x=>x.coaches));
   box.innerHTML=`<div class="us-tiles">${tile(r.coaches,"coaches signed up",newToday)}${tile(r.teams,"teams")}${tile(r.active_today,"used it today")}${tile(r.active_7,"this week")}${tile(r.active_30,"last 30 days")}${tile(r.opens_7,"opens this week")}${r.referred!=null?tile(r.referred,"came from invites"):""}</div>
+    <div id="usageFirst"></div>
     <h4 class="us-h">Coaches using it each day <small>last 30 days</small></h4>
     <div class="us-bars" role="img" aria-label="Coaches active each day for the last 30 days">${days.map(d=>{const x=by[d];const n=x?x.coaches:0;return `<span title="${d}: ${n} coach${n===1?"":"es"}, ${x?x.opens:0} opens" style="height:${Math.max(3,Math.round(n/mx*100))}%"${n?"":' class="z"'}></span>`;}).join("")}</div>
     ${r.features?`<h4 class="us-h">Most used features <small>last 30 days</small></h4>
@@ -251,7 +252,29 @@ async function renderUsage(){
     <div class="actions" style="margin:0"><button class="btn" type="button" id="usageRefresh">Refresh</button></div>`;
   if(r.features&&r.features.length>10){const f=box.querySelector(".us-feats");if(f)f.insertAdjacentHTML("afterend",`<button class="linkbtn us-featall" type="button">Show all ${Math.min(40,r.features.length)} features</button>`);}
   usLimit=10;usFilter="all";usApply();
-  renderUsageMore();renderUsageTime();renderUsageSources(r);
+  renderUsageMore();renderUsageTime();renderUsageSources(r);renderUsageFirst();
+}
+/* First week: where new coaches drop off, how fast they build something, who brings others in,
+   weekly returning coaches, and new coaches who are stuck (worth a personal follow-up). */
+async function renderUsageFirst(){
+  const box=$("#usageFirst");if(!box)return;
+  const {data:f,error}=await sb.rpc("usage_firstweek");
+  if(error){box.innerHTML=/function|schema cache|does not exist/i.test(error.message)?`<p class="help">First-week numbers need one database step: run supabase/first-week.sql.</p>`:"";return;}
+  const pct=(a,b)=>b?Math.round(a/b*100)+"%":"–";
+  const d=(f.week_now||0)-(f.week_prev||0);
+  const trend=d>0?`<em class="us-up" title="vs. the week before"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.5 9 8H1z"/></svg>${d}</em>`:d<0?`<em class="us-up us-down" title="vs. the week before"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M5 8.5 9 2H1z"/></svg>${-d}</em>`:"";
+  const tile=(n,l,x)=>`<div class="us-tile"><b>${n}${x||""}</b><small>${l}</small></div>`;
+  const F=f.funnel||{},steps=[["signed","Signed up"],["team","Made or joined a team"],["roster","Added a roster"],["built","Built a practice plan or play"],["back","Came back another day"],["shared","Brought in staff or parents"]];
+  const base=F.signed||0;let worst=-1,wi=-1;
+  steps.forEach(([k],i)=>{if(i){const drop=(F[steps[i-1][0]]||0)-(F[k]||0);if(drop>worst){worst=drop;wi=i;}}});
+  const NEXT={team:"Make a team",roster:"Add a roster",built:"Build a plan or play",back:"Come back",shared:"Bring in staff or parents"};
+  const stuckAt=x=>!x.team_ok?"Hasn't made a team":!x.built?"Hasn't built a plan or play":!x.back?"Hasn't come back":"";
+  box.innerHTML=`<h4 class="us-h">First week <small>new coaches, last 60 days</small></h4>
+    <div class="us-tiles">${tile(f.week_now??0,"coaches used it this week",trend)}${tile(pct(f.quick,f.quick_base),`built something in their first 3 days <span>${f.quick||0} of ${f.quick_base||0}</span>`)}${tile(pct(f.shared_all,f.coaches_all),`brought in staff or parents <span>${f.shared_all||0} of ${f.coaches_all||0}</span>`)}</div>
+    ${base?`<div class="us-funnel">${steps.map(([k,l],i)=>{const n=F[k]||0;return `<div class="us-fn${i===wi&&worst>0?" worst":""}"><span>${l}</span><i style="width:${Math.max(2,Math.round(n/base*100))}%"></i><b>${n}</b><small>${pct(n,base)}${i===wi&&worst>0?` · biggest drop`:""}</small></div>`;}).join("")}</div>`:`<p class="help">No new coaches in the last 60 days yet.</p>`}
+    ${(f.stuck||[]).length?`<h4 class="us-h">New and stuck <small>joined in the last 30 days · worth a quick note</small></h4>
+      <div class="us-stuck">${f.stuck.map(x=>`<div><b class="us-em" data-full="${esc(x.email||"")}">${esc(maskEmail(x.email))}</b><small>${esc(x.team||"No team yet")} · joined ${esc(usageAgo(x.joined))} · last seen ${esc(usageAgo(x.last_seen))}</small><span>${esc(stuckAt(x))}</span></div>`).join("")}</div>`:""}`;
+  const sh=$("#usShowEmail");if(sh&&sh.checked)box.querySelectorAll(".us-em").forEach(x=>x.textContent=x.dataset.full);
 }
 /* Where new coaches came from: the first link they used (the Facebook ad, page posts, Google, a coach's invite…). */
 const SRC_NAMES={fbad:"Facebook ad",fbpage:"Facebook page posts",ig:"Instagram bio link",igpost:"Instagram posts",facebook:"Facebook (other)",instagram:"Instagram",google:"Google search",bing:"Bing",duckduckgo:"DuckDuckGo",yahoo:"Yahoo",twitter:"X / Twitter",

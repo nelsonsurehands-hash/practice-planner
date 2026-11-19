@@ -2079,3 +2079,15 @@ dialog.in-dlg{width:min(460px,calc(100vw - 24px))}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .us-up,:root:not([data-theme="light"]) .us-upnote{color:#4ade80}}
 :root[data-theme="dark"] .us-up,:root[data-theme="dark"] .us-upnote{color:#4ade80}
 .us-src .us-up{font-size:12px;margin-left:0}
+.us-down{color:#c2410c!important;background:color-mix(in srgb,#c2410c 13%,transparent)!important}
+.us-funnel{display:grid;gap:6px;margin:4px 0 6px}
+.us-fn{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) auto;gap:4px 10px;align-items:center;font-size:14px}
+.us-fn i{display:block;height:10px;border-radius:5px;background:var(--accent)}
+.us-fn b{font-variant-numeric:tabular-nums}
+.us-fn small{grid-column:1/-1;margin-top:-4px;color:var(--muted);font-size:12px}
+.us-fn.worst i{background:#c2410c}.us-fn.worst small{color:#c2410c;font-weight:600}
+.us-stuck{display:grid;gap:8px}
+.us-stuck>div{display:grid;gap:2px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.us-stuck b{font-size:14.5px}.us-stuck small{color:var(--muted);font-size:12.5px}.us-stuck span{font-size:13px;font-weight:600;color:#c2410c}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .us-fn.worst small,:root:not([data-theme="light"]) .us-stuck span,:root:not([data-theme="light"]) .us-down{color:#fb923c!important}:root:not([data-theme="light"]) .us-fn.worst i{background:#fb923c}}
+:root[data-theme="dark"] .us-fn.worst small,:root[data-theme="dark"] .us-stuck span,:root[data-theme="dark"] .us-down{color:#fb923c!important}:root[data-theme="dark"] .us-fn.worst i{background:#fb923c}
