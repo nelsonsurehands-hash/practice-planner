@@ -45,6 +45,7 @@ function framesOf(item){
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const urlOf=it=>`/basketball/${it.kind==="play"?"plays":"drills"}/${it.slug}/`;
 const svgOf=(f,cls)=>B.boardSVG(f,"screen").replace("<svg ",`<svg class="${cls||""}" role="img" aria-label="${esc(f.caption)}" `);
+const TOOL_IC={"move": "<circle cx=\"6\" cy=\"6\" r=\"3.2\"/><path d=\"M12 6h9m-3-3 3 3-3 3\" stroke-dasharray=\"0\"/>", "cut": "<path d=\"M2 6h17\"/><path d=\"m16 2.5 4 3.5-4 3.5\"/>", "pass": "<path d=\"M2 6h17\" stroke-dasharray=\"3.5 2.5\"/><path d=\"m16 2.5 4 3.5-4 3.5\"/>", "dribble": "<path d=\"M2 6l2-3 2 6 2-6 2 6 2-6 2 6 2-3h3\"/><path d=\"m18 3 3 3-3 3\"/>", "screen": "<path d=\"M2 6h17\"/><path d=\"M20 1.5v9\"/>"};
 const LEGEND=`<p class="sc-key"><span><i class="k-cut"></i>Cut</span><span><i class="k-pass"></i>Pass</span><span><i class="k-drib"></i>Dribble</span><span><i class="k-scr"></i>Screen</span><span><i class="k-shot"></i>Shot</span></p>`;
 const head=({title,desc,canon,img,ld})=>`<!doctype html>
 <html lang="en">
@@ -71,10 +72,23 @@ const head=({title,desc,canon,img,ld})=>`<!doctype html>
 ${(ld||[]).map(o=>`<script type="application/ld+json">${JSON.stringify(o).replace(/</g,"\\u003c")}</script>`).join("\n")}
 </head>
 <body class="sc">
-<header class="sc-top"><div class="sc-wrap">
+<header class="sc-top"><div class="sc-wrap lp-top">
   <a class="lp-logo" href="/" aria-label="The Extra Coach home"><img src="/brand/mark.svg" alt="" width="36" height="36"><span>The Extra <b>Coach</b></span></a>
-  <nav class="sc-nav" aria-label="Plays and drills"><a href="/basketball-play-designer/">Play designer</a><a href="/basketball/#plays">Plays</a><a href="/basketball/#drills">Drills</a><a href="/basketball-practice-plan-template/">Templates</a><a class="sc-cta-sm" href="/?from=showcase">Try it free</a></nav>
-</div></header>`;
+  <nav class="lp-nav" id="lpNav" aria-label="Site">
+    <a href="/">Home</a>
+    <a href="/basketball-play-designer/">Play designer</a>
+    <a href="/basketball/">Plays &amp; drills</a>
+    <a href="/basketball-practice-plan-template/">Templates</a>
+    <a class="lp-nav-in" href="/?signin=1">Sign in</a>
+    <a class="lp-btn primary lp-nav-cta" href="/?from=showcase">Create your team</a>
+  </nav>
+  <div class="lp-top-r">
+    <a class="lp-btn ghost sc-in" href="/?signin=1">Sign in</a>
+    <a class="lp-btn primary sc-try" href="/?from=showcase">Try it free</a>
+    <button class="lp-menu" type="button" id="lpMenu" aria-expanded="false" aria-controls="lpNav" aria-label="Menu"><span></span><span></span><span></span></button>
+  </div>
+</div></header>
+<script src="/js/sitenav.js" defer></script>`;
 const foot=`<footer class="sc-foot"><div class="sc-wrap">
   <span class="lp-logo small"><img src="/brand/mark.svg" alt="" width="24" height="24"><span>The Extra <b>Coach</b></span></span>
   <span>Practice plans, animated plays, the season calendar and parent sign-ups in one app for your whole staff.</span>
@@ -195,13 +209,12 @@ function designerPage(all){
   </header>
   <section class="sc-player td" aria-label="Try the play designer">
     <div class="td-tools" id="tdTools" role="toolbar" aria-label="Drawing tools">
-      ${[["move","Move"],["cut","Cut"],["pass","Pass"],["dribble","Dribble"],["screen","Screen"]].map(([k,l])=>`<button type="button" data-tool="${k}" aria-pressed="${k==="cut"}">${l}</button>`).join("")}
+      ${[["move","Move"],["cut","Cut"],["pass","Pass"],["dribble","Dribble"],["screen","Screen"]].map(([k,l])=>`<button type="button" data-tool="${k}" aria-pressed="${k==="cut"}"><svg class="td-ic" viewBox="0 0 22 12" aria-hidden="true">${TOOL_IC[k]}</svg><span>${l}</span></button>`).join("")}
       <label class="td-def">Defense<select id="tdDef"><option value="none">None</option><option value="man" selected>Man-to-man</option><option value="z23">2-3 zone</option><option value="z32">3-2 zone</option></select></label>
     </div>
     <div class="sc-board td-board" id="tdBoard">${svgOf(blank,"sc-svg").replace("<svg ",'<svg style="touch-action:none" ')}</div>
     <p class="td-hint" id="tdHint" aria-live="polite">Drag from a player to draw a cut.</p>
     <div class="sc-ctrl"><button class="sc-btn" type="button" id="tdRun">▶ Watch it run</button><span class="td-sec"><button class="td-link" type="button" id="tdUndo">Undo</button><button class="td-link" type="button" id="tdClear">Start over</button></span></div>
-    ${LEGEND}
   </section>
   <aside class="sc-cta"><div><p class="sc-eyebrow">Like it?</p><h2>Save your plays and build a playbook</h2>
     <p>Multi-step plays, options and reads, practice plans, a season calendar and parent sign-ups, shared with your whole staff.</p></div>
@@ -304,7 +317,7 @@ ${PRINT_JS}
 }
 
 /* ---- write it all ---- */
-const out=(rel,html)=>{const p=path.join(ROOT,rel);fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,html);};
+const out=(rel,html)=>{html=html.replace(/<p class="sc-eyebrow">([^<]*·[^<]*)<\/p>/g,(m,t)=>`<p class="sc-eyebrow">${t.split(" · ").map(x=>`<span>${x}</span>`).join(" · ")}</p>`);const p=path.join(ROOT,rel);fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,html);};
 ITEMS.forEach(it=>out(urlOf(it).slice(1)+"index.html",itemPage(it,ITEMS)));
 out("basketball/index.html",hubPage(ITEMS));
 /* The same plays for the app's Play library (Plays tab → Play library), so the website and the app match. */

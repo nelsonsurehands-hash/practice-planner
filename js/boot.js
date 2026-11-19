@@ -53,7 +53,10 @@ function startersFor(sport){return (STARTERS[sport]||[]).map(([id,d])=>[id,{...d
 const screens=["screen-loading","screen-landing","screen-auth","screen-setup","app"];
 /* Signed-out visitors on the website see the homepage first; the installed app goes straight to sign in. */
 const isInstalled=()=>{try{return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;}catch{return false;}};
-function showWelcome(){if(isInstalled()){show("screen-auth");return;}$("#authBack").hidden=false;show("screen-landing");}
+function showWelcome(){if(isInstalled()){show("screen-auth");return;}$("#authBack").hidden=false;
+  /* "Sign in" from the public pages (…/?signin=1) goes straight to the sign-in form. */
+  if(new URLSearchParams(location.search).has("signin")&&typeof authTab==="function"){show("screen-auth");authTab("in");history.replaceState(null,"",location.pathname+location.hash);return;}
+  show("screen-landing");}
 function show(id){
   screens.forEach(x=>{if(x==="screen-loading")return;$("#"+x).hidden=x!==id;});window.scrollTo(0,0);
   const sp=$("#screen-loading");   // the splash fades out instead of vanishing
