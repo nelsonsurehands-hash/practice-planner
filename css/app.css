@@ -2092,3 +2092,18 @@ dialog.in-dlg{width:min(460px,calc(100vw - 24px))}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .us-fn.worst small,:root:not([data-theme="light"]) .us-stuck span,:root:not([data-theme="light"]) .us-down{color:#fb923c!important}:root:not([data-theme="light"]) .us-fn.worst i{background:#fb923c}}
 :root[data-theme="dark"] .us-fn.worst small,:root[data-theme="dark"] .us-stuck span,:root[data-theme="dark"] .us-down{color:#fb923c!important}:root[data-theme="dark"] .us-fn.worst i{background:#fb923c}
 .lp-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.lp-chips .btn{border-radius:999px;padding:6px 12px;font-size:13.5px}.lp-chips .btn small{color:var(--muted);margin-left:4px}.lp-chips .btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}.lp-chips .btn[aria-pressed="true"] small{color:inherit;opacity:.8}
+
+/* Usage: folding sections */
+.us-foldall{display:flex;gap:14px;justify-content:flex-end;margin:6px 0 2px}
+details.us-fold{border:1px solid var(--line);border-radius:12px;background:var(--surface);margin:8px 0;padding:0 14px}
+details.us-fold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 0;min-height:44px}
+details.us-fold>summary::-webkit-details-marker{display:none}
+details.us-fold>summary::after{content:"";width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);margin:-4px 4px 0 auto;flex:none;transition:transform .15s}
+details.us-fold[open]>summary::after{transform:rotate(-135deg);margin-top:4px}
+.us-fold-t{font:600 13px var(--body);letter-spacing:.06em;text-transform:uppercase;min-width:0}
+.us-fold-t small{text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted);margin-left:6px}
+details.us-fold[open]{padding-bottom:12px}
+details.us-fold>div>h4.us-h-in:first-child{display:none}
+details.us-fold>div>h4.us-h-in:first-child+*{margin-top:0}
+@media (prefers-reduced-motion:reduce){details.us-fold>summary::after{transition:none}}
+@media (max-width:560px){#usageBody .us-tiles{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}#usageBody .us-tile{padding:8px 9px}#usageBody .us-tile b{font-size:24px}#usageBody .us-tile small{font-size:11.5px;line-height:1.3;display:block}#usageBody .us-up{font-size:11px}}

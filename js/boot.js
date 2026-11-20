@@ -255,6 +255,38 @@ async function renderUsage(){
   usLimit=10;usFilter="all";usApply();
   renderUsageMore();renderUsageTime();renderUsageSources(r);renderUsageFirst();renderUsageLanding();
 }
+/* Usage is long, so every section folds. The tiles at the top always show; each section below opens
+   with a tap and the page remembers which ones you keep open (on this device). Sections that load on
+   their own (first week, homepage visitors, sources, time, keep using) fold as a whole. */
+const US_SUBS=["usageFirst","usageLanding","usageSources","usageTime","usageMore"];
+const usOpenGet=()=>{try{return JSON.parse(localStorage.getItem("cpp:usOpen")||"{}");}catch(e){return {};}};
+const usOpenSet=(k,v)=>{try{const o=usOpenGet();if(v)o[k]=1;else delete o[k];localStorage.setItem("cpp:usOpen",JSON.stringify(o));}catch(e){}};
+function usKey(h){const c=h.cloneNode(true);c.querySelectorAll("small").forEach(x=>x.remove());return c.textContent.trim();}
+function usFold(){
+  const box=$("#usageBody");if(!box||!box.querySelector(".us-tiles"))return;
+  const open=usOpenGet();
+  const mk=(key,headHTML)=>{const d=document.createElement("details");d.className="us-fold";d.dataset.k=key;if(open[key])d.open=true;
+    d.innerHTML=`<summary><span class="us-fold-t">${headHTML}</span></summary>`;d.addEventListener("toggle",()=>usOpenSet(key,d.open));return d;};
+  // whole sub-sections: wrap the container once, keep its title in the summary in step with its content
+  US_SUBS.forEach(id=>{const el=document.getElementById(id);if(!el)return;
+    let d=el.parentElement&&el.parentElement.classList.contains("us-fold")?el.parentElement:null;
+    const h=el.querySelector(":scope > h4.us-h");
+    if(!h){if(d)d.hidden=!el.textContent.trim();return;}
+    const key=usKey(h);
+    if(!d){d=mk(key,h.innerHTML);el.before(d);d.appendChild(el);}
+    else{const t=d.querySelector(".us-fold-t");if(t.innerHTML!==h.innerHTML)t.innerHTML=h.innerHTML;if(d.dataset.k!==key){d.dataset.k=key;d.open=!!open[key];}}
+    d.hidden=false;h.classList.add("us-h-in");});
+  // headings directly in the page: each one and what follows it, up to the next heading or section
+  [...box.children].filter(n=>n.matches&&n.matches("h4.us-h")).forEach(h=>{
+    const d=mk(usKey(h),h.innerHTML);h.before(d);const items=[];let n=h.nextElementSibling;
+    while(n&&!n.matches("h4.us-h,details.us-fold,.actions,.us-foldall")&&!US_SUBS.includes(n.id)){items.push(n);n=n.nextElementSibling;}
+    h.remove();items.forEach(x=>d.appendChild(x));});
+  if(!box.querySelector(".us-foldall")){const t=box.querySelector(".us-tiles");if(t)t.insertAdjacentHTML("afterend",`<div class="us-foldall"><button type="button" class="linkbtn" data-usall="1">Open all</button><button type="button" class="linkbtn" data-usall="0">Close all</button></div>`);}
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-usall]");if(!b)return;const on=b.dataset.usall==="1";
+  document.querySelectorAll("#usageBody details.us-fold").forEach(d=>{if(!d.hidden)d.open=on;});});
+(()=>{const box=document.getElementById("usageBody");if(!box||!window.MutationObserver)return;let q=0;
+  new MutationObserver(()=>{if(q)return;q=requestAnimationFrame(()=>{q=0;usFold();});}).observe(box,{childList:true,subtree:true});})();
 /* First week: where new coaches drop off, how fast they build something, who brings others in,
    weekly returning coaches, and new coaches who are stuck (worth a personal follow-up). */
 async function renderUsageFirst(){
