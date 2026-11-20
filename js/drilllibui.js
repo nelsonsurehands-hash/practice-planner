@@ -70,12 +70,13 @@ function showDetail(id){
   B.innerHTML=`<article class="dlib-d">
     <h3 class="dlib-name">${h(d.name)}</h3>
     <div class="dlib-facts"><span><b>${d.minutes}</b> min</span><span>Players: <b>${h(d.players)}</b></span><span>${h(d.group)}</span><span>${h(d.level)}</span><span>${h(d.equip)}</span></div>
+    <div class="dlib-act dlib-addtop">${self.DLIB_PREVIEW?`<button type="button" class="btn primary" data-add="${d.id}">+ Add to my drills</button>`:mine?`<span class="dlib-have big">✓ In your drill library</span>`:ed?`<button type="button" class="btn primary" data-add="${d.id}">+ Add to my drills</button>`:`<span class="help">Ask your head coach to add it to the team's drills.</span>`}</div>
     ${d.sim?`<div class="dlib-sim" id="dlibSim"></div>`:""}
     <div class="dlib-cols">
       <div><h4>Setup</h4><p>${h(d.setup)}</p><h4>How it runs</h4><ol>${(d.how||[]).map(s=>`<li>${h(s)}</li>`).join("")}</ol></div>
       <div><h4>Coaching points</h4><ul>${(d.points||[]).map(s=>`<li>${h(s)}</li>`).join("")}</ul>${d.vary&&d.vary.length?`<h4>Make it harder or different</h4><ul>${d.vary.map(s=>`<li>${h(s)}</li>`).join("")}</ul>`:""}</div>
     </div>
-    <div class="dlib-act">${self.DLIB_PREVIEW?`<span class="help">In the app, coaches tap <b>+ Add to my drills</b> here.</span>`:mine?`<span class="dlib-have big">✓ In your drill library</span>`:ed?`<button type="button" class="btn primary" data-add="${d.id}">+ Add to my drills</button>`:`<span class="help">Ask your head coach to add it to the team's drills.</span>`}</div>
+
   </article>`;
   if(d.sim){SIM=DrillSim.mount(B.querySelector("#dlibSim"),d);}
   B.scrollTop=0;if(DLG.tagName!=="DIALOG"&&DLG.scrollIntoView)DLG.scrollIntoView({block:"start"});
@@ -87,7 +88,7 @@ async function onClick(e){
   const c=t.closest("[data-cat]");if(c){state.cat=c.dataset.cat;renderList(true);return;}
   if(t.closest("[data-anim]")){state.anim=!state.anim;renderList(true);return;}
   const o=t.closest("[data-open]");if(o){showDetail(o.dataset.open);return;}
-  const a=t.closest("[data-add]");if(a){a.disabled=true;await ensureDrill(byId(a.dataset.add));a.outerHTML=`<span class="dlib-have big">✓ Added to your drill library</span>`;if(window.cppTrack)cppTrack("drill:libadd");return;}
+  const a=t.closest("[data-add]");if(a){a.disabled=true;if(!self.DLIB_PREVIEW)await ensureDrill(byId(a.dataset.add));a.outerHTML=`<span class="dlib-have big">✓ Added to your drill library</span>`;if(window.cppTrack)cppTrack("drill:libadd");return;}
 }
 
 /* ---------- watch one drill (from a practice card or the team's drill list) ---------- */

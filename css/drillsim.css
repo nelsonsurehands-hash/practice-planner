@@ -90,3 +90,4 @@ dialog.dlib-watch{height:fit-content}.dlib-watch .dlib-in{height:auto}
 .dlib-inline{display:block;border:0;width:auto;height:auto;overflow:visible}.dlib-inline .dlib-in{height:auto;max-height:none}.dlib-inline .dlib-body{overflow:visible;padding:0}.dlib-inline .dlib-head{padding:0 0 10px;border:0}.dlib-inline .dlib-tools{top:0}
 .sp-tip{margin:0 0 0 24px;font-size:13.5px}
 .dlib-inline .dlib-tools{background:var(--bg)}
+.dlib-addtop{margin:0 0 14px}
