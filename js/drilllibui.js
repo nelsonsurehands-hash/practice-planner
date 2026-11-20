@@ -88,7 +88,7 @@ async function onClick(e){
   const c=t.closest("[data-cat]");if(c){state.cat=c.dataset.cat;renderList(true);return;}
   if(t.closest("[data-anim]")){state.anim=!state.anim;renderList(true);return;}
   const o=t.closest("[data-open]");if(o){showDetail(o.dataset.open);return;}
-  const a=t.closest("[data-add]");if(a){a.disabled=true;if(!self.DLIB_PREVIEW)await ensureDrill(byId(a.dataset.add));a.outerHTML=`<span class="dlib-have big">✓ Added to your drill library</span>`;if(window.cppTrack)cppTrack("drill:libadd");return;}
+  const a=t.closest("[data-add]");if(a){a.disabled=true;if(!self.DLIB_PREVIEW)await ensureDrill(byId(a.dataset.add));a.outerHTML=`<span class="dlib-have big">✓ Added to my drills</span>`;if(window.cppTrack)cppTrack("drill:libadd");return;}
 }
 
 /* ---------- watch one drill (from a practice card or the team's drill list) ---------- */
@@ -241,9 +241,19 @@ function alertMsg(t){let m=SDLG.querySelector(".sp-err");if(!m){m=document.creat
 function mountEntry(){
   const host=document.querySelector("#view-lib .lib-tools");if(!host||document.getElementById("dlibEntry"))return;
   const el=document.createElement("div");el.id="dlibEntry";el.className="dlib-entry";
-  el.innerHTML=`<div><b>Drill library</b><span>${LIB.length} proven drills, ${LIB.filter(d=>d.sim).length} animated. Add any of them to your drills.</span></div><div class="dlib-entry-b"><button type="button" class="btn primary" data-libopen="">Browse drills</button><button type="button" class="btn" data-season>Plan my season</button></div>`;
-  host.before(el);
+  el.innerHTML=`<div><b>Drill library</b><span>${LIB.length} proven drills, ${LIB.filter(d=>d.sim).length} animated. Add the ones you like to My drills.</span></div><div class="dlib-entry-b"><button type="button" class="btn primary" data-libopen="">Browse drills</button><button type="button" class="btn" data-season>Plan my season</button></div>`;
+  host.before(el);sportGate();
 }
 if(document.readyState!=="loading")mountEntry();else document.addEventListener("DOMContentLoaded",mountEntry);
+/* Practice search: library drills the team doesn't have yet. */
+function libSearch(q,n){q=(q||"").trim().toLowerCase();if(!q)return [];
+  const sc=d=>{const m=d.name.toLowerCase();return m.startsWith(q)?0:m.split(/[\s-]+/).some(w=>w.startsWith(q))?1:m.includes(q)?2:(d.group+" "+d.cat).toLowerCase().includes(q)?3:9;};
+  return LIB.filter(d=>!teamDrillFor(d)).map(d=>[sc(d),d]).filter(x=>x[0]<9).sort((a,b)=>a[0]-b[0]||a[1].name.localeCompare(b[1].name)).slice(0,n||5)
+    .map(([,d])=>({_lib:true,id:"lib:"+d.id,libId:d.id,name:d.name,minutes:d.minutes,group:d.group,sim:!!d.sim}));}
+self.libSearch=libSearch;
+self.addLibDrill=async id=>{const d=byId(id);if(!d)return null;const r=await ensureDrill(d);if(window.cppTrack)cppTrack("drill:libadd");return r;};
+/* Only basketball has the library. */
+function sportGate(){const e=document.getElementById("dlibEntry");if(e)e.hidden=(typeof SPORT==="string"?SPORT:"basketball")!=="basketball";}
+if(typeof self.refreshSportUI==="function"){const o=self.refreshSportUI;self.refreshSportUI=function(){const r=o.apply(this,arguments);sportGate();return r;};}
 self.openDrillLib=openLib;self.mountDrillLib=mountInline;self.openSeasonPlanner=openSeason;self.buildSeasonPlan=buildSeason;
 })();

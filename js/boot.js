@@ -76,7 +76,7 @@ const roleName=r=>({owner:"Head coach",coach:"Coach",viewer:"View only"})[r]||r;
    Head coach: everything. Coach: everything except managing the staff. View only: nothing.
    A head coach (or anyone allowed to manage the staff) can switch any area on or off per person. */
 let PERMS_DB=true;   // false until supabase/roles.sql has been run
-const AREA_LABELS={plans:"Practice plans",plays:"Plays",drills:"Drill library",schedule:"Calendar & games",team:"Team settings, roster & parent sign-ups",share:"Share plays with players",staff:"Manage staff & permissions"};
+const AREA_LABELS={plans:"Practice plans",plays:"Plays",drills:"My drills",schedule:"Calendar & games",team:"Team settings, roster & parent sign-ups",share:"Share plays with players",staff:"Manage staff & permissions"};
 const PRESETS={assistant:{label:"Assistant coach",perms:{plans:true,plays:true,drills:true,schedule:true,team:true,share:true,staff:false}},
   manager:{label:"Team manager",perms:{plans:false,plays:false,drills:false,schedule:true,team:true,share:false,staff:false}},
   view:{label:"View only",perms:{plans:false,plays:false,drills:false,schedule:false,team:false,share:false,staff:false}}};
@@ -213,7 +213,7 @@ async function checkAdmin(){
 const usageAgo=iso=>{if(!iso)return "never";const m=Math.round((Date.now()-new Date(iso))/60000);
   if(m<2)return "just now";if(m<60)return m+" min ago";const h=Math.round(m/60);if(h<24)return h+" hr ago";const d=Math.round(h/24);return d===1?"yesterday":d<31?d+" days ago":new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});};
 /* Friendly names for the feature counts js/track.js sends. */
-const FEAT_NAMES={"tab:home":"Home","tab:plan":"Practice plan","tab:plays":"Plays","tab:lib":"Drill library","tab:cal":"Calendar","tab:team":"Team","tab:settings":"Settings",
+const FEAT_NAMES={"tab:home":"Home","tab:plan":"Practice plan","tab:plays":"Plays","tab:lib":"My drills","tab:cal":"Calendar","tab:team":"Team","tab:settings":"Settings",
   "play:run":"Run a play","play:speed":"Change play speed","plays:share":"Share plays with players","plays:print":"Print plays","plan:print":"Print practice plan",
   "cal:export":"Export calendar","cal:setup":"Season setup","cal:multiday":"Apply time to more days","parentlink:open":"Parent link opened","parentlink:send":"Parent link sent",
   "food:send":"Food sign-up link sent","stats:live":"Live stat tracker","stats:tracking":"Stats tapped in a game","stats:season":"Season stats","bus:print":"Bus list printed",
@@ -571,7 +571,7 @@ function showSetup(canGoBack,focusJoin){
   if(focusJoin)$("#joinCode").focus();
 }
 function updateStarterLabel(){
-  const n=(STARTERS[$("#suSport").value]||[]).length;
+  const sp=$("#suSport").value,n=sp==="basketball"&&self.DRILL_LIB?0:(STARTERS[sp]||[]).length;
   $("#suStarterWrap").hidden=!n;$("#suStarterText").textContent=`Add ${n} starter drills`;
 }
 $("#suSport").addEventListener("change",()=>{updateStarterLabel();copyNote();});
@@ -707,7 +707,7 @@ $("#setupForm").addEventListener("submit",async e=>{
   const addStarters=$("#suStarter").checked;
   $("#setupForm").reset();updateStarterLabel();
   await openTeam(t);setTab("home");
-  if(addStarters&&!copied.drills&&STARTERS[sport]&&STARTERS[sport].length){try{await store.bulkSet("drills",startersFor(sport));}catch{}}
+  if(addStarters&&!copied.drills&&!(sport==="basketball"&&self.DRILL_LIB)&&STARTERS[sport]&&STARTERS[sport].length){try{await store.bulkSet("drills",startersFor(sport));}catch{}}
   for(const k of Object.keys(copied)){if(copied[k].length){try{await store.bulkSet(k,copied[k].map(([id,d])=>[id,{...d,copiedFrom:src.name}]));}catch(err){showNotice("Some "+k+" couldn't be copied: "+(err.message||err));}}}
   if(src)showNotice(`${t.name} is ready${Object.keys(copied).length?`, with ${Object.entries(copied).map(([k,v])=>`${v.length} ${({drills:"drills",plays:"plays",players:"players"})[k]}`).join(", ")} copied from ${src.name}`:""}.`);
 });
@@ -1516,7 +1516,7 @@ function exportPanel(){
     ${ps.length?`<details class="ex-pick" id="exPlayPick"><summary>Choose which plays (<span id="exPlayCount">all ${ps.length}</span>)</summary>
       <div class="actions" style="margin:6px 0"><button class="btn" type="button" data-exall="1">All</button><button class="btn" type="button" data-exall="0">None</button></div>
       <div class="ex-plays">${ps.map(p=>`<label><input type="checkbox" data-explay="${esc(p.id)}" checked> ${esc(p.name)} <small>${esc(p.type||"")}</small></label>`).join("")}</div></details>`:""}
-    ${row("exDrills","Drill library",`${drills.length} drill${drills.length===1?"":"s"}`,true,!drills.length)}
+    ${row("exDrills","My drills",`${drills.length} drill${drills.length===1?"":"s"}`,true,!drills.length)}
     ${row("exPlans","Practice plans",`${Object.keys(plans).length} plan${Object.keys(plans).length===1?"":"s"}`,true,!Object.keys(plans).length)}
     ${row("exCal","Calendar",`${ng} game${ng===1?"":"s"}, ${nd} marked day${nd===1?"":"s"}, season dates and practice times`,true,!(ng||nd||st.seasonStart))}
     ${row("exLook","Team name, colors and logo","So a full backup can rebuild the team",true)}
@@ -1575,7 +1575,7 @@ $("#sImport").addEventListener("change",async e=>{
   const row=(id,label,sub,on)=>`<label class="ex-row"><input type="checkbox" id="${id}"${on?" checked":""}><span><b>${label}</b><small>${sub}</small></span></label>`;
   box.innerHTML=`<div class="ex-panel"><p class="help" style="margin:0">From <b>${esc([data.team,data.teamLabel].filter(Boolean).join(" · ")||"another team")}</b>${data.exportedBy?` (exported by ${esc(data.exportedBy)})`:""}. Pick what to bring into <b>${esc(team.name)}</b>. Nothing you have is deleted; items with the same name or practice date are updated.</p>
     ${n.plays?row("impPlays","Plays",`${n.plays} play${n.plays===1?"":"s"}: ${esc(data.plays.slice(0,4).map(p=>p.name).join(", "))}${n.plays>4?"…":""}${sportOff?`. Drawn for ${esc(data.sport)}, so they'll sit on your court`:""}`,true):""}
-    ${n.drills?row("impDrills","Drill library",`${n.drills} drills`,true):""}
+    ${n.drills?row("impDrills","My drills",`${n.drills} drills`,true):""}
     ${n.plans?row("impPlans","Practice plans",`${n.plans} plans`,true):""}
     ${calN&&!full?row("impCal","Calendar",`Add ${(ss.games||[]).length} games and ${(ss.special||[]).length} marked days to your calendar`,false):""}
     ${n.players?row("impRoster","Roster",`${n.players} players with parent contacts`,false):""}

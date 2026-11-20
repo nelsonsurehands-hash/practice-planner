@@ -160,7 +160,7 @@ async function pdfLogo(doc,left,top,box){
 const FEATURES=[
   ["plans","Practice plans","Timed plans for each practice","Practice"],
   ["plays","Plays & playbook","Draw plays, share them with players","Practice"],
-  ["drills","Drill library","Your drills, by category","Practice"],
+  ["drills","My drills","Your own drills, plus the drill library","Practice"],
   ["game","Gameplans","Starters, matchups, plays to run, the result","Games"],
   ["scout","Scouting reports","Notes on each opponent","Games"],
   ["stats","Stats & live tracker","Track games live, box scores, season stats","Games"],
@@ -482,7 +482,7 @@ $("#ndForm").addEventListener("submit",async e=>{
   const name=titleCase($("#ndName").value.trim());if(!name){$("#ndName").focus();return;}
   const cs=[...document.querySelectorAll("#ndCats input:checked")].map(x=>x.value),minutes=Math.max(1,Math.min(90,parseInt($("#ndMin").value)||10));
   const keep=$("#ndKeep").checked;
-  if(keep&&!cs.length){msg($("#ndMsg"),"Pick a category so it's easy to find in the library (or uncheck “save to the drill library”).","err");return;}
+  if(keep&&!cs.length){msg($("#ndMsg"),"Pick a category so it's easy to find in the library (or uncheck “save to my drills”).","err");return;}
   let drillId=null;
   if(keep){
     const same=drills.find(d=>d.name.toLowerCase()===name.toLowerCase());
@@ -494,7 +494,7 @@ $("#ndForm").addEventListener("submit",async e=>{
   }
   addBlock({drillId,name,category:cs[0]||"",minutes,notes:$("#ndNote").value.trim()});
   $("#newDrillDlg").close();
-  flash(keep?`${name} added to practice and the drill library.`:`${name} added to practice.`,true);
+  flash(keep?`${name} added to practice and your drills.`:`${name} added to practice.`,true);
   const last=$("#script").querySelectorAll(".block")[LAST_ADD]||$("#script").querySelector(".block:last-child");if(last){last.classList.add("just-moved");setTimeout(()=>last.classList.remove("just-moved"),900);}
 });
 $("#script").addEventListener("change",e=>{
@@ -546,16 +546,20 @@ function renderQuick(){
 /* Sticky add bar on the plan: search the library, quick adds (water, running…), new drill, photo. */
 function paMatches(q){q=q.trim().toLowerCase();if(!q)return [];
   const score=d=>{const n=d.name.toLowerCase();return n.startsWith(q)?0:n.split(/[\s-]+/).some(w=>w.startsWith(q))?1:n.includes(q)?2:catsOf(d).some(c=>c.toLowerCase().includes(q))?3:9;};
-  return drills.map(d=>[score(d),d]).filter(x=>x[0]<9).sort((a,b)=>a[0]-b[0]||a[1].name.localeCompare(b[1].name)).slice(0,7).map(x=>x[1]);}
+  return drills.map(d=>[score(d),d]).filter(x=>x[0]<9).sort((a,b)=>a[0]-b[0]||a[1].name.localeCompare(b[1].name)).slice(0,7).map(x=>x[1]).concat(SPORT==="basketball"&&self.libSearch?self.libSearch(q,5):[]);}
 let paSel=0;
 function renderPa(){
   const q=$("#paSearch").value,box=$("#paResults");if(!q.trim()){box.hidden=true;box.innerHTML="";return;}
   const list=paMatches(q);paSel=Math.min(paSel,Math.max(0,list.length-1));
-  box.innerHTML=list.map((d,i)=>`<button type="button" role="option" class="pa-hit${i===paSel?" on":""}" data-pa="${esc(d.id)}" aria-selected="${i===paSel}"><b>${esc(d.name)}</b><small>${esc(catLabel(d))} · ${d.minutes||10} min</small></button>`).join("")+
-    `<button type="button" class="pa-hit pa-new" data-panew><b>+ New drill “${esc(q.trim())}”</b><small>Add it to practice and the drill library</small></button>`;
+  box.innerHTML=list.map((d,i)=>(d._lib&&!(list[i-1]||{})._lib?`<div class="pa-sec">From the drill library</div>`:"")+
+    `<button type="button" role="option" class="pa-hit${i===paSel?" on":""}${d._lib?" pa-lib":""}" data-pa="${esc(d.id)}" aria-selected="${i===paSel}"><b>${esc(d.name)}${d._lib&&d.sim?` <i class="pa-anim">▶ Animated</i>`:""}</b><small>${d._lib?`${esc(d.group)} · ${d.minutes||10} min · adds to My drills`:`${esc(catLabel(d))} · ${d.minutes||10} min`}</small></button>`).join("")+
+    `<button type="button" class="pa-hit pa-new" data-panew><b>+ New drill “${esc(q.trim())}”</b><small>Add it to practice and your drills</small></button>`;
   box.hidden=false;
 }
-function paAdd(d){addBlock({drillId:d.id,name:d.name,category:catLabel(d),minutes:d.minutes||10});$("#paSearch").value="";renderPa();
+async function paAdd(d){
+  if(d._lib){$("#paSearch").value="";renderPa();const id=self.addLibDrill?await self.addLibDrill(d.libId):null,t=id&&drills.find(x=>x.id===id);
+    if(t){paAdd(t);flash(`${t.name} added to practice and your drills.`,true);}return;}
+  addBlock({drillId:d.id,name:d.name,category:catLabel(d),minutes:d.minutes||10});$("#paSearch").value="";renderPa();
   const last=$("#script").querySelectorAll(".block")[LAST_ADD]||$("#script").querySelector(".block:last-child");if(last){last.classList.add("just-moved");setTimeout(()=>last.classList.remove("just-moved"),800);}}
 $("#paSearch").addEventListener("input",()=>{paSel=0;renderPa();});
 $("#paSearch").addEventListener("keydown",e=>{const list=paMatches($("#paSearch").value);
@@ -564,7 +568,7 @@ $("#paSearch").addEventListener("keydown",e=>{const list=paMatches($("#paSearch"
   if(e.key==="Escape"){$("#paSearch").value="";renderPa();}});
 function paNew(){const v=$("#paSearch").value.trim();$("#paSearch").value="";renderPa();openNewDrill();if(v)$("#ndName").value=v;}
 $("#planAdd").addEventListener("click",e=>{
-  const h=e.target.closest("[data-pa]");if(h){const d=drills.find(x=>x.id===h.dataset.pa);if(d)paAdd(d);return;}
+  const h=e.target.closest("[data-pa]");if(h){const d=paMatches($("#paSearch").value).find(x=>x.id===h.dataset.pa);if(d)paAdd(d);return;}
   if(e.target.closest("[data-panew]")){paNew();return;}
   const b=e.target.closest("[data-qi]");if(b){const q=quickAdds()[+b.dataset.qi];if(!q)return;const d=quickDrill(q);
     addBlock(d?{drillId:d.id,name:d.name,category:catsOf(d)[0]||"",minutes:q.minutes||d.minutes||10}:{drillId:null,name:q.name,category:"",minutes:q.minutes||5});}
@@ -681,7 +685,7 @@ function renderPick(){
   $("#picklist").innerHTML=list.length?list.map(d=>{const m=d.minutes||10;
     const btn=`<button data-id="${d.id}" aria-label="Add ${esc(d.name)}">Add</button>`;
     return `<div class="pick"><div><b>${esc(d.name)}</b><span>${esc(catsOf(d).join(" · "))} · ${m} min</span></div>${btn}</div>`;}).join("")
-    :(plist.length?"":`<div class="empty">${drills.length?"No drills match.":"Your drill library is empty. Add drills in the Drill Library tab."}</div>`);
+    :(plist.length?"":`<div class="empty">${drills.length?"No drills match.":"You have no drills yet. Add your own in My drills, or search the drill library above."}</div>`);
   $("#picklist").innerHTML+=plist.map(p=>`<div class="pick play"><div><b>${esc(p.name)}</b><span>Play · ${esc(p.type)} · 10 min</span></div>${pbtn(`data-play="${p.id}"`,p.name,10)}</div>`).join("");
 }
 $("#pickCats").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;pickCat=b.dataset.c;renderPickCats();renderPick();});
@@ -733,7 +737,7 @@ function renderLib(){
   $("#drillCount").textContent=drills.length?`(${drills.length})`:"";
   const q=$("#libSearch").value.trim().toLowerCase(), cat=$("#libCat").value, u=usage();
   const list=drills.filter(d=>(!cat||catsOf(d).includes(cat))&&(!q||(d.name+" "+catLabel(d)+" "+d.description+" "+d.points).toLowerCase().includes(q)));
-  if(!list.length){$("#library").innerHTML=`<div class="empty">${drills.length?"No drills match your search.":"No drills yet. Add your first drill with the form, and it will show up here and in the practice planner."}</div>`;return;}
+  if(!list.length){$("#library").innerHTML=`<div class="empty">${drills.length?"No drills match your search.":"No drills of your own yet. Add one, or tap Browse drills to pick from the drill library."}</div>`;return;}
   $("#library").innerHTML=CATS.filter(c=>(!cat||c===cat)&&list.some(d=>catsOf(d).includes(c))).map(c=>{
     const ds=list.filter(d=>catsOf(d).includes(c));
     return `<div class="catgroup"><h3>${esc(c)}<small>${ds.length} drill${ds.length>1?"s":""}</small></h3>${ds.map(d=>`

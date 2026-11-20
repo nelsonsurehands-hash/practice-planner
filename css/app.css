@@ -2132,3 +2132,5 @@ details.us-fold>div>h4.us-h-in:first-child+*{margin-top:0}
 .us-fb p{margin:6px 0 0;font-size:15px;white-space:pre-wrap}
 .us-fb .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.us-fb .chips span{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 8px}
 .us-fb .ok{color:#1b8a4a;font-weight:600}
+.pa-sec{padding:10px 10px 4px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--line);margin-top:4px}
+.pa-anim{font-style:normal;font-size:11px;font-weight:700;color:var(--accent);margin-left:6px;letter-spacing:.02em}

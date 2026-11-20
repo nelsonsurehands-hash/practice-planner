@@ -273,7 +273,7 @@
     <fieldset class="catpick" id="suCopyBox" hidden><legend>Start from one of your teams</legend>
       <label class="f">Copy from<select id="suCopyFrom"><option value="">Nothing, start fresh</option></select></label>
       <div class="exp-pick" id="suCopyWhat" hidden>
-        <label><input type="checkbox" id="suCpDrills" checked> Drill library</label>
+        <label><input type="checkbox" id="suCpDrills" checked> My drills</label>
         <label><input type="checkbox" id="suCpPlays" checked> Plays <small id="suCpPlaysNote"></small></label>
         <label><input type="checkbox" id="suCpSched" checked> Practice days and times, season dates</label>
         <label><input type="checkbox" id="suCpLook" checked> Logo, second color and quick adds</label>
@@ -326,7 +326,7 @@
     <button id="tab-home" role="tab" aria-selected="true" data-tab="home">Home</button>
     <button id="tab-plan" role="tab" aria-selected="false" data-tab="plan" data-feature="plans">Practice</button>
     <button id="tab-plays" role="tab" aria-selected="false" data-tab="plays" data-feature="plays">Plays <span id="playCount"></span></button>
-    <button id="tab-lib" role="tab" aria-selected="false" data-tab="lib" data-feature="drills">Drill Library <span id="drillCount"></span></button>
+    <button id="tab-lib" role="tab" aria-selected="false" data-tab="lib" data-feature="drills">My Drills <span id="drillCount"></span></button>
     <button id="tab-cal" role="tab" aria-selected="false" data-tab="cal">Calendar</button>
     <button id="tab-team" role="tab" aria-selected="false" data-tab="team">Team</button>
     <button id="tab-settings" role="tab" aria-selected="false" data-tab="settings">Settings</button>
@@ -342,7 +342,7 @@
 </section>
 
 <section id="view-plan" class="view" hidden>
-  <div class="subtabs" role="group" aria-label="Practice sections"><button type="button" data-sub="plan" class="on" aria-current="page">Practice plan</button><button type="button" data-sub="lib">Drill library <span class="sub-n" data-subn></span></button></div>
+  <div class="subtabs" role="group" aria-label="Practice sections"><button type="button" data-sub="plan" class="on" aria-current="page">Practice plan</button><button type="button" data-sub="lib">My drills <span class="sub-n" data-subn></span></button></div>
   <div class="plan-grid">
     <div class="sheet">
       <div class="sheet-head">
@@ -472,7 +472,7 @@
 </section>
 
 <section id="view-lib" class="view" hidden>
-  <div class="subtabs" role="group" aria-label="Practice sections"><button type="button" data-sub="plan">Practice plan</button><button type="button" data-sub="lib" class="on" aria-current="page">Drill library <span class="sub-n" data-subn></span></button></div>
+  <div class="subtabs" role="group" aria-label="Practice sections"><button type="button" data-sub="plan">Practice plan</button><button type="button" data-sub="lib" class="on" aria-current="page">My drills <span class="sub-n" data-subn></span></button></div>
   <div class="lib-grid">
     <form class="form edit-only" id="drillForm">
       <h2 id="formTitle">Add a drill</h2>
@@ -489,7 +489,7 @@
     <div style="min-width:0">
       <button type="button" class="btn primary lib-addbtn edit-only" id="libAddBtn">+ Add a drill</button>
       <div class="lib-tools">
-        <input id="libSearch" placeholder="Search the library">
+        <input id="libSearch" placeholder="Search my drills">
         <select id="libCat"><option value="">All categories</option></select>
       </div>
       <div id="library"></div>
@@ -731,7 +731,7 @@
     <label class="f" style="max-width:140px">Minutes<input id="ndMin" type="number" min="1" max="90" value="10" inputmode="numeric"></label>
     <fieldset class="catpick"><legend>Category</legend><div class="catboxes" id="ndCats"></div></fieldset>
     <label class="f">Notes for this practice <small>(optional)</small><input id="ndNote" placeholder="e.g. Focus on the outlet pass"></label>
-    <label class="nd-save"><input type="checkbox" id="ndKeep" checked> Also save it to the drill library</label>
+    <label class="nd-save"><input type="checkbox" id="ndKeep" checked> Also save it to my drills</label>
     <div class="msg" id="ndMsg"></div>
     <div class="actions" style="margin:0"><button class="btn primary" type="submit" id="ndGo">Add to practice</button><button class="btn" type="button" id="ndCancel">Cancel</button></div>
   </form>
