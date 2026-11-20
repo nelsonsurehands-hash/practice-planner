@@ -8,6 +8,7 @@ const src=()=>{let r="";try{r=localStorage.getItem("cpp:ref")||"";}catch{}return
 const queue=[];let timer=null,off=false;
 function hit(step){
   if(off||!ok())return;
+  try{if(localStorage.getItem("cpp:owner"))return;}catch{}
   try{const k="cpp:lp:"+step;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");}catch{}
   queue.push(step);clearTimeout(timer);timer=setTimeout(flush,1500);
 }
