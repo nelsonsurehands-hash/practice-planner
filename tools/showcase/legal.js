@@ -1,7 +1,7 @@
 /* Privacy policy and terms of use for theextracoach.com/privacy/ and /terms/.
    Plain language on purpose. Keep it true to what the app actually does: if the app starts collecting
    something new or uses a new service, update this file, change UPDATED, and run node tools/showcase/build.js. */
-const UPDATED="November 17, 2026", CONTACT="coach@theextracoach.com";
+const UPDATED="November 20, 2026", CONTACT="coach@theextracoach.com";
 module.exports={UPDATED,CONTACT,
 privacy:{title:"Privacy Policy",lede:"The Extra Coach is an app for coaching staffs to plan practices, draw plays, run the season calendar and share it with players and families. This page explains what we collect, why, who helps us run the app, and how to get your information deleted.",
 sections:[
@@ -16,6 +16,7 @@ sections:[
  "<b>Information families enter.</b> When a parent uses a game-day food sign-up link, they can enter their name and what they're bringing. Parents don't need an account.",
  "<b>Photos you choose to import.</b> When you use “Add from a photo,” the photo is sent to our AI provider to read it (for example, a roster or a schedule). We keep the results you choose to save, plus a count of how many photos your team has imported. We don't keep the photo.",
  "<b>How the app is used.</b> Which days you open the app, how many times, how long each visit lasts, which features are used, and how you found us (for example, a link from another coach). We use this to improve the app. It is tied to your account and visible only to the app's owner.",
+ "<b>Homepage visits.</b> We count, anonymously, how many people visit our homepage, how far down they scroll and whether they start signing up, grouped by the link they came from (for example, our Facebook ad). We don't record names, email addresses or IP addresses for this, and we don't use cookies to do it.",
  "<b>Information stored on your device.</b> The app saves some settings on your phone or computer (for example, the last team you opened and your court look) so it opens quickly. You can clear these from your browser."]],
 ["What we don't collect",[
  "We don't ask for birthdates, home addresses, grades, health or medical information, or payment information, and we ask coaches not to enter them.",

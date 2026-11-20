@@ -42,16 +42,20 @@ try{
   /* No link code? Note the site they came from (Google, Facebook…) so Usage can show it. */
   if(!ref&&!localStorage.getItem("cpp:ref")){
     let h="";try{h=document.referrer?new URL(document.referrer).hostname:"";}catch{}
-    const src=/(^|\.)google\./.test(h)?"google":/(^|\.)bing\.com$/.test(h)?"bing":/duckduckgo\.com$/.test(h)?"duckduckgo":/(^|\.)yahoo\./.test(h)?"yahoo":
+    /* In-app browsers (Facebook, Instagram) usually send no referrer, but their links carry a click id. */
+    const cid=q.has("fbclid")?(/instagram/i.test(navigator.userAgent)?"instagram":"facebook"):q.has("igshid")||q.has("igsh")?"instagram":q.has("gclid")?"google":"";
+    const src=cid?cid:/(^|\.)google\./.test(h)?"google":/(^|\.)bing\.com$/.test(h)?"bing":/duckduckgo\.com$/.test(h)?"duckduckgo":/(^|\.)yahoo\./.test(h)?"yahoo":
       /(^|\.)(facebook\.com|fb\.com|fb\.me)$/.test(h)?"facebook":/(^|\.)instagram\.com$/.test(h)?"instagram":/(^|\.)(t\.co|twitter\.com|x\.com)$/.test(h)?"twitter":"";
     if(src)localStorage.setItem("cpp:ref",src);
   }
   if(ref){q.delete("ref");history.replaceState(null,"",location.pathname+(q.toString()?"?"+q:"")+location.hash);}
 }catch{}
 /* Once a coach is signed in, credit the invite (the database only counts brand-new accounts). */
+/* Keeps checking until the coach is signed in (no 10-minute cutoff: people read the page, then sign up).
+   If this browser doesn't know the link, use the one saved with the account at sign-up. */
 const iv=setInterval(()=>{if(!sbOK())return;clearInterval(iv);
   let ref=null,done=null;try{ref=localStorage.getItem("cpp:ref");done=localStorage.getItem("cpp:refDone");}catch{}
+  if(!ref&&user.user_metadata&&user.user_metadata.ref)ref=String(user.user_metadata.ref);
   if(ref&&!done)sb.rpc("record_referral",{p_code:ref}).then(({error})=>{if(!error)try{localStorage.setItem("cpp:refDone","1");}catch{}},()=>{});
 },2000);
-setTimeout(()=>clearInterval(iv),10*60*1000);
 })();

@@ -10,3 +10,16 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&nav()&&nav().classList.contains("open")){close();btn().focus();}});
 })();
+/* Remember where a visitor came from (a tagged ?ref= link, or Facebook/Instagram/Google), the same way the
+   app does, so a coach who reads a play page first and signs up later still counts toward that link. */
+(function(){try{
+  const q=new URLSearchParams(location.search);let ref=(q.get("ref")||"").trim().toLowerCase();
+  if(!/^[a-z0-9]{2,20}$/.test(ref))ref="";
+  if(!ref){let h="";try{h=document.referrer?new URL(document.referrer).hostname:"";}catch{}
+    if(h===location.hostname)h="";
+    ref=q.has("fbclid")?(/instagram/i.test(navigator.userAgent)?"instagram":"facebook"):q.has("igshid")||q.has("igsh")?"instagram":q.has("gclid")?"google":
+      /(^|\.)google\./.test(h)?"google":/(^|\.)bing\.com$/.test(h)?"bing":/duckduckgo\.com$/.test(h)?"duckduckgo":/(^|\.)yahoo\./.test(h)?"yahoo":
+      /(^|\.)(facebook\.com|fb\.com|fb\.me)$/.test(h)?"facebook":/(^|\.)instagram\.com$/.test(h)?"instagram":/(^|\.)(t\.co|twitter\.com|x\.com)$/.test(h)?"twitter":"";}
+  if(ref&&!localStorage.getItem("cpp:ref"))localStorage.setItem("cpp:ref",ref);
+  if(q.has("ref")){q.delete("ref");history.replaceState(null,"",location.pathname+(q.toString()?"?"+q:"")+location.hash);}
+}catch{}})();

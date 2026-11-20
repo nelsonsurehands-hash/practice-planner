@@ -233,6 +233,7 @@ async function renderUsage(){
   const by=Object.fromEntries((r.by_day||[]).map(x=>[String(x.day).slice(0,10),x])),mx=Math.max(1,...(r.by_day||[]).map(x=>x.coaches));
   box.innerHTML=`<div class="us-tiles">${tile(r.coaches,"coaches signed up",newToday)}${tile(r.teams,"teams")}${tile(r.active_today,"used it today")}${tile(r.active_7,"this week")}${tile(r.active_30,"last 30 days")}${tile(r.opens_7,"opens this week")}${r.referred!=null?tile(r.referred,"came from invites"):""}</div>
     <div id="usageFirst"></div>
+    <div id="usageLanding"></div>
     <h4 class="us-h">Coaches using it each day <small>last 30 days</small></h4>
     <div class="us-bars" role="img" aria-label="Coaches active each day for the last 30 days">${days.map(d=>{const x=by[d];const n=x?x.coaches:0;return `<span title="${d}: ${n} coach${n===1?"":"es"}, ${x?x.opens:0} opens" style="height:${Math.max(3,Math.round(n/mx*100))}%"${n?"":' class="z"'}></span>`;}).join("")}</div>
     ${r.features?`<h4 class="us-h">Most used features <small>last 30 days</small></h4>
@@ -252,7 +253,7 @@ async function renderUsage(){
     <div class="actions" style="margin:0"><button class="btn" type="button" id="usageRefresh">Refresh</button></div>`;
   if(r.features&&r.features.length>10){const f=box.querySelector(".us-feats");if(f)f.insertAdjacentHTML("afterend",`<button class="linkbtn us-featall" type="button">Show all ${Math.min(40,r.features.length)} features</button>`);}
   usLimit=10;usFilter="all";usApply();
-  renderUsageMore();renderUsageTime();renderUsageSources(r);renderUsageFirst();
+  renderUsageMore();renderUsageTime();renderUsageSources(r);renderUsageFirst();renderUsageLanding();
 }
 /* First week: where new coaches drop off, how fast they build something, who brings others in,
    weekly returning coaches, and new coaches who are stuck (worth a personal follow-up). */
@@ -276,6 +277,27 @@ async function renderUsageFirst(){
       <div class="us-stuck">${f.stuck.map(x=>`<div><b class="us-em" data-full="${esc(x.email||"")}">${esc(maskEmail(x.email))}</b><small>${esc(x.team||"No team yet")} · joined ${esc(usageAgo(x.joined))} · last seen ${esc(usageAgo(x.last_seen))}</small><span>${esc(stuckAt(x))}</span></div>`).join("")}</div>`:""}`;
   const sh=$("#usShowEmail");if(sh&&sh.checked)box.querySelectorAll(".us-em").forEach(x=>x.textContent=x.dataset.full);
 }
+/* Homepage visitors: how far people get on the homepage before signing up, by the link they came from. */
+let lpRows=null,lpSrc="all";
+async function renderUsageLanding(){
+  const box=$("#usageLanding");if(!box)return;
+  if(lpRows===null||!box.dataset.loaded){const {data,error}=await sb.rpc("usage_landing");
+    if(error){box.innerHTML=/function|schema cache|does not exist/i.test(error.message)?`<p class="help">Homepage visitor numbers need one database step: run supabase/landing-funnel.sql.</p>`:"";return;}
+    lpRows=data||[];box.dataset.loaded="1";}
+  const sum=(src,step)=>lpRows.filter(x=>(src==="all"||x.src===src)&&x.step===step).reduce((a,x)=>a+(+x.n||0),0);
+  const srcs=[...new Set(lpRows.map(x=>x.src))].sort((a,b)=>sum(b,"land")-sum(a,"land"));
+  if(lpSrc!=="all"&&!srcs.includes(lpSrc))lpSrc="all";
+  const steps=[["land","Landed on the homepage"],["scroll","Scrolled past the top"],["features","Saw the features"],["bottom","Reached the bottom"],["cta","Tapped Create your team"],["form","Started the sign-up form"],["signup","Sent the sign-up"]];
+  const base=sum(lpSrc,"land"),pct=(a,b)=>b?Math.round(a/b*100)+"%":"–";
+  let worst=0,wi=-1;steps.forEach(([k],i)=>{if(i){const d=sum(lpSrc,steps[i-1][0])-sum(lpSrc,k);if(d>worst){worst=d;wi=i;}}});
+  const nm=k=>k==="direct"?"No link":srcName(k);
+  box.innerHTML=`<h4 class="us-h">Homepage visitors <small>last 30 days · anonymous</small></h4>
+    ${lpRows.length?`<div class="us-chips lp-chips" role="group" aria-label="Came from">${[["all","All"],...srcs.map(k=>[k,nm(k)])].map(([k,l])=>`<button type="button" class="btn" data-lpsrc="${esc(k)}" aria-pressed="${k===lpSrc}">${esc(l)} <small>${sum(k,"land")}</small></button>`).join("")}</div>
+    <div class="us-funnel">${steps.map(([k,l],i)=>{const n=sum(lpSrc,k);return `<div class="us-fn${i===wi&&worst>0?" worst":""}"><span>${l}</span><i style="width:${Math.max(2,Math.round(n/Math.max(1,base)*100))}%"></i><b>${n}</b><small>${pct(n,base)}${i===wi&&worst>0?" · biggest drop":""}</small></div>`;}).join("")}</div>
+    <p class="help">Each step counts once per visit. ${sum(lpSrc,"signin")} visitors tapped Sign in instead (returning coaches). Finished accounts by source are in "Where new coaches came from" below.</p>`
+    :`<p class="help">No homepage visits counted yet. They start adding up from now on.</p>`}`;
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-lpsrc]");if(!b)return;lpSrc=b.dataset.lpsrc;renderUsageLanding();});
 /* Where new coaches came from: the first link they used (the Facebook ad, page posts, Google, a coach's invite…). */
 const SRC_NAMES={fbad:"Facebook ad",fbpage:"Facebook page posts",ig:"Instagram bio link",igpost:"Instagram posts",facebook:"Facebook (other)",instagram:"Instagram",google:"Google search",bing:"Bing",duckduckgo:"DuckDuckGo",yahoo:"Yahoo",twitter:"X / Twitter",
   parent:"Parent calendar page",food:"Food sign-up page",playbook:"Player playbook page",play:"Play sent to a coach",invite:"Another coach's invite",none:"No link (typed it in, or unknown)"};
@@ -428,7 +450,11 @@ $("#authForm").addEventListener("submit",async e=>{
   $("#authBtn").disabled=true;msg($("#authMsg"),authMode==="up"?"Creating your account…":"Signing in…");
   if(authMode==="up"){
     const name=$("#authName").value.trim();
-    const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname+(JOIN?"?join="+JOIN:""),data:name?{full_name:name}:{}}});
+    /* Keep where they came from with the account, and in the confirmation link: people often confirm in a
+       different browser (the email opens in Safari, not Facebook's in-app browser), which would lose it. */
+    let ref="";try{ref=localStorage.getItem("cpp:ref")||"";}catch{}
+    const back=new URLSearchParams();if(JOIN)back.set("join",JOIN);if(ref)back.set("ref",ref);
+    const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname+(back.toString()?"?"+back:""),data:{...(name?{full_name:name}:{}),...(ref?{ref}:{})}}});
     $("#authBtn").disabled=false;
     if(error){msg($("#authMsg"),authErr(error.message),"err");return;}
     if(!data.session){
@@ -473,7 +499,8 @@ function renderOauth(){
 $("#oauthBox").addEventListener("click",async e=>{
   const b=e.target.closest("[data-provider]");if(!b)return;
   msg($("#authMsg"),"Opening "+b.textContent.replace("Continue with ","")+"…");
-  const {error}=await sb.auth.signInWithOAuth({provider:b.dataset.provider,options:{redirectTo:location.origin+location.pathname}});
+  let ref="";try{ref=localStorage.getItem("cpp:ref")||"";}catch{}
+  const {error}=await sb.auth.signInWithOAuth({provider:b.dataset.provider,options:{redirectTo:location.origin+location.pathname+(ref?"?ref="+encodeURIComponent(ref):"")}});
   if(error)msg($("#authMsg"),authErr(error.message),"err");
 });
 
