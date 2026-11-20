@@ -213,11 +213,11 @@ function renderPreview(){
 async function saveSeason(btn){
   btn.disabled=true;btn.textContent="Adding…";
   const have=typeof plans!=="undefined"?plans:{};let n=0;
-  const ids={};for(const p of PLAN.items)for(const b of p.blocks)if(b.lib&&!ids[b.lib])ids[b.lib]=await ensureDrill(byId(b.lib),true);
-  if(typeof renderAllDrills==="function")renderAllDrills();
+  /* library drills stay in the library: the plan points at them, My drills is untouched (unless the coach already has that drill) */
+  const mineId=lib=>{const t=lib&&teamDrillFor(byId(lib));return t?t.id:null;};
   for(const p of PLAN.items){
     if(PLAN.keep&&have[p.iso]&&(have[p.iso].blocks||[]).length)continue;
-    const plan={date:p.iso,start:p.start,end:p.end,focus:p.focus,blocks:p.blocks.map(b=>({id:uid(),drillId:b.lib?ids[b.lib]:null,name:b.name,category:b.category,minutes:b.minutes,notes:b.notes||""})),editedBy:(typeof ME!=="undefined"&&ME.name)||"Coach",editedAt:Date.now(),addedFrom:"season"};
+    const plan={date:p.iso,start:p.start,end:p.end,focus:p.focus,blocks:p.blocks.map(b=>({id:uid(),drillId:mineId(b.lib),...(b.lib?{lib:b.lib}:{}),name:b.name,category:b.category,minutes:b.minutes,notes:b.notes||""})),editedBy:(typeof ME!=="undefined"&&ME.name)||"Coach",editedAt:Date.now(),addedFrom:"season"};
     plans[p.iso]=plan;n++;
     if(typeof db!=="undefined"&&db&&canWrite){try{await db.collection("plans").doc(p.iso).set(plan);}catch(e){if(typeof handleWriteErr==="function")handleWriteErr(e);}}
   }
@@ -251,7 +251,9 @@ function libSearch(q,n){q=(q||"").trim().toLowerCase();if(!q)return [];
   return LIB.filter(d=>!teamDrillFor(d)).map(d=>[sc(d),d]).filter(x=>x[0]<9).sort((a,b)=>a[0]-b[0]||a[1].name.localeCompare(b[1].name)).slice(0,n||5)
     .map(([,d])=>({_lib:true,id:"lib:"+d.id,libId:d.id,name:d.name,minutes:d.minutes,group:d.group,sim:!!d.sim}));}
 self.libSearch=libSearch;
-self.addLibDrill=async id=>{const d=byId(id);if(!d)return null;const r=await ensureDrill(d);if(window.cppTrack)cppTrack("drill:libadd");return r;};
+/* A library drill as the practice card reads it, without copying it into My drills. */
+self.libDrillView=id=>{const d=byId(id);return d?{...drillBody(d),id:null}:null;};
+self.saveLibDrill=async id=>{const d=byId(id);if(!d)return null;const r=await ensureDrill(d);if(window.cppTrack)cppTrack("drill:libadd");return r;};
 /* Only basketball has the library. */
 function sportGate(){const e=document.getElementById("dlibEntry");if(e)e.hidden=(typeof SPORT==="string"?SPORT:"basketball")!=="basketball";}
 if(typeof self.refreshSportUI==="function"){const o=self.refreshSportUI;self.refreshSportUI=function(){const r=o.apply(this,arguments);sportGate();return r;};}

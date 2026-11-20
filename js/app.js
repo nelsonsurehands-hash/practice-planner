@@ -269,8 +269,8 @@ function renderPlan(){
     const ED=PERM.plans&&!READONLY;
     list.innerHTML=cur.blocks.map((b,i)=>{
       const st=t; t+=b.minutes; used+=b.minutes;
-      const late=t>e, key=b.id||("i"+i), open=OPEN_BLOCK===key, d=b.drillId&&drills.find(x=>x.id===b.drillId);
-      const desc=d&&(d.description||"").trim(), pts=d&&(d.points||"").trim(), has=b.notes||desc||pts;
+      const late=t>e, key=b.id||("i"+i), open=OPEN_BLOCK===key, d=b.drillId&&drills.find(x=>x.id===b.drillId), L=!d&&b.lib&&self.libDrillView?self.libDrillView(b.lib):null, dd=d||L, wl=d?(window.libIdFor&&libIdFor(d)):b.lib;
+      const desc=dd&&(dd.description||"").trim(), pts=dd&&(dd.points||"").trim(), has=b.notes||desc||pts;
       return `<li class="block bc${late?" late":""}${ED?" can-drag":""}${open?" open":""}" data-i="${i}">
         ${ED?`<button type="button" class="drag" data-drag aria-label="Drag ${esc(b.name)} to a new spot" title="Drag to move"><span aria-hidden="true"></span></button>`:"<span></span>"}
         <button type="button" class="bc-main" data-act="open" data-key="${key}" aria-expanded="${open}" aria-label="${esc(b.name)}, ${fmt(st)} to ${fmt(t)}. ${open?"Close":"Open"} notes">
@@ -282,8 +282,8 @@ function renderPlan(){
         ${ED?`<div class="mins"><button type="button" data-act="dec" aria-label="Less time">−</button><input data-act="min" type="number" min="1" max="90" value="${b.minutes}" aria-label="Minutes"><span class="u" aria-hidden="true">m</span><button type="button" data-act="inc" aria-label="More time">+</button></div><button type="button" class="bc-del" data-act="del" aria-label="Remove ${esc(b.name)}" title="Remove"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span class="bc-sure">Remove?</span></button>`:`<div class="bc-min">${b.minutes} min</div>`}
         ${open?`<div class="bc-more">
           ${ED?`<textarea class="note" data-act="note" rows="2" placeholder="Notes for this practice" aria-label="Notes for ${esc(b.name)}">${esc(b.notes||"")}</textarea>`:(b.notes?`<div class="note-ro">${esc(b.notes)}</div>`:"")}
-          ${d&&window.libIdFor&&libWatchable(libIdFor(d))?`<button type="button" class="btn sm bc-watch" data-libwatch="${esc(libIdFor(d))}">▶ Watch the drill</button>`:""}${desc||pts?`<div class="bc-drill">${desc?`<p><b>Drill</b>${esc(desc)}</p>`:""}${pts?`<p><b>Coaching points</b>${esc(pts)}</p>`:""}</div>`:""}
-          <div class="bc-row">${coachField(b)}${ED?`<button type="button" class="btn sm" data-act="up"${i?"":" disabled"}>Move up</button><button type="button" class="btn sm" data-act="down"${i<cur.blocks.length-1?"":" disabled"}>Move down</button><button type="button" class="btn sm" data-act="below">+ Add drill below</button>${d?`<button type="button" class="btn sm" data-act="drill">Edit drill</button>`:""}`:""}</div>
+          ${wl&&window.libWatchable&&libWatchable(wl)?`<button type="button" class="btn sm bc-watch" data-libwatch="${esc(wl)}">▶ Watch the drill</button>`:""}${L?`<span class="bc-from">From the drill library</span>`:""}${desc||pts?`<div class="bc-drill">${desc?`<p><b>Drill</b>${esc(desc)}</p>`:""}${pts?`<p><b>Coaching points</b>${esc(pts)}</p>`:""}</div>`:""}
+          <div class="bc-row">${coachField(b)}${ED?`<button type="button" class="btn sm" data-act="up"${i?"":" disabled"}>Move up</button><button type="button" class="btn sm" data-act="down"${i<cur.blocks.length-1?"":" disabled"}>Move down</button><button type="button" class="btn sm" data-act="below">+ Add drill below</button>${d?`<button type="button" class="btn sm" data-act="drill">Edit drill</button>`:L?`<button type="button" class="btn sm" data-act="keep">Save to my drills</button>`:""}`:""}</div>
         </div>`:""}</li>`+(ED?insRow(i+1,i===cur.blocks.length-1):"");
     }).join("");
     if(ED)list.innerHTML=insRow(0,false)+list.innerHTML;
@@ -414,6 +414,7 @@ $("#script").addEventListener("click",e=>{
   const i=+btn.closest(".block").dataset.i, b=cur.blocks[i], a=btn.dataset.act;
   if(a==="below"){OPEN_BLOCK=null;setInsert(i+1);return;}
   if(a==="open"){const k=btn.dataset.key;OPEN_BLOCK=OPEN_BLOCK===k?null:k;renderPlan();if(OPEN_BLOCK){const n=$("#script").querySelector(".block.open .note");if(n&&!n.value)n.focus({preventScroll:true});}return;}
+  if(a==="keep"){if(b.lib&&self.saveLibDrill)self.saveLibDrill(b.lib).then(id=>{if(!id)return;b.drillId=id;changed();if(typeof renderAllDrills==="function")renderAllDrills();flash(`${b.name} saved to your drills.`,true);});return;}
   if(a==="drill"){const d=drills.find(x=>x.id===b.drillId);if(d&&typeof editDrill==="function"){editDrill(d.id);}return;}
   if(a==="inc"){b.minutes=Math.min(90,b.minutes+1);}
   if(a==="dec")b.minutes=Math.max(1,b.minutes-1);
@@ -552,14 +553,14 @@ function renderPa(){
   const q=$("#paSearch").value,box=$("#paResults");if(!q.trim()){box.hidden=true;box.innerHTML="";return;}
   const list=paMatches(q);paSel=Math.min(paSel,Math.max(0,list.length-1));
   box.innerHTML=list.map((d,i)=>(d._lib&&!(list[i-1]||{})._lib?`<div class="pa-sec">From the drill library</div>`:"")+
-    `<button type="button" role="option" class="pa-hit${i===paSel?" on":""}${d._lib?" pa-lib":""}" data-pa="${esc(d.id)}" aria-selected="${i===paSel}"><b>${esc(d.name)}${d._lib&&d.sim?` <i class="pa-anim">▶ Animated</i>`:""}</b><small>${d._lib?`${esc(d.group)} · ${d.minutes||10} min · adds to My drills`:`${esc(catLabel(d))} · ${d.minutes||10} min`}</small></button>`).join("")+
+    `<button type="button" role="option" class="pa-hit${i===paSel?" on":""}${d._lib?" pa-lib":""}" data-pa="${esc(d.id)}" aria-selected="${i===paSel}"><b>${esc(d.name)}${d._lib&&d.sim?` <i class="pa-anim">▶ Animated</i>`:""}</b><small>${d._lib?`${esc(d.group)} · ${d.minutes||10} min`:`${esc(catLabel(d))} · ${d.minutes||10} min`}</small></button>`).join("")+
     `<button type="button" class="pa-hit pa-new" data-panew><b>+ New drill “${esc(q.trim())}”</b><small>Add it to practice and your drills</small></button>`;
   box.hidden=false;
 }
 async function paAdd(d){
-  if(d._lib){$("#paSearch").value="";renderPa();const id=self.addLibDrill?await self.addLibDrill(d.libId):null,t=id&&drills.find(x=>x.id===id);
-    if(t){paAdd(t);flash(`${t.name} added to practice and your drills.`,true);}return;}
-  addBlock({drillId:d.id,name:d.name,category:catLabel(d),minutes:d.minutes||10});$("#paSearch").value="";renderPa();
+  if(d._lib){const v=self.libDrillView&&self.libDrillView(d.libId);if(!v)return;
+    d={id:null,lib:d.libId,name:v.name,categories:v.categories,minutes:v.minutes};if(window.cppTrack)cppTrack("drill:libuse");}
+  addBlock({drillId:d.id,...(d.lib&&!d.id?{lib:d.lib}:{}),name:d.name,category:catLabel(d),minutes:d.minutes||10});$("#paSearch").value="";renderPa();
   const last=$("#script").querySelectorAll(".block")[LAST_ADD]||$("#script").querySelector(".block:last-child");if(last){last.classList.add("just-moved");setTimeout(()=>last.classList.remove("just-moved"),800);}}
 $("#paSearch").addEventListener("input",()=>{paSel=0;renderPa();});
 $("#paSearch").addEventListener("keydown",e=>{const list=paMatches($("#paSearch").value);
@@ -634,7 +635,7 @@ async function buildPdf(){
   let t=toMin(cur.start),used=0;
   cur.blocks.forEach(b=>{
     const s=t;t+=b.minutes;used+=b.minutes;
-    const d=b.drillId?drills.find(x=>x.id===b.drillId):null;
+    const d=(b.drillId?drills.find(x=>x.id===b.drillId):null)||(b.lib&&self.libDrillView?self.libDrillView(b.lib):null);
     doc.setFontSize(10);
     const nameL=doc.splitTextToSize(b.name+(b.category?` (${b.category})`:""),cols[3]-cols[2]-10);
     const pts=[b.coach?("Led by: "+b.coach):"",b.notes||"",d&&d.points?d.points:""].filter(Boolean).join("\n");
