@@ -282,7 +282,7 @@ function renderPlan(){
         ${ED?`<div class="mins"><button type="button" data-act="dec" aria-label="Less time">−</button><input data-act="min" type="number" min="1" max="90" value="${b.minutes}" aria-label="Minutes"><span class="u" aria-hidden="true">m</span><button type="button" data-act="inc" aria-label="More time">+</button></div><button type="button" class="bc-del" data-act="del" aria-label="Remove ${esc(b.name)}" title="Remove"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span class="bc-sure">Remove?</span></button>`:`<div class="bc-min">${b.minutes} min</div>`}
         ${open?`<div class="bc-more">
           ${ED?`<textarea class="note" data-act="note" rows="2" placeholder="Notes for this practice" aria-label="Notes for ${esc(b.name)}">${esc(b.notes||"")}</textarea>`:(b.notes?`<div class="note-ro">${esc(b.notes)}</div>`:"")}
-          ${desc||pts?`<div class="bc-drill">${desc?`<p><b>Drill</b>${esc(desc)}</p>`:""}${pts?`<p><b>Coaching points</b>${esc(pts)}</p>`:""}</div>`:""}
+          ${d&&window.libIdFor&&libWatchable(libIdFor(d))?`<button type="button" class="btn sm bc-watch" data-libwatch="${esc(libIdFor(d))}">▶ Watch the drill</button>`:""}${desc||pts?`<div class="bc-drill">${desc?`<p><b>Drill</b>${esc(desc)}</p>`:""}${pts?`<p><b>Coaching points</b>${esc(pts)}</p>`:""}</div>`:""}
           <div class="bc-row">${coachField(b)}${ED?`<button type="button" class="btn sm" data-act="up"${i?"":" disabled"}>Move up</button><button type="button" class="btn sm" data-act="down"${i<cur.blocks.length-1?"":" disabled"}>Move down</button><button type="button" class="btn sm" data-act="below">+ Add drill below</button>${d?`<button type="button" class="btn sm" data-act="drill">Edit drill</button>`:""}`:""}</div>
         </div>`:""}</li>`+(ED?insRow(i+1,i===cur.blocks.length-1):"");
     }).join("");
@@ -741,6 +741,7 @@ function renderLib(){
       ${catsOf(d).length>1?`<div class="tags">${catsOf(d).map(x=>`<span class="chip${x===c?" here":""}">${esc(x)}</span>`).join("")}</div>`:""}
       ${d.description?`<p>${esc(d.description)}</p>`:""}
       ${d.points?`<p><strong>Coaching points:</strong> ${esc(d.points)}</p>`:""}
+      ${window.libIdFor&&libWatchable(libIdFor(d))?`<p><button type="button" class="btn sm" data-libwatch="${esc(libIdFor(d))}">▶ Watch the drill</button></p>`:""}
       ${d.editedBy?`<p class="by">Added or edited by ${esc(d.editedBy)}</p>`:""}<div class="actions edit-only"><button class="btn" data-edit="${d.id}">Edit</button><button class="btn" data-copy="drills" data-id="${d.id}">Copy to team</button><button class="btn danger" data-del="${d.id}">Delete</button></div></article>`).join("")}</div>`;
   }).join("");
 }
