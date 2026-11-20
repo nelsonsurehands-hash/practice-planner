@@ -20,7 +20,7 @@ document.addEventListener("click",e=>{const tm=e.target.closest("[data-tm]");if(
 
 /* Actions worth knowing about */
 const CLICKS=[
-  ["#pPlay","play:run"],["#shareBook","plays:share"],["#pPdf","plays:print"],["#printPdf","plan:print"],["#calIcs","cal:export"],
+  ["#pPlay","play:run"],["#shareBook","plays:share"],["#pPdf","plays:print"],["#printPdf","plan:print"],["#runPlan","plan:run"],["#calIcs","cal:export"],
   ["#calShare","parentlink:open"],["[data-csact=copy],[data-csact=share],[data-csact=msg]","parentlink:send"],
   ["[data-fdact=copy],[data-fdact=share],[data-fdact=msg]","food:send"],["[data-st=golive]","stats:live"],["[data-lv]","stats:tracking"],
   ["[data-st=season]","stats:season"],["[data-busact=pdf]","bus:print"],["[data-busact=text]","bus:copy"],["[data-board]","bus:checkin"],

@@ -360,6 +360,7 @@
         <div class="ticks" id="mTicks" aria-hidden="true"></div>
         <div class="mmsg" id="mMsg"></div>
       </div>
+      <button type="button" class="run-btn" id="runPlan" hidden><span class="run-ic" aria-hidden="true">▶</span><span><b>Run practice</b><small>Full screen with a timer for the gym</small></span></button>
       <ol class="script" id="script"></ol>
       <div class="plan-add edit-only" id="planAdd">
         <div class="pa-results" id="paResults" hidden role="listbox" aria-label="Matching drills"></div>
@@ -804,6 +805,7 @@
 <script src="js/landing.js"></script>
 <script src="js/bottomnav.js"></script>
 <script src="js/feedback.js"></script>
+<script src="js/run.js"></script>
 <script>
 /* Homepage video: plays (muted) while it's on screen, pauses when you scroll past. */
 (function(){const v=document.getElementById("lpVideo");if(!v||!("IntersectionObserver" in window))return;

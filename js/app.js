@@ -297,7 +297,7 @@ function totals(){const avail=Math.max(0,toMin(cur.end)-toMin(cur.start));const 
 function renderMeter(s,avail,used){
   const left=avail-used, m=$("#meter");
   m.classList.toggle("over",left<0); m.classList.toggle("full",left===0&&used>0);
-  $("#mLeft").textContent=Math.abs(left);
+  $("#mLeft").textContent=Math.abs(left);{const rb=$("#runPlan");if(rb)rb.hidden=!cur.blocks.length;}
   $("#mLeftLabel").textContent=left<0?"min over":left===0&&used>0?"min left · full":"min left";
   $("#planEdited").textContent=cur.editedBy?`Last edited by ${cur.editedBy} · ${ago(cur.editedAt)}`:"";
   $("#mUsed").textContent=used; $("#mAvail").textContent=avail;
