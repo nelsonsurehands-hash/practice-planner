@@ -2092,3 +2092,43 @@ dialog.in-dlg{width:min(460px,calc(100vw - 24px))}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .us-fn.worst small,:root:not([data-theme="light"]) .us-stuck span,:root:not([data-theme="light"]) .us-down{color:#fb923c!important}:root:not([data-theme="light"]) .us-fn.worst i{background:#fb923c}}
 :root[data-theme="dark"] .us-fn.worst small,:root[data-theme="dark"] .us-stuck span,:root[data-theme="dark"] .us-down{color:#fb923c!important}:root[data-theme="dark"] .us-fn.worst i{background:#fb923c}
 .lp-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.lp-chips .btn{border-radius:999px;padding:6px 12px;font-size:13.5px}.lp-chips .btn small{color:var(--muted);margin-left:4px}.lp-chips .btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}.lp-chips .btn[aria-pressed="true"] small{color:inherit;opacity:.8}
+
+/* Usage: folding sections */
+.us-foldall{display:flex;gap:14px;justify-content:flex-end;margin:6px 0 2px}
+details.us-fold{border:1px solid var(--line);border-radius:12px;background:var(--surface);margin:8px 0;padding:0 14px}
+details.us-fold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 0;min-height:44px}
+details.us-fold>summary::-webkit-details-marker{display:none}
+details.us-fold>summary::after{content:"";width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);margin:-4px 4px 0 auto;flex:none;transition:transform .15s}
+details.us-fold[open]>summary::after{transform:rotate(-135deg);margin-top:4px}
+.us-fold-t{font:600 13px var(--body);letter-spacing:.06em;text-transform:uppercase;min-width:0}
+.us-fold-t small{text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted);margin-left:6px}
+details.us-fold[open]{padding-bottom:12px}
+details.us-fold>div>h4.us-h-in:first-child{display:none}
+details.us-fold>div>h4.us-h-in:first-child+*{margin-top:0}
+@media (prefers-reduced-motion:reduce){details.us-fold>summary::after{transition:none}}
+@media (max-width:560px){#usageBody .us-tiles{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}#usageBody .us-tile{padding:8px 9px}#usageBody .us-tile b{font-size:24px}#usageBody .us-tile small{font-size:11.5px;line-height:1.3;display:block}#usageBody .us-up{font-size:11px}}
+/* "How can we help?" card on Home (js/feedback.js) */
+.fb-card{margin:0 0 12px;border-color:color-mix(in srgb,var(--accent) 35%,var(--line));background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 7%,var(--surface)),var(--surface))}
+.fb-k{margin:0;font:600 11.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.fb-card h3{margin:2px 0 4px;font-size:22px;text-transform:uppercase}
+.fb-sub{margin:0 0 10px;color:var(--muted);font-size:14.5px}
+.fb-picks{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.fb-picks label{position:relative}
+.fb-picks input{position:absolute;opacity:0;pointer-events:none}
+.fb-picks span{display:inline-block;border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:7px 12px;font-size:14px;font-weight:600;cursor:pointer}
+.fb-picks input:checked+span{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.fb-picks input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.fb-l{display:block;font-size:14px;font-weight:600;margin:0 0 5px}
+.fb-card textarea{width:100%;min-height:72px}
+.fb-ok{display:flex;align-items:center;gap:8px;font-size:14px;margin:8px 0 0}
+.fb-ok input{width:auto;min-height:0;margin:0}
+.fb-act{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+.fb-msg{font-size:13.5px;color:var(--muted)}
+/* Usage → Feedback from coaches */
+.us-fb{display:flex;flex-direction:column;gap:8px}
+.us-fb>div{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg)}
+.us-fb .us-fb-top{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;font-size:13px;color:var(--muted)}
+.us-fb .us-fb-top b{color:var(--ink);font-size:14px}
+.us-fb p{margin:6px 0 0;font-size:15px;white-space:pre-wrap}
+.us-fb .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.us-fb .chips span{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+.us-fb .ok{color:#1b8a4a;font-weight:600}

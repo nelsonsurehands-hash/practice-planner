@@ -221,6 +221,7 @@ const FEAT_NAMES={"tab:home":"Home","tab:plan":"Practice plan","tab:plays":"Play
   "drill:save":"Drill saved","play:new":"New play saved","score:typed":"Final score typed in","app:installed":"Opened the installed app","install:banner":"Home-screen banner shown","install:howto":"Home-screen how-to opened","install:accepted":"Installed (one-tap)","install:declined":"Install declined","install:done":"App installed","install:notnow":"Home-screen banner: not now","onboard:install":"Get started: home screen","plays:common":"Common plays opened","plays:common-add":"Common play added","plays:common-edit":"Common play opened in designer","onboard:roster":"Get started: roster","onboard:plan":"Get started: practice","onboard:play":"Get started: play","onboard:games":"Get started: games","onboard:staff":"Get started: invite assistant","onboard:parents":"Get started: parent link","onboard:unlock":"Turned on the rest of the app","onboard:later":"Rest of app: not yet","onboard:pick":"Rest of app: picked some","onboard:hide":"Hid the Get started list","event:game":"Game added","event:mine":"Personal event added","plays:coachshare":"Play sent to a coach","plays:copied":"Shared play copied","team:create":"Team created","team:join":"Joined a team","staff:schoolcode":"School staff code","invite:open":"Invite a coach opened"};
 const featName=k=>FEAT_NAMES[k]||(k.startsWith("team:")?"Team → "+k.slice(5):k.startsWith("defense:")?"Auto defense: "+k.slice(8):k.startsWith("home:")?"Home tile: "+k.slice(5):k.startsWith("photo:")?"Photo import: "+k.slice(6):k.startsWith("cal:export:")?"Calendar export: "+k.slice(11):k);
 async function renderUsage(){
+  try{localStorage.setItem("cpp:owner","1");}catch(e){}
   const box=$("#usageBody");box.innerHTML=`<p class="help">Loading…</p>`;
   const {data:r,error}=await sb.rpc("usage_report");
   if(error){box.innerHTML=`<p class="msg err">${/function|schema cache|does not exist/i.test(error.message)?"Usage tracking needs one database step: run supabase/team-tools.sql in Supabase → SQL Editor.":esc(error.message)}</p>`;return;}
@@ -232,6 +233,7 @@ async function renderUsage(){
   const days=[];for(let i=29;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push(d.toISOString().slice(0,10));}
   const by=Object.fromEntries((r.by_day||[]).map(x=>[String(x.day).slice(0,10),x])),mx=Math.max(1,...(r.by_day||[]).map(x=>x.coaches));
   box.innerHTML=`<div class="us-tiles">${tile(r.coaches,"coaches signed up",newToday)}${tile(r.teams,"teams")}${tile(r.active_today,"used it today")}${tile(r.active_7,"this week")}${tile(r.active_30,"last 30 days")}${tile(r.opens_7,"opens this week")}${r.referred!=null?tile(r.referred,"came from invites"):""}</div>
+    <div id="usageFeedback"></div>
     <div id="usageFirst"></div>
     <div id="usageLanding"></div>
     <h4 class="us-h">Coaches using it each day <small>last 30 days</small></h4>
@@ -249,12 +251,63 @@ async function renderUsage(){
     ${(r.users||[]).map(u=>{const seen=u.last_seen||u.last_sign_in,ago=seen?(Date.now()-new Date(seen))/864e5:999,age=u.joined?(Date.now()-new Date(u.joined))/864e5:999;
       return `<tr data-email="${esc(u.email||"")}" data-q="${esc([u.name,u.email,...(u.teams||[])].join(" ").toLowerCase())}" data-week="${ago<=7?1:0}" data-new="${age<=30?1:0}" data-quiet="${ago>14?1:0}"><td><b>${esc(u.name||(u.email||"").split("@")[0])}</b><small class="us-em" data-full="${esc(u.email||"")}">${esc(maskEmail(u.email))}</small></td><td>${esc((u.teams||[]).join(", ")||"—")}</td><td>${esc(usageAgo(u.last_seen||u.last_sign_in))}</td><td>${u.days_30}</td><td>${u.opens_30}</td><td data-avg>…</td><td data-span>…</td><td data-src>…</td><td>${u.invited||0}</td><td>${u.joined?esc(new Date(u.joined).toLocaleDateString("en-US",{month:"short",day:"numeric"})):"—"}</td></tr>`;}).join("")}</tbody></table></div>
     <div class="us-more"><span id="usCount"></span><button class="btn" type="button" id="usAll" hidden>Show all</button></div>
+    ${r.me?(()=>{const m=r.me,ft=(m.features||[]);return `<div id="usageMe"><h4 class="us-h">Your own use <small>not counted anywhere above · last 30 days</small></h4>
+      <div class="us-tiles">${tile(m.days_30,"days you used it")}${tile(m.days_7,"days this week")}${tile(m.opens_30,"opens")}${tile((m.minutes_30??0)+" min","in the app")}${tile(m.plays,"plays on your teams")}${tile(m.teams,"your teams")}</div>
+      <p class="help" style="margin:0 0 8px">Last used ${esc(usageAgo(m.last_seen))}.</p>
+      ${ft.length?`<div class="us-feats">${(()=>{const fm=Math.max(1,...ft.map(f=>f.uses));return ft.map(f=>`<div class="us-feat"><span>${esc(featName(f.feature))}</span><i style="width:${Math.max(2,Math.round(f.uses/fm*100))}%"></i><b>${f.uses}</b></div>`).join("");})()}</div>`:""}</div>`;})():""}
     <p class="help">A visit is each time a coach starts the app or comes back to it after 30 minutes away. Visit length counts only time with the app on screen. Counting started when this was turned on, so earlier use isn't included.</p>
     <div class="actions" style="margin:0"><button class="btn" type="button" id="usageRefresh">Refresh</button></div>`;
   if(r.features&&r.features.length>10){const f=box.querySelector(".us-feats");if(f)f.insertAdjacentHTML("afterend",`<button class="linkbtn us-featall" type="button">Show all ${Math.min(40,r.features.length)} features</button>`);}
   usLimit=10;usFilter="all";usApply();
-  renderUsageMore();renderUsageTime();renderUsageSources(r);renderUsageFirst();renderUsageLanding();
+  renderUsageMore();renderUsageTime();renderUsageSources(r);renderUsageFirst();renderUsageLanding();renderUsageFeedback();
 }
+/* Feedback from coaches (js/feedback.js → send_feedback), newest first. */
+async function renderUsageFeedback(){
+  const box=$("#usageFeedback");if(!box)return;
+  const {data,error}=await sb.rpc("usage_feedback");
+  if(error){box.innerHTML=/function|schema cache|does not exist/i.test(error.message)?`<h4 class="us-h">Feedback from coaches <small>needs one database step</small></h4><p class="help">Run supabase/feedback.sql in Supabase → SQL Editor to start collecting answers.</p>`:"";return;}
+  const list=data||[],dk=t=>new Date(t).toDateString(),today=list.filter(x=>dk(x.at)===new Date().toDateString()).length;
+  const picks={};list.forEach(x=>(x.picks||[]).forEach(p=>picks[p]=(picks[p]||0)+1));
+  const top=Object.entries(picks).sort((a,b)=>b[1]-a[1]);
+  box.innerHTML=`<h4 class="us-h">Feedback from coaches <small>${list.length} answer${list.length===1?"":"s"}${today?` · ${today} today`:""}</small></h4>
+    ${list.length?`${top.length?`<div class="us-feats">${top.map(([k,n])=>`<div class="us-feat"><span>${esc(k)}</span><i style="width:${Math.max(4,Math.round(n/top[0][1]*100))}%"></i><b>${n}</b></div>`).join("")}</div>`:""}
+    <div class="us-fb">${list.map(x=>`<div><div class="us-fb-top"><b class="us-em" data-full="${esc(x.email||"")}">${esc(maskEmail(x.email))}</b><span>${esc(x.team||"No team")}</span><span>${esc(usageAgo(x.at))}</span>${x.contact?`<span class="ok">OK to email</span>`:""}</div>
+      ${(x.picks||[]).length?`<div class="chips">${x.picks.map(p=>`<span>${esc(p)}</span>`).join("")}</div>`:""}${x.message?`<p>${esc(x.message)}</p>`:""}</div>`).join("")}</div>`
+    :`<p class="help">No answers yet. New coaches see a short “How can we help you coach?” card on Home after their first day.</p>`}`;
+  const sh=$("#usShowEmail");if(sh&&sh.checked)box.querySelectorAll(".us-em").forEach(x=>x.textContent=x.dataset.full);
+}
+/* Usage is long, so every section folds. The tiles at the top always show; each section below opens
+   with a tap and the page remembers which ones you keep open (on this device). Sections that load on
+   their own (first week, homepage visitors, sources, time, keep using) fold as a whole. */
+const US_SUBS=["usageFeedback","usageFirst","usageLanding","usageSources","usageTime","usageMore","usageMe"];
+const usOpenGet=()=>{try{return JSON.parse(localStorage.getItem("cpp:usOpen")||"{}");}catch(e){return {};}};
+const usOpenSet=(k,v)=>{try{const o=usOpenGet();if(v)o[k]=1;else delete o[k];localStorage.setItem("cpp:usOpen",JSON.stringify(o));}catch(e){}};
+function usKey(h){const c=h.cloneNode(true);c.querySelectorAll("small").forEach(x=>x.remove());return c.textContent.trim();}
+function usFold(){
+  const box=$("#usageBody");if(!box||!box.querySelector(".us-tiles"))return;
+  const open=usOpenGet();
+  const mk=(key,headHTML)=>{const d=document.createElement("details");d.className="us-fold";d.dataset.k=key;if(open[key])d.open=true;
+    d.innerHTML=`<summary><span class="us-fold-t">${headHTML}</span></summary>`;d.addEventListener("toggle",()=>usOpenSet(key,d.open));return d;};
+  // whole sub-sections: wrap the container once, keep its title in the summary in step with its content
+  US_SUBS.forEach(id=>{const el=document.getElementById(id);if(!el)return;
+    let d=el.parentElement&&el.parentElement.classList.contains("us-fold")?el.parentElement:null;
+    const h=el.querySelector(":scope > h4.us-h");
+    if(!h){if(d)d.hidden=!el.textContent.trim();return;}
+    const key=usKey(h);
+    if(!d){d=mk(key,h.innerHTML);el.before(d);d.appendChild(el);}
+    else{const t=d.querySelector(".us-fold-t");if(t.innerHTML!==h.innerHTML)t.innerHTML=h.innerHTML;if(d.dataset.k!==key){d.dataset.k=key;d.open=!!open[key];}}
+    d.hidden=false;h.classList.add("us-h-in");});
+  // headings directly in the page: each one and what follows it, up to the next heading or section
+  [...box.children].filter(n=>n.matches&&n.matches("h4.us-h")).forEach(h=>{
+    const d=mk(usKey(h),h.innerHTML);h.before(d);const items=[];let n=h.nextElementSibling;
+    while(n&&!n.matches("h4.us-h,details.us-fold,.actions,.us-foldall")&&!US_SUBS.includes(n.id)){items.push(n);n=n.nextElementSibling;}
+    h.remove();items.forEach(x=>d.appendChild(x));});
+  if(!box.querySelector(".us-foldall")){const t=box.querySelector(".us-tiles");if(t)t.insertAdjacentHTML("afterend",`<div class="us-foldall"><button type="button" class="linkbtn" data-usall="1">Open all</button><button type="button" class="linkbtn" data-usall="0">Close all</button></div>`);}
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-usall]");if(!b)return;const on=b.dataset.usall==="1";
+  document.querySelectorAll("#usageBody details.us-fold").forEach(d=>{if(!d.hidden)d.open=on;});});
+(()=>{const box=document.getElementById("usageBody");if(!box||!window.MutationObserver)return;let q=0;
+  new MutationObserver(()=>{if(q)return;q=requestAnimationFrame(()=>{q=0;usFold();});}).observe(box,{childList:true,subtree:true});})();
 /* First week: where new coaches drop off, how fast they build something, who brings others in,
    weekly returning coaches, and new coaches who are stuck (worth a personal follow-up). */
 async function renderUsageFirst(){
