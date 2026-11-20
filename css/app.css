@@ -2135,3 +2135,4 @@ details.us-fold>div>h4.us-h-in:first-child+*{margin-top:0}
 .pa-sec{padding:10px 10px 4px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--line);margin-top:4px}
 .pa-anim{font-style:normal;font-size:11px;font-weight:700;color:var(--accent);margin-left:6px;letter-spacing:.02em}
 .bc-from{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px 8px;vertical-align:middle}
+.pa-libsearch b{color:var(--accent)}

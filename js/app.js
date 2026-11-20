@@ -547,13 +547,17 @@ function renderQuick(){
 /* Sticky add bar on the plan: search the library, quick adds (water, running…), new drill, photo. */
 function paMatches(q){q=q.trim().toLowerCase();if(!q)return [];
   const score=d=>{const n=d.name.toLowerCase();return n.startsWith(q)?0:n.split(/[\s-]+/).some(w=>w.startsWith(q))?1:n.includes(q)?2:catsOf(d).some(c=>c.toLowerCase().includes(q))?3:9;};
-  return drills.map(d=>[score(d),d]).filter(x=>x[0]<9).sort((a,b)=>a[0]-b[0]||a[1].name.localeCompare(b[1].name)).slice(0,7).map(x=>x[1]).concat(SPORT==="basketball"&&self.libSearch?self.libSearch(q,5):[]);}
+  return drills.map(d=>[score(d),d]).filter(x=>x[0]<9).sort((a,b)=>a[0]-b[0]||a[1].name.localeCompare(b[1].name)).slice(0,7).map(x=>x[1]);}
+/* Your own drills come first. The library only fills in when none of yours match. */
+const paLibOn=()=>SPORT==="basketball"&&!!self.libSearch;
+function paList(q){const mine=paMatches(q);return mine.length||!paLibOn()?mine:self.libSearch(q,5);}
 let paSel=0;
 function renderPa(){
   const q=$("#paSearch").value,box=$("#paResults");if(!q.trim()){box.hidden=true;box.innerHTML="";return;}
-  const list=paMatches(q);paSel=Math.min(paSel,Math.max(0,list.length-1));
-  box.innerHTML=list.map((d,i)=>(d._lib&&!(list[i-1]||{})._lib?`<div class="pa-sec">From the drill library</div>`:"")+
+  const list=paList(q);paSel=Math.min(paSel,Math.max(0,list.length-1));
+  box.innerHTML=list.map((d,i)=>(d._lib&&!i?`<div class="pa-sec">None of your drills match. From the drill library:</div>`:"")+
     `<button type="button" role="option" class="pa-hit${i===paSel?" on":""}${d._lib?" pa-lib":""}" data-pa="${esc(d.id)}" aria-selected="${i===paSel}"><b>${esc(d.name)}${d._lib&&d.sim?` <i class="pa-anim">▶ Animated</i>`:""}</b><small>${d._lib?`${esc(d.group)} · ${d.minutes||10} min`:`${esc(catLabel(d))} · ${d.minutes||10} min`}</small></button>`).join("")+
+    (paLibOn()&&list.length&&!list[0]._lib?`<button type="button" class="pa-hit pa-libsearch" data-palib><b>Search the drill library for “${esc(q.trim())}”</b><small>Proven drills, many with animations</small></button>`:"")+
     `<button type="button" class="pa-hit pa-new" data-panew><b>+ New drill “${esc(q.trim())}”</b><small>Add it to practice and your drills</small></button>`;
   box.hidden=false;
 }
@@ -563,13 +567,14 @@ async function paAdd(d){
   addBlock({drillId:d.id,...(d.lib&&!d.id?{lib:d.lib}:{}),name:d.name,category:catLabel(d),minutes:d.minutes||10});$("#paSearch").value="";renderPa();
   const last=$("#script").querySelectorAll(".block")[LAST_ADD]||$("#script").querySelector(".block:last-child");if(last){last.classList.add("just-moved");setTimeout(()=>last.classList.remove("just-moved"),800);}}
 $("#paSearch").addEventListener("input",()=>{paSel=0;renderPa();});
-$("#paSearch").addEventListener("keydown",e=>{const list=paMatches($("#paSearch").value);
+$("#paSearch").addEventListener("keydown",e=>{const list=paList($("#paSearch").value);
   if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();paSel=(paSel+(e.key==="ArrowDown"?1:-1)+list.length)%Math.max(1,list.length);renderPa();}
   if(e.key==="Enter"){e.preventDefault();if(list[paSel])paAdd(list[paSel]);else if($("#paSearch").value.trim())paNew();}
   if(e.key==="Escape"){$("#paSearch").value="";renderPa();}});
 function paNew(){const v=$("#paSearch").value.trim();$("#paSearch").value="";renderPa();openNewDrill();if(v)$("#ndName").value=v;}
 $("#planAdd").addEventListener("click",e=>{
-  const h=e.target.closest("[data-pa]");if(h){const d=paMatches($("#paSearch").value).find(x=>x.id===h.dataset.pa);if(d)paAdd(d);return;}
+  const h=e.target.closest("[data-pa]");if(h){const d=paList($("#paSearch").value).find(x=>x.id===h.dataset.pa);if(d)paAdd(d);return;}
+  if(e.target.closest("[data-palib]")){const q=$("#paSearch").value.trim();$("#paSearch").value="";renderPa();if(self.openDrillLibSearch)openDrillLibSearch(q,lib=>paAdd({_lib:true,libId:lib}));return;}
   if(e.target.closest("[data-panew]")){paNew();return;}
   const b=e.target.closest("[data-qi]");if(b){const q=quickAdds()[+b.dataset.qi];if(!q)return;const d=quickDrill(q);
     addBlock(d?{drillId:d.id,name:d.name,category:catsOf(d)[0]||"",minutes:q.minutes||d.minutes||10}:{drillId:null,name:q.name,category:"",minutes:q.minutes||5});}

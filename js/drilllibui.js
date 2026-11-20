@@ -41,7 +41,8 @@ function dialog(){
   return DLG;
 }
 function stopSim(){if(SIM){SIM.destroy();SIM=null;}}
-function openLib(id){dialog();state.open=null;if(DLG.tagName==="DIALOG"&&!DLG.open)DLG.showModal();if(id){showDetail(id);}else renderList();}
+let PICK=null;   // set when the library is opened from a practice: drills go into that practice
+function openLib(id){dialog();state.open=null;if(!self.__pickKeep)PICK=null;self.__pickKeep=false;if(DLG.tagName==="DIALOG"&&!DLG.open)DLG.showModal();if(id){showDetail(id);}else renderList();}
 function mountInline(el){DLG=el;el.classList.add("dlib","dlib-inline");el.innerHTML=`<div class="dlib-in"><header class="dlib-head"><button type="button" class="dlib-back" data-dl="back" hidden aria-label="Back to all drills">‹ All drills</button><h2 id="dlibTitle">Drill library</h2></header><div class="dlib-body"></div></div>`;
   el.addEventListener("click",onClick);el.addEventListener("input",e=>{if(e.target.id==="dlibQ"){state.q=e.target.value;renderList(true);}});renderList();}
 function back(){stopSim();state.open=null;renderList();if(DLG&&DLG.scrollIntoView&&DLG.tagName!=="DIALOG")DLG.scrollIntoView({block:"start"});}
@@ -70,7 +71,7 @@ function showDetail(id){
   B.innerHTML=`<article class="dlib-d">
     <h3 class="dlib-name">${h(d.name)}</h3>
     <div class="dlib-facts"><span><b>${d.minutes}</b> min</span><span>Players: <b>${h(d.players)}</b></span><span>${h(d.group)}</span><span>${h(d.level)}</span><span>${h(d.equip)}</span></div>
-    <div class="dlib-act dlib-addtop">${self.DLIB_PREVIEW?`<button type="button" class="btn primary" data-add="${d.id}">+ Add to my drills</button>`:mine?`<span class="dlib-have big">✓ In your drill library</span>`:ed?`<button type="button" class="btn primary" data-add="${d.id}">+ Add to my drills</button>`:`<span class="help">Ask your head coach to add it to the team's drills.</span>`}</div>
+    <div class="dlib-act dlib-addtop">${PICK&&ed?`<button type="button" class="btn primary" data-pick="${d.id}">+ Add to practice</button>`:""}${PICK&&ed&&!mine?`<button type="button" class="btn" data-add="${d.id}">Save to my drills</button>`:PICK&&mine?"":self.DLIB_PREVIEW?`<button type="button" class="btn primary" data-add="${d.id}">+ Add to my drills</button>`:mine?`<span class="dlib-have big">✓ In your drills</span>`:ed?`<button type="button" class="btn primary" data-add="${d.id}">+ Add to my drills</button>`:`<span class="help">Ask your head coach to add it to the team's drills.</span>`}</div>
     ${d.sim?`<div class="dlib-sim" id="dlibSim"></div>`:""}
     <div class="dlib-cols">
       <div><h4>Setup</h4><p>${h(d.setup)}</p><h4>How it runs</h4><ol>${(d.how||[]).map(s=>`<li>${h(s)}</li>`).join("")}</ol></div>
@@ -88,6 +89,7 @@ async function onClick(e){
   const c=t.closest("[data-cat]");if(c){state.cat=c.dataset.cat;renderList(true);return;}
   if(t.closest("[data-anim]")){state.anim=!state.anim;renderList(true);return;}
   const o=t.closest("[data-open]");if(o){showDetail(o.dataset.open);return;}
+  const pk=t.closest("[data-pick]");if(pk&&PICK){const f=PICK;PICK=null;DLG.close&&DLG.close();f(pk.dataset.pick);return;}
   const a=t.closest("[data-add]");if(a){a.disabled=true;if(!self.DLIB_PREVIEW)await ensureDrill(byId(a.dataset.add));a.outerHTML=`<span class="dlib-have big">✓ Added to my drills</span>`;if(window.cppTrack)cppTrack("drill:libadd");return;}
 }
 
@@ -251,6 +253,7 @@ function libSearch(q,n){q=(q||"").trim().toLowerCase();if(!q)return [];
   return LIB.filter(d=>!teamDrillFor(d)).map(d=>[sc(d),d]).filter(x=>x[0]<9).sort((a,b)=>a[0]-b[0]||a[1].name.localeCompare(b[1].name)).slice(0,n||5)
     .map(([,d])=>({_lib:true,id:"lib:"+d.id,libId:d.id,name:d.name,minutes:d.minutes,group:d.group,sim:!!d.sim}));}
 self.libSearch=libSearch;
+self.openDrillLibSearch=(q,pick)=>{state.q=q||"";state.cat="";state.anim=false;self.__pickKeep=true;PICK=pick||null;openLib();};
 /* A library drill as the practice card reads it, without copying it into My drills. */
 self.libDrillView=id=>{const d=byId(id);return d?{...drillBody(d),id:null}:null;};
 self.saveLibDrill=async id=>{const d=byId(id);if(!d)return null;const r=await ensureDrill(d);if(window.cppTrack)cppTrack("drill:libadd");return r;};
