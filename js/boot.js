@@ -236,6 +236,7 @@ async function renderUsage(){
     <div id="usageFeedback"></div>
     <div id="usageFirst"></div>
     <div id="usageLanding"></div>
+    <div id="usageAds"></div>
     <h4 class="us-h">Coaches using it each day <small>last 30 days</small></h4>
     <div class="us-bars" role="img" aria-label="Coaches active each day for the last 30 days">${days.map(d=>{const x=by[d];const n=x?x.coaches:0;return `<span title="${d}: ${n} coach${n===1?"":"es"}, ${x?x.opens:0} opens" style="height:${Math.max(3,Math.round(n/mx*100))}%"${n?"":' class="z"'}></span>`;}).join("")}</div>
     ${r.features?`<h4 class="us-h">Most used features <small>last 30 days</small></h4>
@@ -259,7 +260,7 @@ async function renderUsage(){
     <div class="actions" style="margin:0"><button class="btn" type="button" id="usageRefresh">Refresh</button></div>`;
   if(r.features&&r.features.length>10){const f=box.querySelector(".us-feats");if(f)f.insertAdjacentHTML("afterend",`<button class="linkbtn us-featall" type="button">Show all ${Math.min(40,r.features.length)} features</button>`);}
   usLimit=10;usFilter="all";usApply();
-  renderUsageMore();renderUsageTime();renderUsageSources(r);renderUsageFirst();renderUsageLanding();renderUsageFeedback();
+  renderUsageMore();renderUsageTime();renderUsageSources(r);renderUsageFirst();renderUsageLanding();renderUsageAds();renderUsageFeedback();
 }
 /* Feedback from coaches (js/feedback.js → send_feedback), newest first. */
 async function renderUsageFeedback(){
@@ -279,7 +280,7 @@ async function renderUsageFeedback(){
 /* Usage is long, so every section folds. The tiles at the top always show; each section below opens
    with a tap and the page remembers which ones you keep open (on this device). Sections that load on
    their own (first week, homepage visitors, sources, time, keep using) fold as a whole. */
-const US_SUBS=["usageFeedback","usageFirst","usageLanding","usageSources","usageTime","usageMore","usageMe"];
+const US_SUBS=["usageFeedback","usageFirst","usageLanding","usageAds","usageSources","usageTime","usageMore","usageMe"];
 const usOpenGet=()=>{try{return JSON.parse(localStorage.getItem("cpp:usOpen")||"{}");}catch(e){return {};}};
 const usOpenSet=(k,v)=>{try{const o=usOpenGet();if(v)o[k]=1;else delete o[k];localStorage.setItem("cpp:usOpen",JSON.stringify(o));}catch(e){}};
 function usKey(h){const c=h.cloneNode(true);c.querySelectorAll("small").forEach(x=>x.remove());return c.textContent.trim();}
@@ -350,9 +351,28 @@ async function renderUsageLanding(){
     <p class="help">Each step counts once per visit. ${sum(lpSrc,"signin")} visitors tapped Sign in instead (returning coaches). Finished accounts by source are in "Where new coaches came from" below.</p>`
     :`<p class="help">No homepage visits counted yet. They start adding up from now on.</p>`}`;
 }
+/* When the ads work: ad visitors and sign-ups by weekday and hour (Central time), to pick which days to run ads. */
+async function renderUsageAds(){
+  const box=$("#usageAds");if(!box)return;
+  const {data:a,error}=await sb.rpc("usage_ad_days");
+  if(error){box.innerHTML=/function|schema cache|does not exist/i.test(error.message)?`<h4 class="us-h">When the ads work</h4><p class="help">Needs one database step: run supabase/ad-days.sql in Supabase → SQL Editor.</p>`:"";return;}
+  const D=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],dw=Object.fromEntries((a.by_dow||[]).map(x=>[x.dow,x])),ac=Object.fromEntries((a.accounts||[]).map(x=>[x.dow,x.n]));
+  const rows=D.map((n,i)=>{const x=dw[i]||{},d=+x.days||0;return {n,land:+x.land||0,signup:+x.signup||0,acc:+ac[i]||0,days:d,per:d?(+x.land||0)/d:0};});
+  const mx=Math.max(1,...rows.map(r=>r.per)),best=rows.filter(r=>r.days).sort((p,q)=>q.per-p.per)[0];
+  const H=a.by_hour||[],hm=Math.max(1,...H.map(h=>+h.land||0)),hl=h=>h===0?"12a":h<12?h+"a":h===12?"12p":(h-12)+"p";
+  const enough=(+a.days||0)>=14;
+  box.innerHTML=`<h4 class="us-h">When the ads work <small>Facebook ad visitors · Central time</small></h4>
+    ${a.days?`<div class="us-dow">${rows.map(r=>`<div class="${best&&r===best&&enough?"best":""}"><span>${r.n}</span><i style="width:${Math.max(r.days?3:0,Math.round(r.per/mx*100))}%"></i><b>${r.days?r.per.toFixed(1):"–"}</b><small>${r.land} visit${r.land===1?"":"s"} · ${r.signup} sign-up${r.signup===1?"":"s"}${r.acc?` · ${r.acc} account${r.acc===1?"":"s"}`:""}${r.days?` · ${r.days} day${r.days===1?"":"s"}`:""}</small></div>`).join("")}</div>
+    <p class="help">Bars are ad visitors per day on that weekday, so a weekday that's only come around once doesn't look smaller.</p>
+    <h4 class="us-h">By hour</h4>
+    <div class="us-hours" role="img" aria-label="Ad visitors by hour of the day">${Array.from({length:24},(_,h)=>{const x=H.find(y=>+y.hour===h)||{};const n=+x.land||0;return `<span style="opacity:${n?0.25+0.75*n/hm:0.08}" title="${hl(h)}: ${n} visits, ${+x.signup||0} sign-ups"></span>`;}).join("")}</div>
+    <div class="us-hours-l"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>11p</span></div>
+    <p class="help">${enough?`Best day so far: <b>${best.n}</b>. Compare cost per visit by day in Ads Manager (Breakdown → Day) before cutting days.`:`${a.days} day${a.days===1?"":"s"} counted since ${esc(String(a.since||""))}. Give it two full weeks so every weekday shows up at least twice before deciding.`}</p>`
+    :`<p class="help">Counting starts now. Visits from the Facebook ad links show up here by weekday and hour.</p>`}`;
+}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-lpsrc]");if(!b)return;lpSrc=b.dataset.lpsrc;renderUsageLanding();});
 /* Where new coaches came from: the first link they used (the Facebook ad, page posts, Google, a coach's invite…). */
-const SRC_NAMES={fbad:"Facebook ad",fbpage:"Facebook page posts",ig:"Instagram bio link",igpost:"Instagram posts",facebook:"Facebook (other)",instagram:"Instagram",google:"Google search",bing:"Bing",duckduckgo:"DuckDuckGo",yahoo:"Yahoo",twitter:"X / Twitter",
+const SRC_NAMES={fbad:"Facebook ad",fbadplan:"Facebook ad (practice video)",fbpage:"Facebook page posts",ig:"Instagram bio link",igpost:"Instagram posts",facebook:"Facebook (other)",instagram:"Instagram",google:"Google search",bing:"Bing",duckduckgo:"DuckDuckGo",yahoo:"Yahoo",twitter:"X / Twitter",
   parent:"Parent calendar page",food:"Food sign-up page",playbook:"Player playbook page",play:"Play sent to a coach",invite:"Another coach's invite",none:"No link (typed it in, or unknown)"};
 const srcName=(k,inviter)=>k==="invite"&&inviter?`Invite from ${inviter}`:(SRC_NAMES[k]||k);
 async function renderUsageSources(r){
