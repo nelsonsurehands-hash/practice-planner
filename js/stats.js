@@ -76,7 +76,7 @@ function compute(g,asOfNow){
   });
   const end=tpos(g,g.period,clockNow(g));   // minutes run to where the game is now, or where it ended
   on.forEach((t,pid)=>{row(pid).min+=Math.max(0,end-t);});
-  Object.values(P).forEach(r=>{r.q=r.qs.size;});   // quarters (or halves) played: on the floor at any point in them
+  Object.values(P).forEach(r=>{r.q=g.box?0:r.qs.size;});   // box scores typed in after the game: no quarters   // quarters (or halves) played: on the floor at any point in them
   return {players:P,us,them,per,opp,subs,plays,onCourt:[...on.keys()],usedClock:(g.events||[]).some(e=>e.s>0)||g.elapsed>0||g.period>1};
 }
 const teamFouls=(g,p)=>(g.events||[]).filter(e=>e.k==="stat"&&e.p===p&&(e.stat==="pf"||e.stat==="foul")).length;
@@ -277,16 +277,16 @@ function renderRecap(date){
   const g=GAMES[date],gm=metaOf(date)||{date,opponent:(g||{}).opponent};
   const box=$("#tm-stats");
   if(!g){box.innerHTML=`<div class="tm-card"><p class="help">This game hasn't been tracked.</p><button class="btn" data-st="games">‹ Games</button></div>`;return;}
-  const c=compute(g),rows=boxRows(g,c),C=cols(),tot=totalsRow(rows),by=Object.fromEntries(rosterOf(g).map(p=>[p.id,p]));
+  const c=compute(g),rows=boxRows(g,c),C=g.box?cols().filter(([h])=>h!=="QTR"):cols(),tot=totalsRow(rows),by=Object.fromEntries(rosterOf(g).map(p=>[p.id,p]));
   const per=Array.from({length:Math.max(g.periods,g.period)},(_,i)=>i+1);
   const top=rows.slice(0,3).filter(x=>x.r.pts);
   const reb=SPORT()==="basketball"?[...rows].sort((a,b)=>((b.r.s.oreb||0)+(b.r.s.dreb||0))-((a.r.s.oreb||0)+(a.r.s.dreb||0)))[0]:null;
   const res=c.us>c.them?"W":c.us<c.them?"L":"T";
   box.innerHTML=`<div class="tm-card st-recap">
-    <div class="st-head"><button type="button" class="btn" data-st="games">‹ Games</button>${can()?`<button type="button" class="btn" data-st="resume" data-date="${date}">${g.final?"Edit stats":"Back to live"}</button>`:""}<button type="button" class="btn primary" data-st="pdf" data-date="${date}">Print recap</button></div>
+    <div class="st-head"><button type="button" class="btn" data-st="games">‹ Games</button>${can()?(g.box?`<button type="button" class="btn" data-st="box" data-date="${date}">Edit stats</button>`:`<button type="button" class="btn" data-st="resume" data-date="${date}">${g.final?"Edit stats":"Back to live"}</button>`):""}<button type="button" class="btn primary" data-st="pdf" data-date="${date}">Print recap</button></div>
     <h3 class="tm-h">${gm.quick?esc(quickTitle(gm)):`${gm.home===false?"at":"vs"} ${esc(gm.opponent||"Game")}`} <small>${esc(T().longDay(dayOf(date)))}${gm.quick?" · quick game":""}${g.final?"":" · in progress"}</small></h3>
     <div class="st-final"><b class="r-${res}">${g.final?res+" ":""}${c.us}–${c.them}</b></div>
-    <div class="st-tablewrap"><table class="st-table st-q"><thead><tr><th></th>${per.map(p=>`<th>${g.periods===2?(p===1?"1H":"2H"):PERIOD_NAME(g)+p}</th>`).join("")}<th>T</th></tr></thead>
+    ${g.box?`<p class="help" style="margin:0 0 8px">Entered from a box score${g.boxPhoto?" (read from a photo)":""}.</p>`:""}<div class="st-tablewrap"${g.box?" hidden":""}><table class="st-table st-q"><thead><tr><th></th>${per.map(p=>`<th>${g.periods===2?(p===1?"1H":"2H"):PERIOD_NAME(g)+p}</th>`).join("")}<th>T</th></tr></thead>
       <tbody><tr><th>${esc((team.settings||{}).mascot||"Us")}</th>${per.map(p=>`<td>${c.per[p]||0}</td>`).join("")}<td><b>${c.us}</b></td></tr>
       <tr><th>${esc(gm.opponent||"Them")}</th>${per.map(p=>`<td>${c.opp[p]||0}</td>`).join("")}<td><b>${c.them}</b></td></tr></tbody></table></div>
     ${top.length?`<p class="st-leaders"><b>Leading scorers:</b> ${top.map(x=>`${esc(pname(x.p))} ${x.r.pts}`).join(" · ")}${reb&&((reb.r.s.oreb||0)+(reb.r.s.dreb||0))?` · <b>Rebounds:</b> ${esc(short(reb.p))} ${(reb.r.s.oreb||0)+(reb.r.s.dreb||0)}`:""}</p>`:""}
@@ -294,11 +294,11 @@ function renderRecap(date){
     <div class="st-tablewrap"><table class="st-table"><thead><tr><th class="nm">Player</th>${C.map(([h])=>`<th>${h}</th>`).join("")}</tr></thead>
       <tbody>${rows.map(({p,r})=>`<tr><th class="nm"><button type="button" class="linkbtn" data-st="player" data-pid="${esc(p.id||"")}">${esc(pname(p))}</button></th>${C.map(([,f])=>`<td>${f(r)}</td>`).join("")}</tr>`).join("")}
       <tr class="tot"><th class="nm">Team</th>${C.map(([h,f])=>`<td>${h==="QTR"?"":f(tot)}</td>`).join("")}</tr></tbody></table></div>
-    <p class="help">QTR = ${g.periods===2?"halves":"quarters"} played: on the floor at any point in them.</p>
-    <h4 class="gp-h">Substitutions</h4>
+    <p class="help"${g.box?" hidden":""}>QTR = ${g.periods===2?"halves":"quarters"} played: on the floor at any point in them.</p>
+    ${g.box?"":`<h4 class="gp-h">Substitutions</h4>
     ${c.subs.length?`<ol class="st-log">${c.subs.map(e=>`<li><span>${periodLabel(g,e.p)}</span>${esc(eventText(g,e,by))}</li>`).join("")}</ol>`:`<p class="help">No substitutions recorded.</p>`}
     <details class="st-pbp"><summary>Every play, in order (${(g.events||[]).length})</summary>
-      <ol class="st-log">${(g.events||[]).map(e=>`<li><span>${periodLabel(g,e.p)}</span>${esc(eventText(g,e,by))}${can()&&e.k!=="period"?` <button type="button" class="icon" data-st="delev" data-id="${esc(e.id)}" data-date="${date}" aria-label="Remove">✕</button>`:""}</li>`).join("")}</ol></details>
+      <ol class="st-log">${(g.events||[]).map(e=>`<li><span>${periodLabel(g,e.p)}</span>${esc(eventText(g,e,by))}${can()&&e.k!=="period"?` <button type="button" class="icon" data-st="delev" data-id="${esc(e.id)}" data-date="${date}" aria-label="Remove">✕</button>`:""}</li>`).join("")}</ol></details>`}
     <label class="f" style="margin-top:10px">Game notes<textarea data-st-notes="${date}" rows="2" placeholder="What went well, what to work on"${can()?"":" disabled"}>${esc(g.notes||"")}</textarea></label>
   </div>`;
 }
@@ -308,8 +308,8 @@ function seasonData(){
   const tracked=games().filter(g=>GAMES[g.date]&&(GAMES[g.date].events||[]).length).concat(quickGames().filter(g=>g.season));
   const P={};let w=0,l=0,pf=0,pa=0;
   tracked.forEach(gm=>{const g=GAMES[gm.date],c=compute(g);if(g.final){if(c.us>c.them)w++;else if(c.us<c.them)l++;}pf+=c.us;pa+=c.them;
-    Object.values(c.players).forEach(r=>{const t=P[r.pid]=P[r.pid]||{pid:r.pid,gp:0,min:0,q:0,pts:0,s:{},log:[]};
-      if(r.q>0||r.pts||Object.keys(r.s).length){t.gp++;t.min+=r.min;t.q+=r.q||0;t.pts+=r.pts;Object.entries(r.s).forEach(([k,v])=>t.s[k]=(t.s[k]||0)+v);t.log.push({date:gm.date,opp:gm.opponent,home:gm.home!==false,r});}});});
+    Object.values(c.players).forEach(r=>{const t=P[r.pid]=P[r.pid]||{pid:r.pid,gp:0,gq:0,min:0,q:0,pts:0,s:{},log:[]};
+      if(r.q>0||r.pts||Object.keys(r.s).length||(g.box&&(g.lineup||[]).includes(r.pid))){t.gp++;if(!g.box)t.gq++;t.min+=r.min;t.q+=r.q||0;t.pts+=r.pts;Object.entries(r.s).forEach(([k,v])=>t.s[k]=(t.s[k]||0)+v);t.log.push({date:gm.date,opp:gm.opponent,home:gm.home!==false,r});}});});
   return {tracked,P,w,l,pf,pa};
 }
 function renderSeason(){
@@ -317,9 +317,9 @@ function renderSeason(){
   const bb=SPORT()==="basketball",set=statset();
   const list=Object.values(d.P).sort((a,b)=>b.pts/b.gp-a.pts/a.gp);
   const head=bb?["GP","QTR","PTS","REB","AST","STL","BLK","TO","FG%","3P%","FT%"]:["GP","QTR","PTS",...set.filter(([,,p])=>!p).map(([,l])=>l.replace(/ .*/,"").slice(0,5).toUpperCase())];
-  const cells=t=>bb?[t.gp,avg(t.q,t.gp),avg(t.pts,t.gp),avg((t.s.oreb||0)+(t.s.dreb||0),t.gp),avg(t.s.ast||0,t.gp),avg(t.s.stl||0,t.gp),avg(t.s.blk||0,t.gp),avg(t.s.to||0,t.gp),
+  const cells=t=>bb?[t.gp,avg(t.q,t.gq),avg(t.pts,t.gp),avg((t.s.oreb||0)+(t.s.dreb||0),t.gp),avg(t.s.ast||0,t.gp),avg(t.s.stl||0,t.gp),avg(t.s.blk||0,t.gp),avg(t.s.to||0,t.gp),
       pct((t.s["2pm"]||0)+(t.s["3pm"]||0),(t.s["2pm"]||0)+(t.s["3pm"]||0)+(t.s["2px"]||0)+(t.s["3px"]||0)),pct(t.s["3pm"]||0,(t.s["3pm"]||0)+(t.s["3px"]||0)),pct(t.s.ftm||0,(t.s.ftm||0)+(t.s.ftx||0))]:
-    [t.gp,avg(t.q,t.gp),avg(t.pts,t.gp),...set.filter(([,,p])=>!p).map(([k])=>avg(t.s[k]||0,t.gp))];
+    [t.gp,avg(t.q,t.gq),avg(t.pts,t.gp),...set.filter(([,,p])=>!p).map(([k])=>avg(t.s[k]||0,t.gp))];
   const leader=(lbl,f)=>{const b=[...list].filter(t=>t.gp).sort((a,b)=>f(b)-f(a))[0];return b&&f(b)>0?`<div class="st-lead"><small>${lbl}</small><b>${esc(short(by[b.pid]))}</b><span>${avg(f(b)*b.gp,b.gp)}</span></div>`:"";};
   box.innerHTML=`<div class="tm-card"><h3 class="tm-h">Season stats <small>${d.tracked.length} game${d.tracked.length===1?"":"s"} tracked${d.w+d.l?` · ${d.w}–${d.l}`:""}</small></h3>
     ${d.tracked.length?`<div class="st-leads">${leader("Points per game",t=>t.pts/t.gp)}${bb?leader("Rebounds per game",t=>((t.s.oreb||0)+(t.s.dreb||0))/t.gp)+leader("Assists per game",t=>(t.s.ast||0)/t.gp)+leader("Steals per game",t=>(t.s.stl||0)/t.gp):""}
@@ -328,7 +328,7 @@ function renderSeason(){
       <tbody>${list.map(t=>`<tr><th class="nm"><button type="button" class="linkbtn" data-st="player" data-pid="${esc(t.pid)}">${esc(pname(by[t.pid]))}</button></th>${cells(t).map(v=>`<td>${v}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
       <p class="help">Per-game averages. QTR = quarters played. Tap a player for their game-by-game log.</p>
       <div class="actions" style="margin:0"><button type="button" class="btn" data-st="csv">Download as a spreadsheet</button></div>`:
-      `<p class="help">No games tracked yet. Track a game from the <b>Games</b> list (or the Gameplan) and every player's stats add up here.</p>`}</div>`;
+      `<p class="help">No games yet. Track a game live, or type in a box score (or photograph the stat sheet) from the <b>Games</b> list, and every player's stats add up here.</p>${can()?`<div class="actions" style="margin:0"><button type="button" class="btn primary" data-st="games">Enter a box score</button></div>`:""}`}</div>`;
 }
 function renderPlayer(pid){
   const box=$("#tm-stats"),d=seasonData(),t=d.P[pid],p=T().roster.find(x=>x.id===pid);
@@ -336,10 +336,10 @@ function renderPlayer(pid){
   box.innerHTML=`<div class="tm-card"><div class="st-head"><button type="button" class="btn" data-st="season">‹ Season stats</button></div>
     <h3 class="tm-h">${esc(pname(p))} <small>${p&&p.pos?esc(p.pos):""}</small></h3>
     ${t?`<div class="st-leads"><div class="st-lead"><small>Games</small><b>${t.gp}</b></div><div class="st-lead"><small>Points</small><b>${avg(t.pts,t.gp)}</b><span>per game</span></div>
-      <div class="st-lead"><small>Quarters played</small><b>${avg(t.q,t.gp)}</b><span>per game</span></div>${bb?`<div class="st-lead"><small>Rebounds</small><b>${avg((t.s.oreb||0)+(t.s.dreb||0),t.gp)}</b><span>per game</span></div>`:""}</div>
+      <div class="st-lead"><small>Quarters played</small><b>${avg(t.q,t.gq)}</b><span>per game</span></div>${bb?`<div class="st-lead"><small>Rebounds</small><b>${avg((t.s.oreb||0)+(t.s.dreb||0),t.gp)}</b><span>per game</span></div>`:""}</div>
       <h4 class="gp-h">Game by game</h4>
       <div class="st-tablewrap"><table class="st-table"><thead><tr><th class="nm">Game</th>${C.map(([h])=>`<th>${h}</th>`).join("")}</tr></thead>
-      <tbody>${t.log.map(x=>`<tr><th class="nm"><button type="button" class="linkbtn" data-st="open" data-date="${x.date}">${esc(T().longDay(dayOf(x.date)))} ${isQuick(x.date)&&!x.opp?"Quick game":`${x.home?"vs":"at"} ${esc(x.opp||"")}`}</button></th>${C.map(([,f])=>`<td>${f(x.r)}</td>`).join("")}</tr>`).join("")}
+      <tbody>${t.log.map(x=>`<tr><th class="nm"><button type="button" class="linkbtn" data-st="open" data-date="${x.date}">${esc(T().longDay(dayOf(x.date)))} ${isQuick(x.date)&&!x.opp?"Quick game":`${x.home?"vs":"at"} ${esc(x.opp||"")}`}</button></th>${C.map(([h,f])=>`<td>${h==="QTR"&&GAMES[x.date]&&GAMES[x.date].box?"–":f(x.r)}</td>`).join("")}</tr>`).join("")}
       <tr class="tot"><th class="nm">Season</th>${C.map(([h,f])=>`<td>${h==="QTR"?t.q:f(t)}</td>`).join("")}</tr></tbody></table></div>`:
       `<p class="help">No stats for this player yet.</p>`}</div>`;
 }
@@ -351,7 +351,7 @@ function renderGames(){
       const r=(((T().plans||{})[g.date]||{}).result)||{},typed=!c&&r.us!==""&&r.us!=null&&r.them!==""&&r.them!=null,played=g.date<=today;
       const tw=typed?(+r.us>+r.them?"W":+r.us<+r.them?"L":"T"):"";
       return `<li><div><b>${esc(T().longDay(g.date))}</b> ${g.home===false?"at":"vs"} ${esc(g.opponent||"Game")}<small>${c?`${s.final?(c.us>c.them?"W":c.us<c.them?"L":"T")+" ":"Live · "}${c.us}–${c.them}`:typed?`<span class="st-final ${tw}">${tw} ${esc(r.us)}–${esc(r.them)}</span> Final score`:g.date<today?"Not tracked":""}</small></div>
-        <span class="st-gbtn">${c?`<button type="button" class="btn" data-st="open" data-date="${g.date}">Recap</button>`:""}${can()&&!c&&played&&window.openScores?`<button type="button" class="btn${typed?"":" primary"}" data-st="score" data-date="${g.date}">${typed?"Edit score":"+ Score"}</button>`:""}${can()&&(!s||!s.final)&&!typed?`<button type="button" class="btn ${c||played?"":"primary"}" data-st="track" data-date="${g.date}">${c?"Resume":"Track"}</button>`:""}</span></li>`;}).join("")}</ul>`:
+        <span class="st-gbtn">${c?`<button type="button" class="btn" data-st="open" data-date="${g.date}">Recap</button>`:""}${can()&&!c&&played&&window.openScores?`<button type="button" class="btn${typed?"":" primary"}" data-st="score" data-date="${g.date}">${typed?"Edit score":"+ Score"}</button>`:""}${can()&&!c&&played?`<button type="button" class="btn primary" data-st="box" data-date="${g.date}">+ Box score</button>`:""}${can()&&(!s||!s.final)&&!typed?`<button type="button" class="btn ${c||played?"":"primary"}" data-st="track" data-date="${g.date}">${c?"Resume":"Track"}</button>`:""}</span></li>`;}).join("")}</ul>`:
       `<p class="help">No games on the schedule. Add games in the Calendar tab, or track a quick game.</p>`}</div>`+quickList();
 }
 function quickList(){const q=quickGames();
@@ -359,12 +359,13 @@ function quickList(){const q=quickGames();
     ${q.length?`<ul class="st-games">${q.map(g=>{const s=GAMES[g.date],c=compute(s);
       return `<li><div><b>${esc(T().longDay(dayOf(g.date)))}</b> ${esc(quickTitle(g))}<small>${s.final?"":"Live · "}${c.us}–${c.them}${g.season?" · counts in season":""}</small></div>
         <span class="st-gbtn"><button type="button" class="btn" data-st="open" data-date="${g.date}">Recap</button>${can()&&!s.final?`<button type="button" class="btn" data-st="track" data-date="${g.date}">Resume</button>`:""}</span></li>`;}).join("")}</ul>`:
-      `<p class="help" style="margin:0">Tap <b>+ Quick game</b> to track stats without a scheduled game.</p>`}</div>`;}
+      `<p class="help" style="margin:0">Tap <b>+ Quick game</b> to track stats without a scheduled game.</p>`}
+    ${can()?`<div class="actions" style="margin:10px 0 0"><button type="button" class="btn" data-st="boxnew">+ Box score for a game not on the schedule</button></div>`:""}</div>`;}
 
 /* ---------- printing and spreadsheet ---------- */
 function printRecap(date){
   const g=GAMES[date],gm=metaOf(date)||{};if(!g)return;
-  const c=compute(g),rows=boxRows(g,c),C=cols(),tot=totalsRow(rows),by=Object.fromEntries(rosterOf(g).map(p=>[p.id,p])),doc=T().pdfDoc();
+  const c=compute(g),rows=boxRows(g,c),C=g.box?cols().filter(([h])=>h!=="QTR"):cols(),tot=totalsRow(rows),by=Object.fromEntries(rosterOf(g).map(p=>[p.id,p])),doc=T().pdfDoc();
   let y=T().pdfHead(doc,`${gm.quick?quickTitle(gm):`${gm.home===false?"at":"vs"} ${gm.opponent||"Game"}`}: ${c.us}–${c.them}`,[team.name,(team.settings||{}).teamLabel,T().longDay(dayOf(date))].filter(Boolean).join(" · "));
   const per=Array.from({length:Math.max(g.periods,g.period)},(_,i)=>i+1);
   doc.setFontSize(10);doc.setFont("helvetica","bold");per.forEach((p,i)=>doc.text(g.periods===2?(p===1?"1H":"2H"):PERIOD_NAME(g)+p,170+i*40,y));doc.text("T",170+per.length*40,y);y+=14;
@@ -387,6 +388,124 @@ function seasonCSV(){
   saveFile(`${T().slug(team.name)}-season-stats.csv`,new Blob([lines.join("\n")],{type:"text/csv"}));
 }
 
+
+/* ---------- box score entry: type in (or photograph) a game's stat sheet after the game ----------
+   Saved like a tracked game, as one "stat" event per made shot, rebound, assist…, so the recap, season
+   stats, player logs, PDF and spreadsheet all work the same. g.box marks it: no quarters, no play-by-play. */
+let BX=null;   // {date, quick, opponent, home, them, rows:{pid:{col:n}}, extra:[{number,name,vals,match}], played:Set, photo, unsure:Set}
+const BBCOLS=[["fgm","FGM"],["fga","FGA"],["tpm","3PM"],["tpa","3PA"],["ftm","FTM"],["fta","FTA"],["oreb","OR"],["dreb","DR"],["ast","AST"],["stl","STL"],["blk","BLK"],["to","TO"],["pf","PF"]];
+const boxCols=()=>SPORT()==="basketball"?BBCOLS:statset().map(([k,l])=>[k,l.replace(/ .*/,"").slice(0,5).toUpperCase()]);
+const n0=v=>Math.max(0,parseInt(v,10)||0);
+/* sheet columns -> counts of each stat */
+function toCounts(v){
+  if(SPORT()!=="basketball"){const o={};statset().forEach(([k])=>{if(n0(v[k]))o[k]=n0(v[k]);});return o;}
+  const fgm=n0(v.fgm),tpm=Math.min(n0(v.tpm),fgm),fga=Math.max(n0(v.fga),fgm),tpa=Math.max(n0(v.tpa),tpm),ftm=n0(v.ftm),fta=Math.max(n0(v.fta),ftm);
+  const o={"2pm":Math.max(0,fgm-tpm),"2px":Math.max(0,(fga-fgm)-(tpa-tpm)),"3pm":tpm,"3px":tpa-tpm,ftm,ftx:fta-ftm};
+  ["oreb","dreb","ast","stl","blk","to","pf"].forEach(k=>o[k]=n0(v[k]));Object.keys(o).forEach(k=>{if(!o[k])delete o[k];});return o;
+}
+/* counts -> sheet columns (to edit a saved box score) */
+function toCols(s){
+  if(SPORT()!=="basketball")return {...s};
+  const m2=s["2pm"]||0,m3=s["3pm"]||0;
+  return {fgm:m2+m3,fga:m2+m3+(s["2px"]||0)+(s["3px"]||0),tpm:m3,tpa:m3+(s["3px"]||0),ftm:s.ftm||0,fta:(s.ftm||0)+(s.ftx||0),oreb:s.oreb||0,dreb:s.dreb||0,ast:s.ast||0,stl:s.stl||0,blk:s.blk||0,to:s.to||0,pf:s.pf||0};
+}
+const ptsOfCols=v=>{const c=toCounts(v||{}),pt=Object.fromEntries(statset().map(([k,,p])=>[k,p||0]));return Object.entries(c).reduce((a,[k,n])=>a+n*(pt[k]||0),0);};
+function openBox(date,isNew){
+  const R=T().roster;
+  if(isNew){BX={date:"",quick:true,opponent:"",home:true,them:"",rows:{},extra:[],played:new Set(),photo:false,unsure:new Set(),newDate:todayISO()};}
+  else{
+    const g=GAMES[date],gm=metaOf(date)||{};BX={date,quick:isQuick(date),opponent:gm.opponent||(g||{}).opponent||"",home:gm.home!==false,them:"",rows:{},extra:[],played:new Set(),photo:!!(g&&g.boxPhoto),unsure:new Set()};
+    if(g&&g.box){const c=compute(g);BX.them=c.them?String(c.them):"";Object.values(c.players).forEach(r=>{BX.rows[r.pid]=toCols(r.s);});(g.lineup||[]).forEach(id=>BX.played.add(id));}
+    else{const r=(((T().plans||{})[date]||{}).result)||{};if(r.them!=null&&r.them!=="")BX.them=String(r.them);}
+  }
+  R.forEach(p=>{BX.rows[p.id]=BX.rows[p.id]||{};});
+  view="box";render();
+}
+function boxForm(){
+  const R=[...T().roster].sort((a,b)=>(parseInt(a.number)||999)-(parseInt(b.number)||999)||String(a.name).localeCompare(b.name)),C=boxCols();
+  const us=R.reduce((a,p)=>a+ptsOfCols(BX.rows[p.id]),0)+BX.extra.filter(x=>x.match).reduce((a,x)=>a+ptsOfCols(x.vals),0);
+  const title=BX.date&&!BX.quick?`${BX.home?"vs":"at"} ${esc(BX.opponent||"Game")} <small>${esc(T().longDay(BX.date))}</small>`:BX.date?`${esc(BX.opponent||"Game")} <small>${esc(T().longDay(dayOf(BX.date)))}</small>`:"Box score";
+  const cell=(pid,k,v)=>`<td><input inputmode="numeric" pattern="[0-9]*" data-bx="${esc(pid)}" data-k="${k}" value="${v[k]?esc(String(v[k])):""}" aria-label="${k}"></td>`;
+  return `<div class="tm-card bx">
+    <div class="st-head"><button type="button" class="btn" data-st="games">‹ Games</button></div>
+    <h3 class="tm-h">${title}</h3>
+    ${!BX.date?`<div class="bx-new"><label class="f">Date<input type="date" id="bxDate" value="${esc(BX.newDate||"")}"></label><label class="f">Opponent<input id="bxOpp" value="${esc(BX.opponent)}" placeholder="e.g. Carthage"></label></div>`:""}
+    <div class="bx-photo"><button type="button" class="btn primary" data-st="bxphoto">📷 Fill in from a photo of the stat sheet</button><span class="help">Snap the scorebook or a printed box score. You check every number before saving.</span></div>
+    <div class="bx-score"><div><small>${esc((team.settings||{}).mascot||"Us")}</small><b id="bxUs">${us}</b></div><span aria-hidden="true">–</span><div><small>${esc(BX.opponent||"Them")}</small><input id="bxThem" inputmode="numeric" pattern="[0-9]*" value="${esc(BX.them)}" placeholder="0" aria-label="Opponent's score"></div></div>
+    ${BX.extra.length?`<div class="bx-extra"><p class="ai-note">${BX.extra.length} player${BX.extra.length===1?"":"s"} on the sheet didn't match your roster. Pick who each one is, or leave them out.</p>
+      ${BX.extra.map((x,i)=>`<div class="bx-x"><b>${x.number?"#"+esc(x.number)+" ":""}${esc(x.name||"")}</b><small>${ptsOfCols(x.vals)} pts</small>
+        <select data-bxm="${i}" aria-label="Which player is this"><option value="">Leave out</option>${R.map(p=>`<option value="${esc(p.id)}"${x.match===p.id?" selected":""}>${esc(pname(p))}</option>`).join("")}</select></div>`).join("")}</div>`:""}
+    ${R.length?`<div class="st-tablewrap"><table class="st-table bx-table"><thead><tr><th class="nm">Player</th><th title="Played in this game">Played</th>${C.map(([,h])=>`<th>${h}</th>`).join("")}<th>PTS</th></tr></thead>
+      <tbody>${R.map(p=>{const v=BX.rows[p.id]||{},on=BX.played.has(p.id)||Object.values(v).some(x=>+x);return `<tr class="${BX.unsure.has(p.id)?"bx-unsure":""}"><th class="nm">${esc(pname(p))}</th><td><input type="checkbox" data-bxp="${esc(p.id)}"${on?" checked":""} aria-label="${esc(pname(p))} played"></td>${C.map(([k])=>cell(p.id,k,v)).join("")}<td class="bx-pts" data-bxpts="${esc(p.id)}">${ptsOfCols(v)||""}</td></tr>`;}).join("")}</tbody></table></div>
+      <p class="help">${SPORT()==="basketball"?"FGM and FGA include 3-pointers, like a normal box score. Only have total rebounds? Put them under DR. Leave anything you didn't keep blank.":"Leave anything you didn't keep blank."}</p>`
+      :`<p class="msg err">Add your players in Team → Roster first, so their stats have somewhere to go.</p>`}
+    <p class="msg err" id="bxErr" hidden></p>
+    <div class="actions"><button type="button" class="btn primary" data-st="bxsave"${R.length?"":" disabled"}>Save box score</button>${BX.date&&GAMES[BX.date]&&GAMES[BX.date].box?`<button type="button" class="btn danger" data-st="bxdel">Delete these stats</button>`:""}</div>
+  </div>`;
+}
+function bxRead(){
+  const box=$("#tm-stats");
+  box.querySelectorAll("[data-bx]").forEach(i=>{const r=BX.rows[i.dataset.bx]=BX.rows[i.dataset.bx]||{};const v=n0(i.value);if(v)r[i.dataset.k]=v;else delete r[i.dataset.k];});
+  box.querySelectorAll("[data-bxp]").forEach(c=>{if(c.checked)BX.played.add(c.dataset.bxp);else BX.played.delete(c.dataset.bxp);});
+  box.querySelectorAll("[data-bxm]").forEach(s=>{BX.extra[+s.dataset.bxm].match=s.value;});
+  const t=$("#bxThem");if(t)BX.them=t.value.trim();const d=$("#bxDate");if(d)BX.newDate=d.value;const o=$("#bxOpp");if(o)BX.opponent=o.value.trim();
+}
+function bxLive(e){
+  const i=e.target;if(!i.matches("[data-bx],[data-bxm],#bxThem"))return;bxRead();
+  if(i.matches("[data-bx]")){const pid=i.dataset.bx,v=BX.rows[pid]||{},cb=document.querySelector(`[data-bxp="${CSS.escape(pid)}"]`);if(cb&&Object.values(v).some(x=>+x))cb.checked=true;
+    const c=document.querySelector(`[data-bxpts="${CSS.escape(pid)}"]`);if(c)c.textContent=ptsOfCols(v)||"";}
+  const us=T().roster.reduce((a,p)=>a+ptsOfCols(BX.rows[p.id]),0)+BX.extra.filter(x=>x.match).reduce((a,x)=>a+ptsOfCols(x.vals),0);const u=$("#bxUs");if(u)u.textContent=us;
+}
+async function bxSave(){
+  bxRead();const err=$("#bxErr");const fail=m=>{err.textContent=m;err.hidden=false;};
+  if(!BX.date){if(!/^\d{4}-\d\d-\d\d$/.test(BX.newDate||""))return fail("Pick the game's date.");
+    const sched=games().find(g=>g.date===BX.newDate&&!(GAMES[g.date]&&(GAMES[g.date].events||[]).length));
+    BX.date=sched?sched.date:"q"+BX.newDate+"-"+Math.random().toString(36).slice(2,6);
+    BX.quick=isQuick(BX.date);if(sched){BX.opponent=sched.opponent||BX.opponent;BX.home=sched.home!==false;}}
+  // rows from the photo that were matched by hand add onto that player
+  BX.extra.forEach(x=>{if(!x.match)return;const r=BX.rows[x.match]=BX.rows[x.match]||{};Object.entries(x.vals).forEach(([k,v])=>{if(n0(v))r[k]=n0(r[k])+n0(v);});BX.played.add(x.match);});BX.extra=[];
+  const ev=[];let n=0;const id=()=>"b"+(++n).toString(36)+Math.random().toString(36).slice(2,6);
+  const lineup=[];
+  T().roster.forEach(p=>{const cnt=toCounts(BX.rows[p.id]||{});if(!Object.keys(cnt).length&&!BX.played.has(p.id))return;lineup.push(p.id);
+    Object.entries(cnt).forEach(([k,c])=>{for(let i=0;i<Math.min(c,200);i++)ev.push({id:id(),k:"stat",stat:k,pid:p.id,p:1,s:0});});});
+  if(!lineup.length)return fail("Type in at least one player's stats, or check who played.");
+  const them=n0(BX.them);if(them)ev.push({id:id(),k:"opp",pts:them,p:1,s:0});
+  const body={date:BX.date,box:true,...(BX.photo?{boxPhoto:true}:{}),...(BX.quick?{quick:true,season:true}:{}),opponent:BX.opponent||"",home:BX.home!==false,sport:SPORT(),
+    periods:1,period:1,len:0,elapsed:0,running:false,startedAt:null,final:true,lineup,events:ev,notes:(GAMES[BX.date]||{}).notes||"",updatedAt:Date.now(),updatedBy:(typeof ME!=="undefined"&&ME.name)||""};
+  GAMES[BX.date]=body;T().put("gamestats",BX.date,body);
+  if(!BX.quick)await saveResult(BX.date);
+  if(window.cppTrack)cppTrack(BX.photo?"stats:boxphoto":"stats:box");
+  openDate=BX.date;BX=null;view="recap";render();
+}
+function bxPhoto(){
+  bxRead();if(!window.PhotoAI)return;
+  PhotoAI.start("stats",{context:{sport:SPORT(),roster:T().roster.map(p=>({number:p.number||"",name:p.name||""})),opponent:BX.opponent||"",cols:boxCols().map(([k,h])=>k+"="+h)},
+    onResult:res=>bxFill(res||{})});
+}
+/* Put what Claude read into the form: match each line to a player by number, then by name. */
+function bxFill(res){
+  const R=T().roster,norm=x=>String(x||"").toLowerCase().replace(/[^a-z]/g,"");
+  const byNum=new Map(R.filter(p=>p.number!=null&&String(p.number).trim()!=="").map(p=>[String(+p.number),p]));
+  const byName=x=>{const n=norm(x.name);if(!n)return null;const last=String(x.name).trim().split(/\s+/).pop().toLowerCase();
+    return R.find(r=>norm(r.name)===n)||R.find(r=>String(r.name||"").toLowerCase().trim().split(/\s+/).pop()===last)||null;};
+  BX.extra=[];BX.unsure=new Set();BX.photo=true;const used=new Set();
+  (res.players||[]).forEach(x=>{
+    if(!x)return;x={...(x.other||{}),...x};const vals={};boxCols().forEach(([k])=>{if(x[k]!=null&&x[k]!=="")vals[k]=n0(x[k]);});
+    if(SPORT()==="basketball"&&n0(x.reb)&&!vals.oreb&&!vals.dreb)vals.dreb=n0(x.reb);
+    // points only (a scorebook with just totals): count them as 2s and a free throw
+    if(SPORT()==="basketball"&&n0(x.pts)&&!vals.fgm&&!vals.ftm&&!vals.tpm){const p=n0(x.pts);vals.fgm=Math.floor(p/2);vals.fga=vals.fgm;if(p%2){vals.ftm=1;vals.fta=1;}}
+    const num=String(x.number||"").replace(/\D/g,""),p=(num&&byNum.get(String(+num)))||byName(x);
+    if(p&&!used.has(p.id)){used.add(p.id);BX.rows[p.id]=vals;BX.played.add(p.id);if(x.unsure)BX.unsure.add(p.id);}
+    else if(Object.values(vals).some(v=>v)||x.name)BX.extra.push({number:num,name:x.name||"",vals,match:""});
+  });
+  if(res.them!=null&&res.them!=="")BX.them=String(n0(res.them));
+  if(!BX.opponent&&res.opponent)BX.opponent=String(res.opponent).slice(0,60);
+  if(!BX.date&&/^\d{4}-\d\d-\d\d$/.test(res.date||""))BX.newDate=res.date;
+  view="box";render();
+  const card=document.querySelector("#tm-stats .bx-photo");
+  if(card)card.insertAdjacentHTML("afterend",`<div class="bx-read"><b>✓ Filled in from your photo.</b> Check the highlighted rows and anything that looks off, then save.${res.notes?`<br><span>${esc(res.notes)}</span>`:""}</div>`);
+}
+
 /* ---------- pane ---------- */
 /* The game the Live button should open: one already in progress, then today's game, then the next one coming up. */
 function liveTarget(){
@@ -405,6 +524,7 @@ function render(){
   $("#tm-stats").innerHTML=db+nav+`<div id="stBody"></div>`;
   const body=$("#stBody"),swap=f=>{const tmp=$("#tm-stats");const keep=tmp.innerHTML;f();const inner=tmp.innerHTML;tmp.innerHTML=db+nav+`<div id="stBody">${inner}</div>`;};
   if(view==="setup"){const g=isQuick(openDate)?{date:openDate,opponent:"",home:true,quick:true}:games().find(x=>x.date===openDate);if(!g){view="games";return render();}body.innerHTML=setupForm(g);return;}
+  if(view==="box"&&BX){body.innerHTML=boxForm();return;}
   if(view==="recap")swap(()=>renderRecap(openDate));
   else if(view==="player")swap(()=>renderPlayer(playerId));
   else if(view==="games")swap(renderGames);
@@ -432,12 +552,19 @@ $("#tm-stats").addEventListener("click",e=>{
     else{view="setup";render();}
   }
   if(a==="quick"){startQuick();return;}
+  if(a==="box"&&can()){openBox(b.dataset.date);return;}
+  if(a==="boxnew"&&can()){openBox(null,true);return;}
+  if(a==="bxphoto"){bxPhoto();return;}
+  if(a==="bxsave"){bxSave();return;}
+  if(a==="bxdel"&&BX&&BX.date){if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Delete? Tap again";return;}
+    const d=BX.date;delete GAMES[d];try{store.collection("gamestats").doc(d).delete();}catch{}BX=null;view="games";render();return;}
   if(a==="pdf")printRecap(b.dataset.date);
   if(a==="csv")seasonCSV();
   if(a==="delev"&&can()){const g=GAMES[b.dataset.date];if(!g)return;if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Remove?";b.classList.add("armed");return;}
     g.events=(g.events||[]).filter(x=>x.id!==b.dataset.id);T().put("gamestats",g.date,{...g,updatedAt:Date.now()});if(g.final)saveResult(g.date);renderRecap(g.date);render();}
 });
-$("#tm-stats").addEventListener("change",e=>{
+$("#tm-stats").addEventListener("input",e=>{if(view==="box"&&BX)bxLive(e);});
+$("#tm-stats").addEventListener("change",e=>{if(view==="box"&&BX&&e.target.matches("[data-bxm]")){bxRead();return;}
   const n=e.target.closest("[data-st-notes]");if(!n||!can())return;const g=GAMES[n.dataset.stNotes];if(!g)return;
   g.notes=n.value;T().put("gamestats",g.date,{...g,updatedAt:Date.now()});
 });

@@ -144,6 +144,60 @@ const TOOLS: Record<string, { area: string; tool: Record<string, unknown>; promp
       ((c.library as string[] || []).length ? `The coach's drill library already has: ${(c.library as string[]).join("; ")}. If a block is the same drill (even if worded a little differently), set match to that exact library name. ` : "") +
       "Don't invent drills that aren't on the page.",
   },
+  stats: {
+    area: "plans",
+    tool: {
+      name: "save_box_score",
+      description: "One game's stats for the coach's team, read from a scorebook page, a printed box score or a screenshot.",
+      input_schema: {
+        type: "object",
+        properties: {
+          date: { ...str, description: "YYYY-MM-DD if the sheet shows the game date, else empty" },
+          opponent: { ...str, description: "The other team's name if shown, else empty" },
+          us: { type: "integer", description: "The coach's team's final score if shown" },
+          them: { type: "integer", description: "The opponent's final score if shown" },
+          players: {
+            type: "array",
+            description: "Every player on the coach's team who appears on the sheet, one line each",
+            items: {
+              type: "object",
+              properties: {
+                number: { ...str, description: "Jersey number, digits only, or empty" },
+                name: { ...str, description: "Name as written, or empty if only a number is shown" },
+                fgm: { type: "integer", description: "Field goals made, INCLUDING 3-pointers" },
+                fga: { type: "integer", description: "Field goals attempted, including 3-pointers" },
+                tpm: { type: "integer", description: "3-pointers made" },
+                tpa: { type: "integer", description: "3-pointers attempted" },
+                ftm: { type: "integer" }, fta: { type: "integer" },
+                oreb: { type: "integer" }, dreb: { type: "integer" },
+                reb: { type: "integer", description: "Total rebounds, only when offensive and defensive aren't split" },
+                ast: { type: "integer" }, stl: { type: "integer" }, blk: { type: "integer" },
+                to: { type: "integer", description: "Turnovers" }, pf: { type: "integer", description: "Personal fouls" },
+                pts: { type: "integer", description: "Total points as written on the sheet" },
+                other: { type: "object", description: "For sports other than basketball: counts keyed by the stat keys listed in the instructions", additionalProperties: { type: "integer" } },
+                unsure: { type: "boolean", description: "true if any number on this line was hard to read" },
+              },
+              required: [],
+            },
+          },
+          notes: { ...str, description: "Anything the coach should double-check, in one or two short sentences" },
+        },
+        required: ["players"],
+      },
+    },
+    prompt: (c) => {
+      const roster = (c.roster as { number: string; name: string }[] || []).map((p) => `${p.number ? "#" + p.number + " " : ""}${p.name}`).join("; ");
+      return `This is a photo of a ${c.sport || "basketball"} stat sheet for one game: a scorebook page, a printed box score or a screenshot. Today is ${c.today}. ` +
+        (roster ? `The coach's roster: ${roster}. Use it to read names and numbers, but list players exactly as they appear on the sheet. ` : "") +
+        (c.opponent ? `The opponent was ${c.opponent}. ` : "") +
+        "If the sheet shows both teams, only list the coach's team's players (the one whose players match the roster), and give the other team's total as them. " +
+        ((c.sport || "basketball") === "basketball"
+          ? "Fill in only the columns the sheet actually has. In a scorebook, count each player's made 2s, made 3s and made free throws from the tally marks, and free-throw attempts from the misses. " +
+            "Field goals made (fgm) includes 3-pointers. If the sheet only shows total points for a player, put them in pts and leave the shooting columns empty. Fouls go in pf. "
+          : `Use the 'other' object with these stat keys: ${(c.cols as string[] || []).join(", ")}. `) +
+        "Leave a number out when it isn't on the sheet rather than guessing 0. If a number is hard to read, give your best reading and set unsure to true. Don't invent players.";
+    },
+  },
   play: {
     area: "plays",
     tool: {

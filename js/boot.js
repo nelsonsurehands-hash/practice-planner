@@ -214,7 +214,7 @@ const usageAgo=iso=>{if(!iso)return "never";const m=Math.round((Date.now()-new D
   if(m<2)return "just now";if(m<60)return m+" min ago";const h=Math.round(m/60);if(h<24)return h+" hr ago";const d=Math.round(h/24);return d===1?"yesterday":d<31?d+" days ago":new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});};
 /* Friendly names for the feature counts js/track.js sends. */
 const FEAT_NAMES={"tab:home":"Home","tab:plan":"Practice plan","tab:plays":"Plays","tab:lib":"Drill library","tab:cal":"Calendar","tab:team":"Team","tab:settings":"Settings",
-  "play:run":"Run a play","play:speed":"Change play speed","plays:share":"Share plays with players","plays:print":"Print plays","plan:print":"Print practice plan","plan:run":"Ran practice full screen",
+  "play:run":"Run a play","play:speed":"Change play speed","plays:share":"Share plays with players","plays:print":"Print plays","plan:print":"Print practice plan","plan:run":"Ran practice full screen","stats:box":"Typed in a box score","stats:boxphoto":"Box score from a photo",
   "cal:export":"Export calendar","cal:setup":"Season setup","cal:multiday":"Apply time to more days","parentlink:open":"Parent link opened","parentlink:send":"Parent link sent",
   "food:send":"Food sign-up link sent","stats:live":"Live stat tracker","stats:tracking":"Stats tapped in a game","stats:season":"Season stats","bus:print":"Bus list printed",
   "bus:copy":"Bus list copied","bus:checkin":"Bus check-in","schedule:print":"Schedule printed","schedule:copy":"Schedule copied","export":"Backup exported","help":"How-to (?) opened",

@@ -9,6 +9,7 @@ let job=null;   // {kind, photos, result, used, limit}
 const KIND={roster:{title:"Add players from a photo or file",tip:"A printed or handwritten roster, a sign-up sheet, or a screenshot. Get the whole list in the picture, flat and in good light."},
   schedule:{title:"Add to the calendar from a photo or file",tip:"A game schedule, district schedule or school calendar. Up to 4 photos for a schedule that runs across pages."},
   practice:{title:"Add a practice plan from a photo or file",tip:"A practice plan on paper, a whiteboard or a screenshot, or a page of drills. Times or minutes for each drill help, but aren't required. Up to 4 photos."},
+  stats:{title:"Read a stat sheet",tip:"A scorebook page, a printed box score or a screenshot of one. Get every player's line in the picture, flat and in good light. Up to 4 photos if it runs across pages."},
   play:{title:"Draw a play from photos",tip:"A play on a whiteboard, in a notebook or printed. Numbers for players, X's for defenders. If the play is drawn across several pictures, add one photo per step, in order (up to 6)."}};
 const SETUP=`<p class="help">Reading photos needs the photo reader turned on in Supabase. Head coaches: see <b>supabase/functions/photo-import</b> in the app's files, or ask Claude to walk you through it.</p>`;
 
@@ -53,10 +54,10 @@ async function toItem(file){
 }
 const ICON={pdf:"📄",text:"📝"};
 const tile=(ph,i)=>ph.t==="img"||!ph.t?`<img src="${ph.url}" alt="Photo ${i+1}">`:`<span class="ai-file"><b>${ICON[ph.t]||"📄"}</b><small>${esc(ph.name||"File")}</small></span>`;
-const MAX={roster:4,schedule:4,play:6,practice:4};
-function start(kind){
+const MAX={roster:4,schedule:4,play:6,practice:4,stats:4};
+function start(kind,opts){
   if(typeof team==="undefined"||!team)return;
-  job={kind,photos:[]};input.value="";
+  job={kind,photos:[],ctx:(opts&&opts.context)||null,onResult:(opts&&opts.onResult)||null};input.value="";
   input.multiple=true;
   input.onchange=async()=>{
     const room=MAX[job.kind]-job.photos.length,files=[...input.files].slice(0,Math.max(0,room));input.value="";if(!files.length)return;
@@ -73,7 +74,7 @@ function start(kind){
 function stage(){
   const n=job.photos.length,max=MAX[job.kind];
   show(`<p class="help" style="margin-top:0">${job.kind==="play"?"Add a photo for each step of the play, in order: photo 1 is the start. Claude puts them together as one play.":
-      job.kind==="schedule"?"Add every page of the schedule.":job.kind==="practice"?"Add every page of the practice plan, in order.":"Add every page of the roster."}</p>
+      job.kind==="schedule"?"Add every page of the schedule.":job.kind==="practice"?"Add every page of the practice plan, in order.":job.kind==="stats"?"Add every page of the stat sheet.":"Add every page of the roster."}</p>
     <ol class="ai-stage">${job.photos.map((ph,i)=>`<li>${tile(ph,i)}<span class="ai-n">${job.kind==="play"?"Step ":""}${i+1}</span>
       <span class="ai-move">${i?`<button type="button" class="icon" data-mv="${i}" data-dir="-1" aria-label="Move earlier">‹</button>`:""}${i<n-1?`<button type="button" class="icon" data-mv="${i}" data-dir="1" aria-label="Move later">›</button>`:""}<button type="button" class="icon" data-rm="${i}" aria-label="Remove photo">✕</button></span></li>`).join("")}
       ${n<max?`<li class="ai-add"><button type="button" data-ai="pick">＋<span>${job.kind==="play"?"Add the next step":"Add a photo"}</span></button></li>
@@ -92,7 +93,8 @@ async function read(){
   const st=SETTINGS||{};
   const context=job.kind==="schedule"?{today:todayISO(),seasonStart:st.seasonStart,seasonEnd:st.seasonEnd,team:[team.name,st.teamLabel].filter(Boolean).join(" ")}:
     job.kind==="play"?{sport:st.sport||"basketball",players:sp().players,types:sp().playTypes,photos:job.photos.length}:
-    job.kind==="practice"?{sport:st.sport||"basketball",today:todayISO(),cats:CATS,library:drills.map(d=>d.name).slice(0,200)}:{};
+    job.kind==="practice"?{sport:st.sport||"basketball",today:todayISO(),cats:CATS,library:drills.map(d=>d.name).slice(0,200)}:
+    job.kind==="stats"?{...(job.ctx||{}),today:todayISO()}:{};
   try{
     let r;
     if(window.__photoMock)r=await window.__photoMock(job.kind,context);
@@ -372,7 +374,10 @@ async function applyPractice(){
 }
 
 /* ---------- shared ---------- */
-function review(){({roster:reviewRoster,schedule:reviewSchedule,play:reviewPlay,practice:reviewPractice})[job.kind]();}
+function review(){
+  /* Stat sheets go straight back to the box score form, which is where the coach checks every number. */
+  if(job.onResult){const f=job.onResult,r=job.result;dlg.close();f(r);return;}
+  ({roster:reviewRoster,schedule:reviewSchedule,play:reviewPlay,practice:reviewPractice})[job.kind]();}
 function count(){
   const b=dlg.querySelector('[data-ai="apply"]');if(!b)return;
   const n=dlg.querySelectorAll(".ai-chk input:checked").length;b.disabled=!n;
@@ -391,7 +396,7 @@ dlg.addEventListener("click",async e=>{
   if(a==="stage")stage();
   if(a==="pasted"){const t=(dlg.querySelector("#aiPaste").value||"").trim();if(!t){dlg.querySelector("#aiPaste").focus();return;}
     job.photos.push({t:"text",name:"Pasted text",text:t});stage();}
-  if(a==="restart"){job.photos=[];job.result=null;start(job.kind);}
+  if(a==="restart"){job.photos=[];job.result=null;start(job.kind,{context:job.ctx,onResult:job.onResult});}
   if(a==="read")read();
   if(a==="apply"){b.disabled=true;b.textContent="Saving…";
     try{if(job.kind==="roster")await applyRoster();else if(job.kind==="schedule")await applySchedule();else if(job.kind==="practice")await applyPractice();else applyPlay();}
