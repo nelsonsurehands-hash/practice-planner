@@ -43,7 +43,36 @@ document.addEventListener("click",async e=>{
   c.innerHTML=`<p class="fb-k">Thank you</p><h3>Got it. We read every one.</h3><p class="fb-sub">Your answer helps decide what gets built next.</p>`;
   setTimeout(()=>{c.style.transition="opacity .4s";c.style.opacity="0";setTimeout(()=>c.remove(),400);},5000);
 });
+/* Replies from The Extra Coach team to what this coach sent (supabase/feedback-replies.sql): a card on Home
+   until they tap Thanks or Write back. Checked once per app open. */
+let replies=null;
+async function loadReplies(){
+  if(replies!==null)return;replies=[];
+  if(typeof HOSTED==="undefined"||!HOSTED||typeof user==="undefined"||!user||typeof sb==="undefined"||!sb)return;
+  try{if(localStorage.getItem("cpp:owner"))return;}catch(e){}
+  try{const {data,error}=await sb.rpc("my_feedback_replies");if(!error&&Array.isArray(data))replies=data;}catch(e){}
+  mountReply();
+}
+function mountReply(){
+  const home=document.getElementById("homeBody");if(!home||!replies||!replies.length||document.getElementById("fbReply")||home.querySelector(".hm-wait"))return;
+  const r=replies[0],asked=r.message||(r.picks||[]).join(", ");
+  home.insertAdjacentHTML("afterbegin",`<section class="hm-card fb-card fb-reply" id="fbReply" data-id="${h(r.id)}" aria-labelledby="fbRT">
+    <p class="fb-k">A reply to your feedback</p><h3 id="fbRT">From The Extra Coach team</h3>
+    ${asked?`<p class="fb-you"><span>You said</span>${h(asked.length>160?asked.slice(0,157)+"…":asked)}</p>`:""}
+    <p class="fb-ans">${h(r.reply).replace(/\n/g,"<br>")}</p>
+    <div class="fb-act"><button type="button" class="btn primary" data-fbr="thanks">Thanks</button><button type="button" class="btn" data-fbr="back">Write back</button></div>
+  </section>`);
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-fbr]");if(!b)return;const c=document.getElementById("fbReply");if(!c)return;
+  const id=+c.dataset.id;try{sb.rpc("seen_feedback_reply",{p_id:id}).then(()=>{},()=>{});}catch(err){}
+  replies=(replies||[]).filter(x=>x.id!==id);c.remove();
+  if(typeof track==="function")track(b.dataset.fbr==="back"?"feedback:writeback":"feedback:replyseen");
+  if(b.dataset.fbr==="back"){self.showFeedbackCard();const m=document.getElementById("fbMsg");if(m){m.placeholder="Write back to The Extra Coach team";m.focus();}}
+  else mountReply();
+});
+self.showFeedbackReply=list=>{replies=list||[];mountReply();};   // for testing
 self.showFeedbackCard=()=>{const home=document.getElementById("homeBody");if(home&&!document.getElementById("fbCard"))home.insertAdjacentHTML("afterbegin",card());};
 (()=>{const home=document.getElementById("homeBody");if(!home||!window.MutationObserver)return;let q=0;
-  new MutationObserver(()=>{if(q)return;q=requestAnimationFrame(()=>{q=0;mount();});}).observe(home,{childList:true});})();
+  new MutationObserver(()=>{if(q)return;q=requestAnimationFrame(()=>{q=0;mount();if(replies===null)loadReplies();else mountReply();});}).observe(home,{childList:true});})();
 })();

@@ -263,6 +263,38 @@ async function renderUsage(){
   renderUsageMore();renderUsageTime();renderUsageSources(r);renderUsageFirst();renderUsageLanding();renderUsageAds();renderUsageFeedback();
 }
 /* Feedback from coaches (js/feedback.js → send_feedback), newest first. */
+/* Quick replies to coach feedback. One tap fills the box (edit it if you like), Send saves it, and the coach
+   sees it on Home next time they open the app, signed "The Extra Coach team" (supabase/feedback-replies.sql). */
+const FB_QUICK=[["Thanks","Thanks for taking the time to tell us. We read every answer, and yours helps decide what we build next."],
+  ["Working on it","Great idea. We're working on it and will let you know here when it's ready."],
+  ["Tell me more","Thanks! Can you tell us a little more about how you'd use that with your team?"],
+  ["It can do that","Good news: the app can already do that. "]];
+const FB_TIPS={"Planning practices":["Practice tip","Tip: open your practice plan and tap Run practice. You get a full-screen timer for each drill, what's up next, and your notes, right on your phone in the gym."],
+  "Drawing plays":["Plays tip","Tip: draw a play, tap play to watch it run, then send your players one link from the Plays tab. It opens on any phone, no app or login."],
+  "The season calendar":["Calendar tip","Tip: snap a photo of your game schedule from the Calendar tab and the app adds every game for you."],
+  "Sharing with parents":["Parents tip","Tip: Team → Parent Admin has one parent link with every game and practice. It updates the moment you change the schedule."],
+  "Game stats":["Stats tip","Tip: after a game, go to Team → Stats → Games → + Box score. Type the stats in or snap a photo of the stat sheet, and season stats add up for every player."],
+  "Getting my staff on it":["Staff tip","Tip: invite your assistants from Team → Staff. They get their own login and see the same plans, plays and calendar."]};
+function fbReplyBox(x){
+  if(x.id==null)return "";
+  if(x.reply)return `<div class="us-fb-reply"><small>Your reply · ${esc(usageAgo(x.replied_at))} · ${x.seen_at?"seen":"not seen yet"}</small><p>${esc(x.reply)}</p><button type="button" class="linkbtn" data-fbedit="${x.id}">Edit reply</button></div>`;
+  const quick=[...FB_QUICK,...(x.picks||[]).filter(p=>FB_TIPS[p]).map(p=>FB_TIPS[p])];
+  return `<div class="us-fb-form" data-fbid="${x.id}"><div class="us-fb-q">${quick.map(([l,t])=>`<button type="button" class="btn" data-fbq="${esc(t)}">${esc(l)}</button>`).join("")}</div>
+    <textarea rows="2" maxlength="2000" placeholder="Reply to this coach. They'll see it on Home, from The Extra Coach team."></textarea>
+    <div class="us-fb-send"><button type="button" class="btn primary" data-fbsend="${x.id}">Send reply</button>${x.contact&&x.email?`<a class="btn" href="mailto:${esc(x.email)}?subject=${encodeURIComponent("Your feedback on The Extra Coach")}">Email instead</a>`:""}<span class="us-fb-out" aria-live="polite"></span></div></div>`;
+}
+document.addEventListener("click",async e=>{
+  const q=e.target.closest("[data-fbq]");if(q){const t=q.closest(".us-fb-form").querySelector("textarea");t.value=t.value.trim()?t.value.trim()+" "+q.dataset.fbq:q.dataset.fbq;t.focus();t.setSelectionRange(t.value.length,t.value.length);return;}
+  const ed=e.target.closest("[data-fbedit]");if(ed){const box=ed.closest(".us-fb-reply"),old=box.querySelector("p").textContent;
+    const id=+ed.dataset.fbedit;box.outerHTML=fbReplyBox({id,picks:[]});const t=document.querySelector(`.us-fb-form[data-fbid="${id}"] textarea`);if(t){t.value=old;t.focus();}return;}
+  const sd=e.target.closest("[data-fbsend]");if(!sd)return;
+  const form=sd.closest(".us-fb-form"),txt=form.querySelector("textarea").value.trim(),out=form.querySelector(".us-fb-out");
+  if(!txt){out.textContent="Write a reply first.";return;}
+  sd.disabled=true;sd.textContent="Sending…";
+  const {error}=await sb.rpc("reply_feedback",{p_id:+sd.dataset.fbsend,p_reply:txt});
+  if(error){sd.disabled=false;sd.textContent="Send reply";out.textContent=/function|schema cache|does not exist/i.test(error.message)?"Replies need one database step: run supabase/feedback-replies.sql.":"Not sent: "+error.message;return;}
+  form.outerHTML=fbReplyBox({id:+sd.dataset.fbsend,reply:txt,replied_at:new Date().toISOString(),seen_at:null});
+});
 async function renderUsageFeedback(){
   const box=$("#usageFeedback");if(!box)return;
   const {data,error}=await sb.rpc("usage_feedback");
@@ -273,7 +305,7 @@ async function renderUsageFeedback(){
   box.innerHTML=`<h4 class="us-h">Feedback from coaches <small>${list.length} answer${list.length===1?"":"s"}${today?` · ${today} today`:""}</small></h4>
     ${list.length?`${top.length?`<div class="us-feats">${top.map(([k,n])=>`<div class="us-feat"><span>${esc(k)}</span><i style="width:${Math.max(4,Math.round(n/top[0][1]*100))}%"></i><b>${n}</b></div>`).join("")}</div>`:""}
     <div class="us-fb">${list.map(x=>`<div><div class="us-fb-top"><b class="us-em" data-full="${esc(x.email||"")}">${esc(maskEmail(x.email))}</b><span>${esc(x.team||"No team")}</span><span>${esc(usageAgo(x.at))}</span>${x.contact?`<span class="ok">OK to email</span>`:""}</div>
-      ${(x.picks||[]).length?`<div class="chips">${x.picks.map(p=>`<span>${esc(p)}</span>`).join("")}</div>`:""}${x.message?`<p>${esc(x.message)}</p>`:""}</div>`).join("")}</div>`
+      ${(x.picks||[]).length?`<div class="chips">${x.picks.map(p=>`<span>${esc(p)}</span>`).join("")}</div>`:""}${x.message?`<p>${esc(x.message)}</p>`:""}${fbReplyBox(x)}</div>`).join("")}</div>`
     :`<p class="help">No answers yet. New coaches see a short “How can we help you coach?” card on Home after their first day.</p>`}`;
   const sh=$("#usShowEmail");if(sh&&sh.checked)box.querySelectorAll(".us-em").forEach(x=>x.textContent=x.dataset.full);
 }

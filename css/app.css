@@ -2214,3 +2214,12 @@ body.run-on #bottomNav,body.run-on .bnav{display:none!important}
 .bx-extra{margin:0 0 12px;display:grid;gap:6px}
 .bx-x{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 10px;border:1px solid var(--line);border-radius:10px}
 .bx-x small{color:var(--muted)}.bx-x select{margin-left:auto;width:auto;min-width:160px}
+/* feedback replies */
+.us-fb-form,.us-fb-reply{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);display:grid;gap:8px}
+.us-fb-q{display:flex;flex-wrap:wrap;gap:6px}.us-fb-q .btn{padding:5px 10px;font-size:13px;border-radius:999px}
+.us-fb-form textarea{width:100%;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);resize:vertical}
+.us-fb-send{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.us-fb-out{font-size:13px;color:var(--warn)}
+.us-fb-reply small{color:var(--muted);font-size:12px}.us-fb-reply p{margin:0;padding:8px 10px;border-radius:8px;background:var(--accent-soft);font-size:14px}
+.us-fb-reply .linkbtn{justify-self:start;font-size:13px}
+.fb-reply .fb-you{margin:6px 0 0;font-size:14px;color:var(--muted)}.fb-reply .fb-you span{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.fb-reply .fb-ans{margin:10px 0 12px;font-size:16px;line-height:1.5;padding:12px 14px;border-radius:10px;background:var(--accent-soft);color:var(--ink)}
