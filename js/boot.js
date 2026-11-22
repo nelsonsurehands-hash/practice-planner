@@ -53,7 +53,8 @@ function startersFor(sport){return (STARTERS[sport]||[]).map(([id,d])=>[id,{...d
 const screens=["screen-loading","screen-landing","screen-auth","screen-setup","app"];
 /* Signed-out visitors on the website see the homepage first; the installed app goes straight to sign in. */
 const isInstalled=()=>{try{return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;}catch{return false;}};
-function showWelcome(){if(isInstalled()){show("screen-auth");return;}$("#authBack").hidden=false;
+function showWelcome(){if(window.pendingPlayWelcome&&pendingPlayWelcome()){$("#authBack").hidden=isInstalled();return;}
+  if(isInstalled()){show("screen-auth");return;}$("#authBack").hidden=false;
   /* "Sign in" from the public pages (…/?signin=1) goes straight to the sign-in form. */
   if(new URLSearchParams(location.search).has("signin")&&typeof authTab==="function"){show("screen-auth");authTab("in");history.replaceState(null,"",location.pathname+location.hash);return;}
   show("screen-landing");}
@@ -209,12 +210,15 @@ async function checkAdmin(){
   if(!HOSTED||!user){isAdmin=false;return;}
   if(isAdmin===null){const {data,error}=await sb.rpc("is_app_admin");isAdmin=!error&&!!data;}
   $("#acc-usage").hidden=!isAdmin;{const n=$("#navUsage");if(n)n.hidden=!isAdmin;}
+  /* the owner never gets the coach feedback card, the message bell or the play-designer import */
+  if(isAdmin){try{localStorage.setItem("cpp:owner","1");}catch(e){}
+    ["fbCard","fbReply","msgBell"].forEach(id=>{const el=document.getElementById(id);if(el)id==="msgBell"?el.hidden=true:el.remove();});}
 }
 const usageAgo=iso=>{if(!iso)return "never";const m=Math.round((Date.now()-new Date(iso))/60000);
   if(m<2)return "just now";if(m<60)return m+" min ago";const h=Math.round(m/60);if(h<24)return h+" hr ago";const d=Math.round(h/24);return d===1?"yesterday":d<31?d+" days ago":new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});};
 /* Friendly names for the feature counts js/track.js sends. */
 const FEAT_NAMES={"tab:home":"Home","tab:plan":"Practice plan","tab:plays":"Plays","tab:lib":"Drill library","tab:cal":"Calendar","tab:team":"Team","tab:settings":"Settings",
-  "play:run":"Run a play","play:speed":"Change play speed","plays:share":"Share plays with players","plays:print":"Print plays","plan:print":"Print practice plan","plan:run":"Ran practice full screen","stats:box":"Typed in a box score","messages:open":"Opened messages","messages:sent":"Sent a message","stats:boxphoto":"Box score from a photo",
+  "play:run":"Run a play","play:speed":"Change play speed","plays:share":"Share plays with players","plays:print":"Print plays","plan:print":"Print practice plan","plan:run":"Ran practice full screen","stats:box":"Typed in a box score","plays:fromdesigner":"Saved a play from the designer page","designer:signup":"Sign-up from the designer page","messages:open":"Opened messages","messages:sent":"Sent a message","stats:boxphoto":"Box score from a photo",
   "cal:export":"Export calendar","cal:setup":"Season setup","cal:multiday":"Apply time to more days","parentlink:open":"Parent link opened","parentlink:send":"Parent link sent",
   "food:send":"Food sign-up link sent","stats:live":"Live stat tracker","stats:tracking":"Stats tapped in a game","stats:season":"Season stats","bus:print":"Bus list printed",
   "bus:copy":"Bus list copied","bus:checkin":"Bus check-in","schedule:print":"Schedule printed","schedule:copy":"Schedule copied","export":"Backup exported","help":"How-to (?) opened",

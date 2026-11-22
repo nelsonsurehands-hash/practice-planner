@@ -2,7 +2,7 @@
    pick a defense and watch it run. Same drawing and play-through code as the app (js/board.js). */
 let SPORT="basketball";
 (function(){
-  const svg=document.querySelector("#tdBoard svg"),hint=document.getElementById("tdHint"),runBtn=document.getElementById("tdRun");
+  const saveBox=document.getElementById("tdSave"),svg=document.querySelector("#tdBoard svg"),hint=document.getElementById("tdHint"),runBtn=document.getElementById("tdRun");
   const START=()=>({tokens:[{id:"o1",kind:"o",n:1,x:250,y:318},{id:"o2",kind:"o",n:2,x:474,y:34},{id:"o3",kind:"o",n:3,x:26,y:34},{id:"o4",kind:"o",n:4,x:170,y:190},{id:"o5",kind:"o",n:5,x:330,y:190},{id:"ball",kind:"ball",x:263,y:305}],actions:[]});
   let fr=START(),tool="cut",def={type:"man"},drag=null,anim=null,uid=0;
   const HINTS={move:"Drag any player to a new spot.",cut:"Drag from a player to draw a cut.",dribble:"Drag from the player with the ball to draw a dribble.",
@@ -20,7 +20,7 @@ let SPORT="basketball";
     let far=null,best=0;path.forEach(q=>{const d=Math.abs((q.x-a.x1)*dy-(q.y-a.y1)*dx)/L;if(d>best){best=d;far=q;}});
     return best>10?{cx:2*far.x-mx,cy:2*far.y-my}:{cx:mx,cy:my};}
   const clampP=p=>({x:Math.max(8,Math.min(492,p.x)),y:Math.max(-30,Math.min(462,p.y))});
-  function draw(tmp){syncPass();svg.innerHTML=boardInner(withDefense(fr,def),"screen",tmp);}
+  function draw(tmp){syncPass();svg.innerHTML=boardInner(withDefense(fr,def),"screen",tmp);saveBox.hidden=!fr.actions.length;}
   function setHint(t){hint.textContent=t||HINTS[tool];}
   function stop(){anim=null;runBtn.textContent="▶ Watch it run";draw();}
 
@@ -69,7 +69,7 @@ let SPORT="basketball";
     const dur=anim.phase==="move"?(tr.moves?(tr.moveDur||DUR.move):0):anim.phase==="pass"?(tr.passCurve?DUR.pass:0):anim.phase==="hold"?700:DUR.end;
     if(anim.t>=dur){anim.t=0;
       if(anim.phase==="hold")anim.phase="move";else if(anim.phase==="move")anim.phase="pass";else if(anim.phase==="pass")anim.phase="end";
-      else{svg.innerHTML=boardInner({tokens:animDefense(anim,animTokens(tr,"pass",1),400,def),actions:[]},"screen");anim.done=true;runBtn.textContent="↻ Watch again";return;}
+      else{svg.innerHTML=boardInner({tokens:animDefense(anim,animTokens(tr,"pass",1),400,def),actions:[]},"screen");anim.done=true;runBtn.textContent="↻ Watch again";saveBox.hidden=false;saveBox.classList.remove("pop");void saveBox.offsetWidth;saveBox.classList.add("pop");return;}
       requestAnimationFrame(tick);return;}
     const u=dur?anim.t/dur:1;
     svg.innerHTML=boardInner({tokens:animDefense(anim,animTokens(tr,anim.phase,u),dtv,def),actions:tr.f.actions},"screen",null,anim.phase!=="hold");
@@ -82,5 +82,16 @@ let SPORT="basketball";
     anim={frames,seq:[0],i:0,opt:null,phase:"hold",t:0,tr:buildTransition(frames,0),last:performance.now()};
     runBtn.textContent="■ Stop";requestAnimationFrame(tick);
   });
+  /* Save it: keep the drawn play on this device and open the app. After sign-up (or sign-in) the app
+     saves it into the coach's playbook (js/pendingplay.js). Works for the "Create your team" links too. */
+  function keep(){
+    if(!fr.actions.length)return false;syncPass();
+    const name=(document.getElementById("tdName").value||"").trim().slice(0,60);
+    const f=JSON.parse(JSON.stringify(fr));f.caption="";if(def)f.defense={type:def.type};
+    try{localStorage.setItem("cpp:pendingPlay",JSON.stringify({at:Date.now(),play:{name,type:"Half-court offense",notes:"",frames:[f]}}));}catch(e){return false;}
+    return true;
+  }
+  saveBox.addEventListener("submit",e=>{e.preventDefault();keep();location.href="/?from=designer";});
+  document.querySelectorAll('a[href^="/?from="]').forEach(a=>a.addEventListener("click",()=>keep()));
   setHint();draw();
 })();

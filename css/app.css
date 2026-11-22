@@ -2244,3 +2244,7 @@ body.run-on #bottomNav,body.run-on .bnav{display:none!important}
   max-width:calc(100vw - 24px);padding:10px 10px 10px 16px;border-radius:14px;background:var(--ink);color:var(--bg);box-shadow:0 14px 34px rgba(0,0,0,.35)}
 .msg-toast b{font-size:14px}.msg-toast .icon{color:inherit;background:none;border:0}
 .us-fb-mail{font-size:12px;color:var(--good)}
+
+/* the sign-up card when a coach arrives with a play from the designer page (js/pendingplay.js) */
+.join-invite.pp-card{--jc:#ff7a2f}
+.pp-thumb{width:76px;height:auto;flex:none;border-radius:8px}
