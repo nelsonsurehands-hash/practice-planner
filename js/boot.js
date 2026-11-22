@@ -214,7 +214,7 @@ const usageAgo=iso=>{if(!iso)return "never";const m=Math.round((Date.now()-new D
   if(m<2)return "just now";if(m<60)return m+" min ago";const h=Math.round(m/60);if(h<24)return h+" hr ago";const d=Math.round(h/24);return d===1?"yesterday":d<31?d+" days ago":new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});};
 /* Friendly names for the feature counts js/track.js sends. */
 const FEAT_NAMES={"tab:home":"Home","tab:plan":"Practice plan","tab:plays":"Plays","tab:lib":"Drill library","tab:cal":"Calendar","tab:team":"Team","tab:settings":"Settings",
-  "play:run":"Run a play","play:speed":"Change play speed","plays:share":"Share plays with players","plays:print":"Print plays","plan:print":"Print practice plan","plan:run":"Ran practice full screen","stats:box":"Typed in a box score","stats:boxphoto":"Box score from a photo",
+  "play:run":"Run a play","play:speed":"Change play speed","plays:share":"Share plays with players","plays:print":"Print plays","plan:print":"Print practice plan","plan:run":"Ran practice full screen","stats:box":"Typed in a box score","messages:open":"Opened messages","messages:sent":"Sent a message","stats:boxphoto":"Box score from a photo",
   "cal:export":"Export calendar","cal:setup":"Season setup","cal:multiday":"Apply time to more days","parentlink:open":"Parent link opened","parentlink:send":"Parent link sent",
   "food:send":"Food sign-up link sent","stats:live":"Live stat tracker","stats:tracking":"Stats tapped in a game","stats:season":"Season stats","bus:print":"Bus list printed",
   "bus:copy":"Bus list copied","bus:checkin":"Bus check-in","schedule:print":"Schedule printed","schedule:copy":"Schedule copied","export":"Backup exported","help":"How-to (?) opened",
@@ -293,7 +293,12 @@ document.addEventListener("click",async e=>{
   sd.disabled=true;sd.textContent="Sending…";
   const {error}=await sb.rpc("reply_feedback",{p_id:+sd.dataset.fbsend,p_reply:txt});
   if(error){sd.disabled=false;sd.textContent="Send reply";out.textContent=/function|schema cache|does not exist/i.test(error.message)?"Replies need one database step: run supabase/feedback-replies.sql.":"Not sent: "+error.message;return;}
-  form.outerHTML=fbReplyBox({id:+sd.dataset.fbsend,reply:txt,replied_at:new Date().toISOString(),seen_at:null});
+  const fid=+sd.dataset.fbsend;form.outerHTML=fbReplyBox({id:fid,reply:txt,replied_at:new Date().toISOString(),seen_at:null});
+  /* Email alert (supabase/functions/notify-reply): only to coaches who said it's OK to email them. */
+  const note=m=>{const el=document.querySelector(`[data-fbedit="${fid}"]`);if(el)el.insertAdjacentHTML("beforebegin",`<small class="us-fb-mail">${m}</small>`);};
+  try{const {data,error:er}=await sb.functions.invoke("notify-reply",{body:{id:fid}});
+    note(er?"They'll see it in the app (email alerts aren't set up yet).":data&&data.sent?"✓ Emailed them too.":data&&data.why==="no-consent"?"They'll see it in the app. They didn't OK email.":data&&data.why==="no-key"?"They'll see it in the app (email alerts aren't set up yet).":"They'll see it in the app. The email didn't go through.");}
+  catch(err){note("They'll see it in the app (email alerts aren't set up yet).");}
 });
 async function renderUsageFeedback(){
   const box=$("#usageFeedback");if(!box)return;
