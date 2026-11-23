@@ -36,6 +36,25 @@
   const tabs=document.querySelector(".tabs");
   if(tabs)new MutationObserver(sync).observe(tabs,{subtree:true,attributes:true,attributeFilter:["aria-selected","hidden","style","class"]});
   sync();
+
+  /* iPhone: after the keyboard closes (or the app comes back from the background) iOS sometimes leaves fixed
+     bars where the top of the keyboard was, so the tab bar floats in the middle of the screen. Measure where
+     the bar really is against the visible screen and pull it back down to the bottom. */
+  const vv=window.visualViewport;let raf=0;
+  function pin(){raf=0;
+    if(!vv||getComputedStyle(nav).display==="none"){nav.style.transform="";return;}
+    nav.style.transform="";
+    if(vv.scale>1.01)return;                               // pinch-zoomed: leave it alone
+    const gap=Math.round(vv.offsetTop+vv.height-nav.getBoundingClientRect().bottom);
+    if(gap>1)nav.style.transform=`translateY(${gap}px)`;    // only ever down; with the keyboard open it stays put
+  }
+  const later=()=>{if(!raf)raf=requestAnimationFrame(pin);};
+  const settle=()=>{later();setTimeout(later,350);setTimeout(later,900);};
+  if(vv){vv.addEventListener("resize",settle);vv.addEventListener("scroll",later);}
+  addEventListener("scroll",later,{passive:true});addEventListener("resize",settle);addEventListener("orientationchange",settle);
+  addEventListener("pageshow",settle);document.addEventListener("visibilitychange",()=>{if(!document.hidden)settle();});
+  document.addEventListener("focusout",settle);
+  self._pinNav=pin;   // for tests
 })();
 
 /* Practice plan | Drill library switch at the top of both pages. */
