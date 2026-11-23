@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Free Basketball Practice Planner: Build a Timed Practice Plan | The Extra Coach</title>
+<meta name="description" content="Free basketball practice planner. Search drills, drag them into order, set the minutes and see every clock time. Print it for your coaches or run practice from your phone.">
+<link rel="canonical" href="https://theextracoach.com/basketball-practice-planner/">
+<meta property="og:site_name" content="The Extra Coach">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Free Basketball Practice Planner: Build a Timed Practice Plan | The Extra Coach">
+<meta property="og:description" content="Free basketball practice planner. Search drills, drag them into order, set the minutes and see every clock time. Print it for your coaches or run practice from your phone.">
+<meta property="og:url" content="https://theextracoach.com/basketball-practice-planner/">
+<meta property="og:image" content="https://theextracoach.com/icons/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#0a1230">
+<link rel="icon" href="/brand/mark.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="/css/showcase.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"The Extra Coach Practice Planner","applicationCategory":"SportsApplication","operatingSystem":"Web, iOS, Android, Windows, macOS","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"description":"Free basketball practice planner. Search drills, drag them into order, set the minutes and see every clock time. Print it for your coaches or run practice from your phone."}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Is the basketball practice planner free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. You can build a practice on this page without an account, and creating a team in The Extra Coach to save your plans is free."}}, {"@type": "Question", "name": "Can I print my practice plan?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Print it here, or in the app save it as a PDF with the drill descriptions and coaching points, ready to hand to your assistant coaches."}}, {"@type": "Question", "name": "Can I use it on my phone during practice?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. In the app, Run practice opens the plan full screen with a countdown for each drill, so you can leave the clipboard in the bag."}}, {"@type": "Question", "name": "Do my assistant coaches see the plan?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Invite your staff and everyone sees the same plan, and anyone you let edit it can change it."}}]}</script>
+</head>
+<body class="sc">
+<header class="sc-top"><div class="sc-wrap lp-top">
+  <a class="lp-logo" href="/" aria-label="The Extra Coach home"><img src="/brand/mark.svg" alt="" width="36" height="36"><span>The Extra <b>Coach</b></span></a>
+  <nav class="lp-nav" id="lpNav" aria-label="Site">
+    <a href="/">Home</a>
+    <a href="/basketball-play-designer/">Play designer</a>
+    <a href="/basketball-practice-planner/">Practice planner</a>
+    <a href="/basketball/">Plays &amp; drills</a>
+    <a href="/basketball-practice-plan-template/">Templates</a>
+    <a class="lp-nav-in" href="/?signin=1">Sign in</a>
+    <a class="lp-btn primary lp-nav-cta" href="/?from=showcase">Create your team</a>
+  </nav>
+  <div class="lp-top-r">
+    <a class="lp-btn ghost sc-in" href="/?signin=1">Sign in</a>
+    <a class="lp-btn primary sc-try" href="/?from=showcase">Try it free</a>
+    <button class="lp-menu" type="button" id="lpMenu" aria-expanded="false" aria-controls="lpNav" aria-label="Menu"><span></span><span></span><span></span></button>
+  </div>
+</div></header>
+<script src="/js/sitenav.js" defer></script>
+<main class="sc-wrap sc-main">
+  <header class="sc-hero">
+    <p class="sc-eyebrow"><span>Free</span> · <span>No download</span> · <span>Works on any phone</span></p>
+    <h1>Basketball practice planner</h1>
+    <p class="sc-lede">Plan practice in a couple of minutes. Search your drills, drag them into order, set the minutes and every clock time fills in. Try it right here: add a drill or drag one to a new spot.</p>
+  </header>
+  <section class="tp" aria-label="Try the practice planner">
+    <div class="tp-plan">
+      <div class="tp-head"><label class="tp-start">Practice starts<input type="time" id="tpStart" value="15:30" step="300"></label><p class="tp-sum" id="tpSum" aria-live="polite"></p></div>
+      <ol class="tp-list" id="tpList" aria-label="Practice plan"></ol>
+      <div class="tp-acts"><button type="button" class="td-link" id="tpPrint">Print this plan</button></div>
+    </div>
+    <div class="tp-find">
+      <label class="tp-q"><span>Add a drill</span><input type="search" id="tpQ" placeholder="Search drills: layups, shell, press…" autocomplete="off" enterkeyhint="search"></label>
+      <div class="tp-chips" id="tpChips" role="group" aria-label="Drill type"></div>
+      <ul class="tp-res" id="tpRes" aria-label="Drills"></ul>
+    </div>
+    <form class="td-save tp-save" id="tpSave" hidden>
+      <div class="td-save-t"><b>Keep this practice</b><span>Save it as your next practice. Creating a team is free and takes a minute, and your assistant coaches can see it too.</span></div>
+      <label class="td-save-n"><span>Practice focus (optional)</span><input id="tpFocus" maxlength="80" autocomplete="off" placeholder="e.g. Transition defense"></label>
+      <button class="sc-btn" type="submit">Save this practice, free</button>
+    </form>
+  </section>
+  <aside class="sc-cta"><div><p class="sc-eyebrow">Like it?</p><h2>Every practice, planned and shared</h2>
+    <p>Your own drill library, practice plans for the whole season, a PDF for your coaches, and a full-screen view to run practice from your phone.</p></div>
+    <a class="sc-btn" href="/?from=planner">Create your team free</a></aside>
+  <section class="sc-sec"><h2>What the practice planner does</h2>
+    <div class="td-feats">
+      <div><h3>Every minute on the clock</h3><p>Set when practice starts and how long each drill runs. Start and end times for every drill fill in, and change when you move things.</p></div>
+      <div><h3>Your drills, one search away</h3><p>Save your own drills with descriptions and coaching points, then find any of them in a second while you plan.</p></div>
+      <div><h3>A PDF for your coaches</h3><p>Hand out the plan with drill descriptions and points of emphasis, or text it to your staff.</p></div>
+      <div><h3>Run practice from your phone</h3><p>Open the plan full screen with a countdown for each drill. The next drill is always one tap away.</p></div>
+    </div>
+    <p class="td-more"><a href="/basketball-practice-plan-template/">Ready-made practice plan templates ›</a></p></section>
+  <section class="sc-sec td-faq"><h2>Questions coaches ask</h2><details><summary>Is the basketball practice planner free?</summary><p>Yes. You can build a practice on this page without an account, and creating a team in The Extra Coach to save your plans is free.</p></details><details><summary>Can I print my practice plan?</summary><p>Yes. Print it here, or in the app save it as a PDF with the drill descriptions and coaching points, ready to hand to your assistant coaches.</p></details><details><summary>Can I use it on my phone during practice?</summary><p>Yes. In the app, Run practice opens the plan full screen with a countdown for each drill, so you can leave the clipboard in the bag.</p></details><details><summary>Do my assistant coaches see the plan?</summary><p>Yes. Invite your staff and everyone sees the same plan, and anyone you let edit it can change it.</p></details></section>
+</main>
+<footer class="sc-foot"><div class="sc-wrap">
+  <span class="lp-logo small"><img src="/brand/mark.svg" alt="" width="24" height="24"><span>The Extra <b>Coach</b></span></span>
+  <span>Practice plans, animated plays, the season calendar and parent sign-ups in one app for your whole staff.</span>
+  <span class="sc-foot-links"><a href="/basketball/">Plays &amp; drills</a><a href="/basketball-practice-plan-template/">Practice plan templates</a><a href="/basketball-play-template/">Printable play templates</a><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a></span>
+</div></footer>
+<script src="/js/planner-demo.js"></script>
+</body>
+</html>
