@@ -11,6 +11,8 @@ function hit(step){
   try{if(localStorage.getItem("cpp:owner"))return;}catch{}
   try{const k="cpp:lp:"+step;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");}catch{}
   queue.push(step);clearTimeout(timer);timer=setTimeout(flush,1500);
+  /* the site-wide page report: homepage steps on "home"; the sign-up form credited to the first page they landed on */
+  if(self.siteTrack)siteTrack(step,step==="form"||step==="signup"?siteTrack.entry():"home");
 }
 function flush(){
   clearTimeout(timer);if(!queue.length||off||typeof sb==="undefined"||!sb)return;

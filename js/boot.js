@@ -239,6 +239,7 @@ async function renderUsage(){
   box.innerHTML=`<div class="us-tiles">${tile(r.coaches,"coaches signed up",newToday)}${tile(r.teams,"teams")}${tile(r.active_today,"used it today")}${tile(r.active_7,"this week")}${tile(r.active_30,"last 30 days")}${tile(r.opens_7,"opens this week")}${r.referred!=null?tile(r.referred,"came from invites"):""}</div>
     <div id="usageFeedback"></div>
     <div id="usageFirst"></div>
+    <div id="usagePages"></div>
     <div id="usageLanding"></div>
     <div id="usageAds"></div>
     <h4 class="us-h">Coaches using it each day <small>last 30 days</small></h4>
@@ -264,7 +265,7 @@ async function renderUsage(){
     <div class="actions" style="margin:0"><button class="btn" type="button" id="usageRefresh">Refresh</button></div>`;
   if(r.features&&r.features.length>10){const f=box.querySelector(".us-feats");if(f)f.insertAdjacentHTML("afterend",`<button class="linkbtn us-featall" type="button">Show all ${Math.min(40,r.features.length)} features</button>`);}
   usLimit=10;usFilter="all";usApply();
-  renderUsageMore();renderUsageTime();renderUsageSources(r);renderUsageFirst();renderUsageLanding();renderUsageAds();renderUsageFeedback();
+  renderUsageMore();renderUsageTime();renderUsageSources(r);renderUsageFirst();renderUsagePages();renderUsageLanding();renderUsageAds();renderUsageFeedback();
 }
 /* Feedback from coaches (js/feedback.js → send_feedback), newest first. */
 /* Quick replies to coach feedback. One tap fills the box (edit it if you like), Send saves it, and the coach
@@ -393,6 +394,36 @@ async function renderUsageLanding(){
     :`<p class="help">No homepage visits counted yet. They start adding up from now on.</p>`}`;
 }
 /* When the ads work: ad visitors and sign-ups by weekday and hour (Central time), to pick which days to run ads. */
+/* Every page on the website (js/sitetrack.js, supabase/site-pages.sql): what visitors did on each page,
+   and sign-ups / new teams credited to the first page they landed on. */
+let pgRows=null,pgSrc="all";
+const PAGE_NAMES={"home":"Homepage","basketball-play-designer":"Play designer","basketball-practice-planner":"Practice planner",
+  "basketball-practice-plan-template":"Practice plan templates","basketball-play-template":"Play templates","basketball":"Plays & drills (all)",
+  "privacy":"Privacy","terms":"Terms"};
+const pageName=p=>PAGE_NAMES[p]||(p.startsWith("basketball/plays/")?"Play: ":p.startsWith("basketball/drills/")?"Drill: ":"")+
+  (p.split("/").pop()||p).replace(/-/g," ").replace(/\b\w/g,c=>c.toUpperCase());
+const PG_COLS=[["land","Visits"],["scroll","Scrolled"],["try","Tried it"],["build","Built"],["run","Ran it"],["save","Saved"],["print","Printed"],
+  ["cta","Tapped sign up"],["form","Started form"],["signup","Signed up"],["team","Made a team"]];
+async function renderUsagePages(){
+  const box=$("#usagePages");if(!box)return;
+  if(pgRows===null){const {data,error}=await sb.rpc("usage_pages");
+    if(error){box.innerHTML=/function|schema cache|does not exist/i.test(error.message)?`<h4 class="us-h">Pages on the website</h4><p class="help">Needs one database step: run supabase/site-pages.sql in Supabase → SQL Editor.</p>`:"";return;}
+    pgRows=data||{rows:[]};}
+  const keep=r=>pgSrc==="all"||(pgSrc==="ads"?/^fbad/.test(r.src):!/^fbad/.test(r.src));
+  const by={};(pgRows.rows||[]).filter(keep).forEach(r=>{const p=by[r.page]=by[r.page]||{};p[r.step]=(p[r.step]||0)+(+r.n||0);});
+  const pages=Object.keys(by).sort((a,b)=>(by[b].land||0)-(by[a].land||0)||(by[b].signup||0)-(by[a].signup||0));
+  const cols=PG_COLS.filter(([k])=>pages.some(p=>by[p][k]));
+  const pct=(a,b)=>b?Math.round(a/b*100)+"%":"–";
+  const tot={};pages.forEach(p=>PG_COLS.forEach(([k])=>tot[k]=(tot[k]||0)+(by[p][k]||0)));
+  box.innerHTML=`<h4 class="us-h">Pages on the website <small>last 30 days · anonymous</small></h4>
+    <div class="us-chips" role="group" aria-label="Came from">${[["all","Everyone"],["ads","Facebook ads"],["other","Everything else"]].map(([k,l])=>`<button type="button" class="btn" data-pgsrc="${k}" aria-pressed="${pgSrc===k}">${l}</button>`).join("")}</div>
+    ${pages.length?`<div class="us-scroll"><table class="us-table us-pages"><thead><tr><th>Page</th><th>Visits</th><th>Signed up</th><th>Rate</th>${cols.filter(([k])=>k!=="land"&&k!=="signup").map(([,l])=>`<th>${l}</th>`).join("")}</tr></thead>
+      <tbody>${pages.map(p=>`<tr><td>${esc(pageName(p))}</td><td>${by[p].land||""}</td><td>${by[p].signup||""}</td><td>${pct(by[p].signup||0,by[p].land||0)}</td>${cols.filter(([k])=>k!=="land"&&k!=="signup").map(([k])=>`<td>${by[p][k]||""}</td>`).join("")}</tr>`).join("")}</tbody>
+      <tfoot><tr><th>All pages</th><th>${tot.land||""}</th><th>${tot.signup||""}</th><th>${pct(tot.signup||0,tot.land||0)}</th>${cols.filter(([k])=>k!=="land"&&k!=="signup").map(([k])=>`<th>${tot[k]||""}</th>`).join("")}</tr></tfoot></table></div>
+      <p class="help">Each step counts once per visit. Signed up and Made a team are credited to the first page that device ever landed on, so you can see which pages bring in coaches.</p>`
+    :`<p class="help">${pgRows.since?"No visits from these links in the last 30 days.":"Counting starts now. Visits to every page on the website show up here."}</p>`}`;
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-pgsrc]");if(!b)return;pgSrc=b.dataset.pgsrc;renderUsagePages();});
 async function renderUsageAds(){
   const box=$("#usageAds");if(!box)return;
   const {data:a,error}=await sb.rpc("usage_ad_days");
@@ -728,6 +759,7 @@ $("#sFeatures").addEventListener("change",()=>{const p=progOf(readFeat($("#sFeat
 $("#suLogoRm").addEventListener("click",()=>{suLogo="";$("#suLogoPrev").textContent="Logo";$("#suLogoRm").hidden=true;$("#suLogoColors").hidden=true;});
 $("#setupForm").addEventListener("submit",async e=>{
   e.preventDefault();
+  try{if(self.siteTrack&&!localStorage.getItem("cpp:teamTracked")){localStorage.setItem("cpp:teamTracked","1");siteTrack("team",siteTrack.entry());}}catch(x){}
   const sport=$("#suSport").value;
   const settings={...DEFAULT_SETTINGS,sport,
     school:$("#suSchool").value.trim(),mascot:$("#suMascot").value.trim(),teamLabel:$("#suLabel").value.trim(),

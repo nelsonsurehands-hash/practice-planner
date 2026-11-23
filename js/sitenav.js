@@ -23,3 +23,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&nav()&&nav().classL
   if(ref&&!localStorage.getItem("cpp:ref"))localStorage.setItem("cpp:ref",ref);
   if(q.has("ref")){q.delete("ref");history.replaceState(null,"",location.pathname+(q.toString()?"?"+q:"")+location.hash);}
 }catch{}})();
+/* Page tracking (js/sitetrack.js): needs the Supabase address from js/config.js. */
+(function(){if(document.getElementById("app")||self.siteTrack)return;
+  const add=src=>{const x=document.createElement("script");x.src=src;x.async=false;document.head.appendChild(x);};
+  if(!self.APP_CONFIG)add("/js/config.js");add("/js/sitetrack.js");})();

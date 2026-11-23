@@ -52,7 +52,7 @@ let SPORT="basketball";
     if(a.type==="pass"){const r=mate({x:a.x2,y:a.y2},a.from,26);
       if(!r){setHint("Let go on a teammate to make the pass.");draw();return;}a.to=r.id;fr.actions=fr.actions.filter(x=>x.type!=="pass");}
     else fr.actions=fr.actions.filter(x=>!(x.from===a.from&&x.type!=="pass"));   // one move per player in this demo
-    a.id="t"+(++uid);fr.actions.push(a);setHint(fr.actions.length===1?"Nice. Add another move, or tap “Watch it run.”":"");draw();
+    a.id="t"+(++uid);fr.actions.push(a);if(self.siteTrack)siteTrack("build");setHint(fr.actions.length===1?"Nice. Add another move, or tap “Watch it run.”":"");draw();
   }
   svg.addEventListener("pointerup",up);svg.addEventListener("pointercancel",up);
 
@@ -80,7 +80,7 @@ let SPORT="basketball";
     if(!fr.actions.length){setHint("Draw a move first: pick Cut and drag from a player.");return;}
     const frames=[JSON.parse(JSON.stringify(fr))];
     anim={frames,seq:[0],i:0,opt:null,phase:"hold",t:0,tr:buildTransition(frames,0),last:performance.now()};
-    runBtn.textContent="■ Stop";requestAnimationFrame(tick);
+    runBtn.textContent="■ Stop";requestAnimationFrame(tick);if(self.siteTrack)siteTrack("run");
   });
   /* Save it: keep the drawn play on this device and open the app. After sign-up (or sign-in) the app
      saves it into the coach's playbook (js/pendingplay.js). Works for the "Create your team" links too. */
@@ -91,7 +91,7 @@ let SPORT="basketball";
     try{localStorage.setItem("cpp:pendingPlay",JSON.stringify({at:Date.now(),play:{name,type:"Half-court offense",notes:"",frames:[f]}}));}catch(e){return false;}
     return true;
   }
-  saveBox.addEventListener("submit",e=>{e.preventDefault();keep();location.href="/?from=designer";});
+  saveBox.addEventListener("submit",e=>{e.preventDefault();keep();if(self.siteTrack){siteTrack("save");}location.href="/?from=designer";});
   document.querySelectorAll('a[href^="/?from="]').forEach(a=>a.addEventListener("click",()=>keep()));
   setHint();draw();
 })();

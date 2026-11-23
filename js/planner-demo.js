@@ -41,6 +41,7 @@ const $=id=>document.getElementById(id);
 const list=$("tpList"),res=$("tpRes"),q=$("tpQ"),start=$("tpStart"),sum=$("tpSum"),saveBox=$("tpSave"),chips=$("tpChips");
 let uid=0,plan=[0,1,4].map(i=>({k:++uid,d:D[i],min:D[i].min})),cat="",drag=null,flash=null,touched=false;
 
+const tb=()=>{if(self.siteTrack)siteTrack("build");};
 const toMin=v=>{const [a,b]=String(v||"15:30").split(":").map(Number);return a*60+(b||0);};
 const clock=m=>{m=((m%1440)+1440)%1440;const H=Math.floor(m/60),M=m%60;return `${H%12||12}:${String(M).padStart(2,"0")}`;};
 const ampm=m=>{m=((m%1440)+1440)%1440;return Math.floor(m/60)<12?"AM":"PM";};
@@ -72,11 +73,11 @@ chips.addEventListener("click",e=>{const b=e.target.closest("[data-cat]");if(!b)
 q.addEventListener("input",drawRes);
 start.addEventListener("input",drawPlan);
 res.addEventListener("click",e=>{const b=e.target.closest("[data-add]");if(!b)return;const d=D[+b.dataset.add];
-  plan.push({k:++uid,d,min:d.min});flash=uid;touched=true;drawPlan();drawRes();setTimeout(()=>{flash=null;},700);
+  plan.push({k:++uid,d,min:d.min});flash=uid;touched=true;tb();drawPlan();drawRes();setTimeout(()=>{flash=null;},700);
   const li=list.querySelector(`[data-k="${uid}"]`);if(li&&li.getBoundingClientRect().bottom>innerHeight)li.scrollIntoView({block:"nearest",behavior:"smooth"});});
 list.addEventListener("click",e=>{const li=e.target.closest("[data-k]");if(!li)return;const b=plan.find(x=>x.k===+li.dataset.k);
-  const m=e.target.closest("[data-m]");if(m){b.min=Math.max(1,Math.min(90,b.min+(+m.dataset.m)));touched=true;drawPlan();return;}
-  if(e.target.closest("[data-x]")){plan=plan.filter(x=>x!==b);touched=true;drawPlan();drawRes();}});
+  const m=e.target.closest("[data-m]");if(m){b.min=Math.max(1,Math.min(90,b.min+(+m.dataset.m)));touched=true;tb();drawPlan();return;}
+  if(e.target.closest("[data-x]")){plan=plan.filter(x=>x!==b);touched=true;tb();drawPlan();drawRes();}});
 
 /* drag a drill by its grip to a new spot */
 list.addEventListener("pointerdown",e=>{const g=e.target.closest("[data-grip]");if(!g)return;e.preventDefault();
@@ -84,17 +85,17 @@ list.addEventListener("pointerdown",e=>{const g=e.target.closest("[data-grip]");
 list.addEventListener("pointermove",e=>{if(!drag)return;e.preventDefault();
   const items=[...list.querySelectorAll("[data-k]")],from=plan.findIndex(b=>b.k===drag.k);
   let to=items.findIndex(el=>{const r=el.getBoundingClientRect();return e.clientY<r.top+r.height/2;});if(to<0)to=items.length-1;else if(to>from)to--;
-  if(to!==from&&to>=0){const [b]=plan.splice(from,1);plan.splice(to,0,b);touched=true;drawPlan();}
+  if(to!==from&&to>=0){const [b]=plan.splice(from,1);plan.splice(to,0,b);touched=true;tb();drawPlan();}
   if(e.clientY<60)scrollBy(0,-8);else if(e.clientY>innerHeight-60)scrollBy(0,8);});
 const end=()=>{if(!drag)return;drag=null;drawPlan();};
 list.addEventListener("pointerup",end);list.addEventListener("pointercancel",end);
 /* keyboard: arrow keys on a grip move the drill */
 list.addEventListener("keydown",e=>{const g=e.target.closest("[data-grip]");if(!g||!/^Arrow(Up|Down)$/.test(e.key))return;e.preventDefault();
   const k=+g.closest("[data-k]").dataset.k,i=plan.findIndex(b=>b.k===k),j=i+(e.key==="ArrowUp"?-1:1);if(j<0||j>=plan.length)return;
-  [plan[i],plan[j]]=[plan[j],plan[i]];touched=true;drawPlan();const ng=list.querySelector(`[data-k="${k}"] [data-grip]`);if(ng)ng.focus();});
+  [plan[i],plan[j]]=[plan[j],plan[i]];touched=true;tb();drawPlan();const ng=list.querySelector(`[data-k="${k}"] [data-grip]`);if(ng)ng.focus();});
 
 /* print it: the same sheet the app makes, simplified */
-$("tpPrint").addEventListener("click",()=>{touched=true;drawPlan();window.print();});
+$("tpPrint").addEventListener("click",()=>{touched=true;tb();if(self.siteTrack)siteTrack("print");drawPlan();window.print();});
 
 /* save it: keep on this device and open the app; after sign-up it becomes their next practice */
 function keep(){
@@ -104,7 +105,7 @@ function keep(){
     blocks:plan.map(b=>({name:b.d.name,category:b.d.cat,minutes:b.min,description:b.d.desc,points:b.d.pts,starter:b.d.starter||null}))}}));}catch(e){return false;}
   return true;
 }
-saveBox.addEventListener("submit",e=>{e.preventDefault();keep();location.href="/?from=planner";});
+saveBox.addEventListener("submit",e=>{e.preventDefault();keep();if(self.siteTrack)siteTrack("save");location.href="/?from=planner";});
 document.querySelectorAll('a[href^="/?from="]').forEach(a=>a.addEventListener("click",()=>{if(touched)keep();}));
 drawPlan();drawRes();
 })();
