@@ -2254,3 +2254,9 @@ body.run-on #bottomNav,body.run-on .bnav{display:none!important}
 .us-pages td,.us-pages th{white-space:nowrap;padding-right:14px}
 .us-pages td:not(:first-child),.us-pages th:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
 .us-pages tfoot th{border-top:1px solid var(--line);padding-top:6px;color:var(--ink);font-size:13px;letter-spacing:0;text-transform:none}
+/* practice card: "Use 12 min for Shell Drill every time? Save as default" */
+.block.bc .bc-def{grid-column:2/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 10px;margin-top:2px;border-radius:10px;background:var(--accent-soft);font-size:13.5px;animation:bcDef .25s ease-out}
+.block.bc .bc-def span{flex:1 1 180px;min-width:0}
+.block.bc .bc-def-x{border:0;background:none;color:var(--muted);width:30px;height:30px;border-radius:8px;cursor:pointer}
+@keyframes bcDef{from{opacity:0;transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.block.bc .bc-def{animation:none}}

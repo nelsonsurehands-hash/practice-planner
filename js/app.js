@@ -246,6 +246,8 @@ function loadPlan(date){INSERT_AT=null;
 }
 /* Practice cards: one color per kind of drill (warm-up, shooting, defense…), used on the card edge and the minutes bar. */
 let OPEN_BLOCK=null;
+/* After the minutes change on a drill from the library: offer to make that the drill's default (key of the card asking). */
+let DEF_ASK=null;const DEF_NO=new Set();
 const SHAPE={id:null,drag:null};   // the move being aimed or bent in the play editor
 const CAT_HUES=[["warm","#14897a"],["stretch","#14897a"],["shoot","#e2672a"],["free throw","#e2672a"],["defen","#b3263a"],["press","#b3263a"],["offen","#6d3bb0"],["play","#6d3bb0"],["condit","#2f62d6"],["transition","#2f62d6"],["break","#8a8794"],["water","#8a8794"],["scrim","#2f8a4a"],["game","#2f8a4a"],["pass","#b07d0c"],["rebound","#a3487e"],["finish","#d14d6b"],["layup","#d14d6b"],["dribbl","#0f7fa8"],["ball hand","#0f7fa8"]];
 const CAT_SPARE=["#14897a","#e2672a","#6d3bb0","#2f62d6","#2f8a4a","#b07d0c","#a3487e","#0f7fa8"];
@@ -280,10 +282,11 @@ function renderPlan(){
           ${!open&&b.notes?`<span class="bc-note">${esc(b.notes)}</span>`:!open&&ED?`<span class="bc-addnote">+ Add note</span>`:""}</span>
         </button>
         ${ED?`<div class="mins"><button type="button" data-act="dec" aria-label="Less time">−</button><input data-act="min" type="number" min="1" max="90" value="${b.minutes}" aria-label="Minutes"><span class="u" aria-hidden="true">m</span><button type="button" data-act="inc" aria-label="More time">+</button></div><button type="button" class="bc-del" data-act="del" aria-label="Remove ${esc(b.name)}" title="Remove"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span class="bc-sure">Remove?</span></button>`:`<div class="bc-min">${b.minutes} min</div>`}
+        ${ED&&PERM.drills&&d&&DEF_ASK===key&&b.minutes!==(+d.minutes||10)&&!DEF_NO.has(d.id+":"+b.minutes)?`<div class="bc-def" role="status"><span>Use <b>${b.minutes} min</b> for ${esc(d.name)} every time?</span><button type="button" class="btn sm primary" data-act="defmin">Save as default</button><button type="button" class="bc-def-x" data-act="defno" aria-label="Not now">✕</button></div>`:""}
         ${open?`<div class="bc-more">
           ${ED?`<textarea class="note" data-act="note" rows="2" placeholder="Notes for this practice" aria-label="Notes for ${esc(b.name)}">${esc(b.notes||"")}</textarea>`:(b.notes?`<div class="note-ro">${esc(b.notes)}</div>`:"")}
           ${desc||pts?`<div class="bc-drill">${desc?`<p><b>Drill</b>${esc(desc)}</p>`:""}${pts?`<p><b>Coaching points</b>${esc(pts)}</p>`:""}</div>`:""}
-          <div class="bc-row">${coachField(b)}${ED?`<button type="button" class="btn sm" data-act="up"${i?"":" disabled"}>Move up</button><button type="button" class="btn sm" data-act="down"${i<cur.blocks.length-1?"":" disabled"}>Move down</button><button type="button" class="btn sm" data-act="below">+ Add drill below</button>${d?`<button type="button" class="btn sm" data-act="drill">Edit drill</button>`:""}`:""}</div>
+          <div class="bc-row">${coachField(b)}${ED?`<button type="button" class="btn sm" data-act="up"${i?"":" disabled"}>Move up</button><button type="button" class="btn sm" data-act="down"${i<cur.blocks.length-1?"":" disabled"}>Move down</button><button type="button" class="btn sm" data-act="below">+ Add drill below</button>${d?`<button type="button" class="btn sm" data-act="drill">Edit drill</button>`:""}${d&&PERM.drills&&b.minutes!==(+d.minutes||10)?`<button type="button" class="btn sm" data-act="defmin">Make ${b.minutes} min the default</button>`:""}`:""}</div>
         </div>`:""}</li>`+(ED?insRow(i+1,i===cur.blocks.length-1):"");
     }).join("");
     if(ED)list.innerHTML=insRow(0,false)+list.innerHTML;
@@ -398,7 +401,7 @@ let holdT=null,holdI=null,held=false;
 const stopHold=()=>{clearTimeout(holdT);clearInterval(holdI);holdT=holdI=null;if(held){changed();setTimeout(()=>{held=false;},50);}};
 $("#script").addEventListener("pointerdown",e=>{
   const btn=e.target.closest('button[data-act="inc"],button[data-act="dec"]');if(!btn)return;
-  const li=btn.closest(".block"),b=cur.blocks[+li.dataset.i],inp=li.querySelector('[data-act="min"]'),up=btn.dataset.act==="inc";held=false;
+  const li=btn.closest(".block"),b=cur.blocks[+li.dataset.i],inp=li.querySelector('[data-act="min"]'),up=btn.dataset.act==="inc";held=false;DEF_ASK=b.id||("i"+li.dataset.i);
   holdT=setTimeout(()=>{held=true;holdI=setInterval(()=>{
     if(up){b.minutes=Math.min(90,b.minutes+1);}
     else b.minutes=Math.max(1,b.minutes-1);
@@ -415,8 +418,11 @@ $("#script").addEventListener("click",e=>{
   if(a==="below"){OPEN_BLOCK=null;setInsert(i+1);return;}
   if(a==="open"){const k=btn.dataset.key;OPEN_BLOCK=OPEN_BLOCK===k?null:k;renderPlan();if(OPEN_BLOCK){const n=$("#script").querySelector(".block.open .note");if(n&&!n.value)n.focus({preventScroll:true});}return;}
   if(a==="drill"){const d=drills.find(x=>x.id===b.drillId);if(d&&typeof editDrill==="function"){editDrill(d.id);}return;}
-  if(a==="inc"){b.minutes=Math.min(90,b.minutes+1);}
-  if(a==="dec")b.minutes=Math.max(1,b.minutes-1);
+  if(a==="defmin"||a==="defno"){const d=drills.find(x=>x.id===b.drillId);DEF_ASK=null;
+    if(a==="defno"){if(d)DEF_NO.add(d.id+":"+b.minutes);renderPlan();return;}
+    if(!d)return;saveDrillMinutes(d,b.minutes);return;}
+  if(a==="inc"){b.minutes=Math.min(90,b.minutes+1);DEF_ASK=b.id||("i"+i);}
+  if(a==="dec"){b.minutes=Math.max(1,b.minutes-1);DEF_ASK=b.id||("i"+i);}
   if(a==="up"&&i>0)[cur.blocks[i-1],cur.blocks[i]]=[cur.blocks[i],cur.blocks[i-1]];
   if(a==="down"&&i<cur.blocks.length-1)[cur.blocks[i+1],cur.blocks[i]]=[cur.blocks[i],cur.blocks[i+1]];
   if(a==="del"){
@@ -500,7 +506,7 @@ $("#ndForm").addEventListener("submit",async e=>{
 $("#script").addEventListener("change",e=>{
   const el=e.target; const li=el.closest(".block"); if(!li)return;
   const b=cur.blocks[+li.dataset.i];
-  if(el.dataset.act==="min"){b.minutes=Math.max(1,Math.min(90,parseInt(el.value)||1));changed();}
+  if(el.dataset.act==="min"){b.minutes=Math.max(1,Math.min(90,parseInt(el.value)||1));DEF_ASK=b.id||("i"+li.dataset.i);changed();}
   if(el.dataset.act==="note"){b.notes=el.value;scheduleSave();}
   if(el.dataset.act==="coach"){if(el.value)b.coach=el.value;else delete b.coach;scheduleSave();}
 });
@@ -778,6 +784,13 @@ $("#drillForm").addEventListener("submit",async e=>{
   sortDrills();renderAllDrills();resetForm();
   if(db&&canWrite){try{await db.collection("drills").doc(id).set(body);}catch(err){handleWriteErr(err);}}
 });
+/* "Save as default" on a practice card: the drill's usual minutes, used the next time it's added to a practice. */
+async function saveDrillMinutes(d,m){
+  d.minutes=m;d.editedBy=ME.name;renderAllDrills();renderPlan();
+  flash(`${d.name} now starts at ${m} min when you add it.`,true);
+  if(db&&canWrite){const {id,...body}=d;try{await db.collection("drills").doc(id).set(body);}catch(err){handleWriteErr(err);}}
+  if(window.track)track("drill:defmin");
+}
 function sortDrills(){drills.sort((a,b)=>a.name.localeCompare(b.name));}
 function renderAllDrills(){renderLib();renderPickCats();renderPick();}
 
