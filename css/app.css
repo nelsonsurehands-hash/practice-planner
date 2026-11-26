@@ -2260,3 +2260,19 @@ body.run-on #bottomNav,body.run-on .bnav{display:none!important}
 .block.bc .bc-def-x{border:0;background:none;color:var(--muted);width:30px;height:30px;border-radius:8px;cursor:pointer}
 @keyframes bcDef{from{opacity:0;transform:translateY(-3px)}}
 @media (prefers-reduced-motion:reduce){.block.bc .bc-def{animation:none}}
+/* Add a new drill (from the practice search): compact so it fits above the phone keyboard */
+.dlg.nd{gap:10px;padding:16px}
+.dlg.nd h2{font-size:19px}
+.nd-row{display:grid;grid-template-columns:minmax(0,1fr) 72px;gap:10px;align-items:end}
+.nd-row .f{min-width:0}
+.nd-row .nd-min input{text-align:center}
+.nd-cats .catboxes{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+.nd-cats .catboxes::-webkit-scrollbar{display:none}
+.nd-cats .catboxes>*{flex:none}.nd-cats .catboxes span,.nd-cats .cat-add{white-space:nowrap}
+.nd-foot{display:flex;align-items:center;gap:8px;position:sticky;bottom:0;margin:2px -16px -16px;padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line)}
+.nd-foot .nd-save{flex:1;min-width:0;font-size:13.5px;display:flex;align-items:center;gap:6px;margin:0;white-space:nowrap}
+.nd-foot .nd-save input{width:18px;height:18px;flex:none;accent-color:var(--accent)}
+.nd-foot .btn{padding:10px 14px;flex:none}.nd-foot .btn.primary{min-width:68px}
+@media (max-width:600px){#newDrillDlg{margin:max(10px,env(safe-area-inset-top,0px)) auto auto;max-height:calc(100dvh - 20px)}}
+@media (max-width:370px){.nd-foot{flex-wrap:wrap}.nd-foot .nd-save{flex-basis:100%}.nd-foot .btn{flex:1}}

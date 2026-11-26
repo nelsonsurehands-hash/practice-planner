@@ -479,8 +479,28 @@ function openNewDrill(){
   const dlg=$("#newDrillDlg");$("#ndForm").reset();$("#ndMsg").textContent="";
   const left=totals().left;$("#ndMin").value=Math.max(1,Math.min(10,left>0?left:10));
   $("#ndCats").innerHTML=CATS.map(c=>catChip(c,false)).join("")+catAddBtn("ndCats");
-  dlg.showModal();setTimeout(()=>$("#ndName").focus(),50);
+  $("#ndNoteWrap").hidden=true;$("#ndNoteBtn").hidden=false;ND_PICKED=false;
+  dlg.showModal();setTimeout(()=>{$("#ndName").focus();guessNdCat();},50);
 }
+/* Pick a likely category from the drill's name (the coach can change it); stops once they pick one themselves. */
+let ND_PICKED=false;
+const ND_GUESS=[[/warm|stretch|dynamic|jog|activation/,"warm"],[/dribbl|ball ?handl|two[- ]ball|crossover|cone/,"ball handling"],
+  [/rebound|box ?out|putback/,"rebound"],[/transition|fast ?break|2[- ]on[- ]1|3[- ]on[- ]2|outlet/,"transition"],
+  [/pass|weave|feed/,"passing"],[/layup|lay-up|finish|mikan|power|euro|floater/,"finishing"],
+  [/shoot|shot|jumper|three|3[- ]point|free ?throw|form|pull[- ]?up|catch and/,"shooting"],
+  [/closeout|close[- ]out|slide|defen|shell|help|charge|deny|press|trap|zone d/,"defense"],
+  [/offense|motion|set play|inbound|baseline out|sideline|press break|horns|flex|5[- ]on[- ]0/,"offense"],
+  [/sprint|condition|suicide|17s|line drill|run/,"conditioning"],[/scrimmage|5[- ]on[- ]5|game|live/,"scrimmage"],[/water|break|rest/,"break"]];
+function guessNdCat(){
+  if(ND_PICKED)return;const n=($("#ndName").value||"").toLowerCase();
+  const hit=ND_GUESS.find(([re])=>re.test(n)),boxes=[...document.querySelectorAll("#ndCats input")];
+  const want=hit&&boxes.find(b=>b.value.toLowerCase().includes(hit[1]))||null;
+  boxes.forEach(b=>{b.checked=b===want;});
+  const row=$("#ndCats");if(want){const l=want.closest("label");row.scrollLeft=Math.max(0,l.offsetLeft-row.offsetLeft-(row.clientWidth-l.offsetWidth)/2);}else row.scrollLeft=0;
+}
+$("#ndName").addEventListener("input",guessNdCat);
+$("#ndCats").addEventListener("change",()=>{ND_PICKED=true;});
+$("#ndNoteBtn").addEventListener("click",()=>{$("#ndNoteBtn").hidden=true;$("#ndNoteWrap").hidden=false;$("#ndNote").focus();});
 $("#planNew").addEventListener("click",openNewDrill);
 $("#ndCancel").addEventListener("click",()=>$("#newDrillDlg").close());
 $("#ndForm").addEventListener("submit",async e=>{
